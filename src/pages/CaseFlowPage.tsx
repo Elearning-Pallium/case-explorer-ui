@@ -32,7 +32,7 @@ export default function CaseFlowPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [lastScore, setLastScore] = useState(0);
   const [lastCluster, setLastCluster] = useState<"A" | "B" | "C">("C");
-  const [revealedChartEntries, setRevealedChartEntries] = useState(1);
+  const [revealedChartEntries, setRevealedChartEntries] = useState(2); // Start with 2 entries revealed
 
   // Modal state
   const [showIPInsights, setShowIPInsights] = useState(false);
@@ -88,8 +88,8 @@ export default function CaseFlowPage() {
       dispatch({ type: "ADD_EXPLORATORY_TOKEN", optionId: optId });
     });
 
-    // Reveal next chart entry
-    setRevealedChartEntries((prev) => Math.min(prev + 1, caseData.chartEntries.length));
+    // Reveal next 2 chart entries per MCQ completion
+    setRevealedChartEntries((prev) => Math.min(prev + 2, caseData.chartEntries.length));
 
     // Move to feedback phase
     setPhase("feedback");
@@ -171,7 +171,7 @@ export default function CaseFlowPage() {
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto space-y-6">
-            {/* IP Insights Button */}
+            {/* Interprofessional Insights Button */}
             {phase !== "intro" && (
               <div className="flex justify-end">
                 <Button
@@ -180,7 +180,7 @@ export default function CaseFlowPage() {
                   className={!ipInsightsComplete ? "bg-accent hover:bg-accent/90" : ""}
                 >
                   <Eye className="mr-2 h-4 w-4" />
-                  IP Insights
+                  Interprofessional Insights
                   {ipInsightsComplete && " ✓"}
                 </Button>
               </div>
@@ -231,18 +231,18 @@ export default function CaseFlowPage() {
               />
             )}
 
-            {/* IP Insights Phase Indicator */}
+            {/* Interprofessional Insights Phase Indicator */}
             {phase === "ip-insights" && !showIPInsights && (
               <div className="text-center py-12">
                 <p className="text-muted-foreground mb-4">
-                  Review IP Insights to complete this case.
+                  Review Interprofessional Insights to complete this case.
                 </p>
                 <Button
                   onClick={() => setShowIPInsights(true)}
                   className="bg-accent hover:bg-accent/90"
                 >
                   <Eye className="mr-2 h-4 w-4" />
-                  Open IP Insights
+                  Open Interprofessional Insights
                 </Button>
               </div>
             )}

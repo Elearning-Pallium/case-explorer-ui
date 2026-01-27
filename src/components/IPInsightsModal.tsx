@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Check, Users, Stethoscope, Heart, UserCog, Eye } from "lucide-react";
+import { Check, Users, Stethoscope, Heart, UserCog, Eye, X } from "lucide-react";
 import type { IPPerspective } from "@/lib/content-schema";
 import { useGame } from "@/contexts/GameContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,15 +35,40 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
   const [viewedPerspectives, setViewedPerspectives] = useState<Set<string>>(new Set());
   const [reflectedPerspectives, setReflectedPerspectives] = useState<Set<string>>(new Set());
   const [canReflect, setCanReflect] = useState<Set<string>>(new Set());
+  const [dwellProgress, setDwellProgress] = useState<Record<string, number>>({});
   const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(0);
 
   const allReflected = reflectedPerspectives.size === perspectives.length;
   const progressPercent = (reflectedPerspectives.size / perspectives.length) * 100;
 
-  // Track dwell time for current tab
+  // Track dwell time for current tab with visual countdown
   useEffect(() => {
+    // Clear any existing timers
+    if (dwellTimerRef.current) {
+      clearTimeout(dwellTimerRef.current);
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
     if (activeTab && !canReflect.has(activeTab)) {
+      startTimeRef.current = Date.now();
+      
+      // Update progress every 100ms for smooth countdown
+      progressIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTimeRef.current;
+        const progress = Math.min((elapsed / DWELL_TIME_MS) * 100, 100);
+        setDwellProgress((prev) => ({ ...prev, [activeTab]: progress }));
+      }, 100);
+
+      // Enable reflection after dwell time
       dwellTimerRef.current = setTimeout(() => {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
+        setDwellProgress((prev) => ({ ...prev, [activeTab]: 100 }));
         setCanReflect((prev) => new Set(prev).add(activeTab));
         setViewedPerspectives((prev) => new Set(prev).add(activeTab));
         dispatch({ type: "VIEW_PERSPECTIVE", perspectiveId: activeTab });
@@ -53,6 +78,9 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
     return () => {
       if (dwellTimerRef.current) {
         clearTimeout(dwellTimerRef.current);
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
       }
     };
   }, [activeTab, canReflect, dispatch]);
@@ -67,21 +95,40 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
     onComplete();
   };
 
+  const getRemainingSeconds = (perspectiveId: string) => {
+    const progress = dwellProgress[perspectiveId] || 0;
+    const remaining = Math.ceil(((100 - progress) / 100) * (DWELL_TIME_MS / 1000));
+    return remaining;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
       <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl border bg-card shadow-soft-lg animate-scale-in">
         {/* Header */}
         <div className="border-b bg-primary p-6 text-primary-foreground">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent">
-              <Eye className="h-6 w-6 text-accent-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent">
+                <Eye className="h-6 w-6 text-accent-foreground" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Interprofessional Insights</h2>
+                <p className="text-sm opacity-90">
+                  Explore perspectives from the interprofessional care team
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold">IP Insights</h2>
-              <p className="text-sm opacity-90">
-                Explore perspectives from the interprofessional care team
-              </p>
-            </div>
+            
+            {/* Close Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="text-primary-foreground hover:bg-primary-foreground/20"
+              aria-label="Close modal"
+            >
+              <X className="h-6 w-6" />
+            </Button>
           </div>
 
           {/* Progress */}
@@ -129,6 +176,8 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
               const isViewed = viewedPerspectives.has(perspective.id);
               const canReflectNow = canReflect.has(perspective.id);
               const hasReflected = reflectedPerspectives.has(perspective.id);
+              const currentProgress = dwellProgress[perspective.id] || 0;
+              const remainingSeconds = getRemainingSeconds(perspective.id);
 
               return (
                 <TabsContent key={perspective.id} value={perspective.id} className="space-y-4">
@@ -176,18 +225,29 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
                     </div>
                   )}
 
-                  {/* Reflect Button */}
-                  <div className="flex items-center justify-between pt-4">
+                  {/* Dwell Time Progress & Reflect Button */}
+                  <div className="space-y-3 pt-4">
+                    {/* Visual Countdown Progress */}
                     {!canReflectNow && !hasReflected && (
-                      <p className="text-sm text-muted-foreground italic">
-                        Read for 5 seconds to enable reflection...
-                      </p>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Reading... {remainingSeconds}s remaining
+                          </span>
+                          <span className="text-muted-foreground font-medium">
+                            {Math.round(currentProgress)}%
+                          </span>
+                        </div>
+                        <Progress value={currentProgress} className="h-2" />
+                      </div>
                     )}
+                    
                     {canReflectNow && !hasReflected && (
-                      <p className="text-sm text-success">
+                      <p className="text-sm text-success font-medium">
                         ✓ Ready to reflect
                       </p>
                     )}
+                    
                     {hasReflected && (
                       <p className="text-sm text-success font-medium">
                         ✓ Reflection complete
@@ -198,6 +258,7 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
                       onClick={() => handleReflect(perspective.id)}
                       disabled={!canReflectNow || hasReflected}
                       className={cn(
+                        "w-full",
                         hasReflected && "bg-success hover:bg-success"
                       )}
                     >
@@ -229,7 +290,7 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
             disabled={!allReflected}
             className="bg-accent hover:bg-accent/90"
           >
-            Complete IP Insights
+            Complete Interprofessional Insights
           </Button>
         </div>
       </div>
