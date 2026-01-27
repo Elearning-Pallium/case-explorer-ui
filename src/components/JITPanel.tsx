@@ -38,12 +38,12 @@ export function JITPanel({
           <div className="flex items-center gap-2 text-accent">
             <BookOpen className="h-5 w-5" />
             <span className="text-xs font-medium uppercase tracking-wider">
-              Just-in-Time Resource
+              Additional Resource
             </span>
           </div>
           <SheetTitle className="text-xl">{resource.title}</SheetTitle>
           <SheetDescription className="sr-only">
-            Educational resource about {resource.title}
+            Additional resource about {resource.title}
           </SheetDescription>
         </SheetHeader>
 

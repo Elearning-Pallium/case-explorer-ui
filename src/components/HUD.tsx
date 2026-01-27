@@ -66,26 +66,32 @@ export function HUD({
 
         {/* Right: JIT, Badges & Theme */}
         <div className="flex items-center gap-3">
-          {/* JIT Resource Button */}
+          {/* Additional Resources Button */}
           <button
             onClick={onJITClick}
             disabled={!activeJIT}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-all",
-              !activeJIT && "opacity-40 cursor-not-allowed",
-              activeJIT && !isJITCompleted && "text-accent animate-pulse hover:bg-primary-foreground/10",
-              activeJIT && isJITCompleted && "text-success hover:bg-primary-foreground/10"
+              "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
+              !activeJIT && "opacity-40 cursor-not-allowed bg-primary-foreground/10 text-primary-foreground/60",
+              activeJIT && !isJITCompleted && "bg-accent text-accent-foreground animate-pulse hover:bg-accent/90",
+              activeJIT && isJITCompleted && "bg-success text-success-foreground hover:bg-success/90"
             )}
-            title={activeJIT ? activeJIT.title : "No Just-in-Time resource available"}
-            aria-label={activeJIT ? `Just-in-Time Resource: ${activeJIT.title}` : "No resource available"}
+            title={activeJIT ? activeJIT.title : "No additional resources available"}
+            aria-label={activeJIT ? `Additional Resources: ${activeJIT.title}` : "No resources available"}
           >
             {isJITCompleted ? (
-              <CheckCircle className="h-5 w-5" />
+              <>
+                <CheckCircle className="h-4 w-4" />
+                <span>Completed</span>
+              </>
             ) : (
-              <BookOpen className="h-5 w-5" />
-            )}
-            {activeJIT && !isJITCompleted && (
-              <span className="text-xs font-medium">+{activeJIT.points}</span>
+              <>
+                <BookOpen className="h-4 w-4" />
+                <span>Additional Resources</span>
+                {activeJIT && (
+                  <span className="ml-1 text-xs opacity-90">+{activeJIT.points}</span>
+                )}
+              </>
             )}
           </button>
 
