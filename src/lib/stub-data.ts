@@ -393,6 +393,24 @@ export const stubCase: Case = {
       imageUrl: "/ip-insights/mrp.png",
     },
   ],
+  jitResources: [
+    {
+      id: "jit-hemorrhage-risk",
+      title: "Understanding Wound Hemorrhage Risk",
+      placement: "mid-case" as const,
+      summary: "Learn about the key indicators of hemorrhage risk in patients with tumor involvement near major vessels. This resource covers assessment techniques and early warning signs that clinicians should monitor during wound care.",
+      content: "Hemorrhage risk assessment involves evaluating several key factors: tumor proximity to major vessels (especially carotid artery in head/neck cancers), visible vascularity in the wound bed, history of bleeding episodes, and changes in wound characteristics. Early warning signs include increased oozing, changes in wound color, or pulsatile bleeding. Preparation includes having dark towels, sedative medications (midazolam), and clear family instructions ready before a crisis occurs.",
+      points: 2,
+    },
+    {
+      id: "jit-family-communication",
+      title: "Family-Centered Communication in Palliative Care",
+      placement: "post-feedback" as const,
+      summary: "Explore strategies for navigating difficult conversations when family members have different levels of readiness for prognostic discussions.",
+      content: "Effective family communication requires reading non-verbal cues, creating space for multiple perspectives, and avoiding putting patients on the spot. Key strategies include: acknowledging anxiety without dismissing it, inviting conversation rather than forcing disclosure, and naming that planning ahead can reduce uncertainty for everyone. Remember that silence may indicate consent, resistance, or uncertainty—and each deserves respect.",
+      points: 2,
+    },
+  ],
   badgeThresholds: {
     standard: 28, // 4 questions × 7 points minimum to pass
     premium: 40,  // 4 questions × 10 points for perfect score

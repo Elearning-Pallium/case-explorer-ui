@@ -1,16 +1,26 @@
-import { Trophy, Star, Zap, Target, Award } from "lucide-react";
+import { Trophy, Star, Zap, Target, BookOpen, CheckCircle } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { JITResource } from "@/lib/content-schema";
 
 interface HUDProps {
   maxPoints?: number;
   showBadgeGallery?: () => void;
+  activeJIT?: JITResource | null;
+  isJITCompleted?: boolean;
+  onJITClick?: () => void;
 }
 
-export function HUD({ maxPoints = 67, showBadgeGallery }: HUDProps) {
+export function HUD({ 
+  maxPoints = 67, 
+  showBadgeGallery,
+  activeJIT,
+  isJITCompleted,
+  onJITClick,
+}: HUDProps) {
   const { state } = useGame();
   
   const pointsPercentage = Math.round((state.totalPoints / maxPoints) * 100);
@@ -54,12 +64,35 @@ export function HUD({ maxPoints = 67, showBadgeGallery }: HUDProps) {
           </div>
         </div>
 
-        {/* Right: Badges & Theme */}
+        {/* Right: JIT, Badges & Theme */}
         <div className="flex items-center gap-3">
+          {/* JIT Resource Button */}
+          <button
+            onClick={onJITClick}
+            disabled={!activeJIT}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-all",
+              !activeJIT && "opacity-40 cursor-not-allowed",
+              activeJIT && !isJITCompleted && "text-accent animate-pulse hover:bg-primary-foreground/10",
+              activeJIT && isJITCompleted && "text-success hover:bg-primary-foreground/10"
+            )}
+            title={activeJIT ? activeJIT.title : "No Just-in-Time resource available"}
+            aria-label={activeJIT ? `Just-in-Time Resource: ${activeJIT.title}` : "No resource available"}
+          >
+            {isJITCompleted ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : (
+              <BookOpen className="h-5 w-5" />
+            )}
+            {activeJIT && !isJITCompleted && (
+              <span className="text-xs font-medium">+{activeJIT.points}</span>
+            )}
+          </button>
+
           {/* Badge Progress */}
           <button
             onClick={showBadgeGallery}
-            className="flex items-center gap-2 rounded-lg px-3 py-1.5 hover:bg-sidebar-accent transition-colors"
+            className="flex items-center gap-2 rounded-lg px-3 py-1.5 hover:bg-primary-foreground/10 transition-colors"
             aria-label="Open badge gallery"
           >
             <div className="flex items-center gap-0.5">

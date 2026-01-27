@@ -119,6 +119,16 @@ export const IPPerspectiveSchema = z.object({
   keyInsights: z.array(z.string()).optional(),
 });
 
+// Just-in-Time Resource schema
+export const JITResourceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  placement: z.enum(["intro", "mid-case", "post-feedback", "pre-lived-experience", "post-case"]),
+  summary: z.string(),
+  content: z.string().optional(),
+  points: z.number().default(2),
+});
+
 // Complete case schema
 export const CaseSchema = z.object({
   schemaVersion: z.literal("1.2"),
@@ -133,6 +143,7 @@ export const CaseSchema = z.object({
   chartEntries: z.array(ChartEntrySchema),
   questions: z.array(MCQQuestionSchema),
   ipInsights: z.array(IPPerspectiveSchema).length(4),
+  jitResources: z.array(JITResourceSchema).optional(),
   badgeThresholds: z.object({
     standard: z.number(),
     premium: z.number(),
@@ -178,6 +189,7 @@ export type ClusterCFeedback = z.infer<typeof ClusterCFeedbackSchema>;
 export type ClusterFeedback = z.infer<typeof ClusterFeedbackSchema>;
 export type MCQQuestion = z.infer<typeof MCQQuestionSchema>;
 export type IPPerspective = z.infer<typeof IPPerspectiveSchema>;
+export type JITResource = z.infer<typeof JITResourceSchema>;
 export type Case = z.infer<typeof CaseSchema>;
 export type SimulacrumOption = z.infer<typeof SimulacrumOptionSchema>;
 export type Simulacrum = z.infer<typeof SimulacrumSchema>;
