@@ -214,6 +214,7 @@ export default function CaseFlowPage() {
                 />
                 <MCQComponent
                   question={currentQuestion}
+                  chartEntries={caseData.chartEntries}
                   onSubmit={handleMCQSubmit}
                 />
               </>

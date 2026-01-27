@@ -1,21 +1,31 @@
 import { useState } from "react";
-import { Check, AlertCircle } from "lucide-react";
-import type { MCQQuestion, MCQOption } from "@/lib/content-schema";
+import { Check, AlertCircle, FileText, ChevronRight } from "lucide-react";
+import type { MCQQuestion, ChartEntry } from "@/lib/content-schema";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+type MCQPhase = "stem" | "chart" | "options";
 
 interface MCQComponentProps {
   question: MCQQuestion;
+  chartEntries: ChartEntry[];
   onSubmit: (selectedOptions: string[], score: number) => void;
   disabled?: boolean;
 }
 
-export function MCQComponent({ question, onSubmit, disabled = false }: MCQComponentProps) {
+export function MCQComponent({ question, chartEntries, onSubmit, disabled = false }: MCQComponentProps) {
+  const [phase, setPhase] = useState<MCQPhase>("stem");
   const [selectedOptions, setSelectedOptions] = useState<Set<string>>(new Set());
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
+  // Filter chart entries for this question
+  const questionChartEntries = chartEntries.filter(entry => 
+    question.chartEntryIds.includes(entry.id)
+  );
+
   const handleOptionClick = (optionId: string) => {
-    if (disabled || hasSubmitted) return;
+    if (disabled || hasSubmitted || phase !== "options") return;
 
     const newSelected = new Set(selectedOptions);
     
@@ -47,11 +57,19 @@ export function MCQComponent({ question, onSubmit, disabled = false }: MCQCompon
     onSubmit(selectedArray, totalScore);
   };
 
+  const handleViewChart = () => {
+    setPhase("chart");
+  };
+
+  const handleProceedToOptions = () => {
+    setPhase("options");
+  };
+
   const canSubmit = selectedOptions.size === 2 && !hasSubmitted && !disabled;
 
   return (
     <div className="space-y-6">
-      {/* Question Stem */}
+      {/* Question Stem - Always Visible */}
       <div className="rounded-lg border-l-4 border-accent bg-highlight p-4">
         <p className="text-sm font-medium text-muted-foreground mb-1">
           Question {question.questionNumber}
@@ -59,92 +77,166 @@ export function MCQComponent({ question, onSubmit, disabled = false }: MCQCompon
         <p className="text-lg font-medium leading-relaxed">{question.stem}</p>
       </div>
 
-      {/* Selection Counter */}
-      <div className="flex items-center gap-2 text-sm">
-        <span className="font-medium">Selected:</span>
-        <span className={cn(
-          "px-2 py-0.5 rounded-full font-semibold",
-          selectedOptions.size === 2 
-            ? "bg-success text-success-foreground" 
-            : "bg-secondary text-secondary-foreground"
-        )}>
-          {selectedOptions.size}/2
-        </span>
-        {selectedOptions.size < 2 && (
-          <span className="text-muted-foreground">
-            (Select exactly 2 options)
-          </span>
-        )}
-      </div>
+      {/* Phase: Stem - Show Medical Chart Button */}
+      {phase === "stem" && (
+        <div className="flex justify-center py-4">
+          <Button
+            onClick={handleViewChart}
+            size="lg"
+            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground gap-2"
+          >
+            <FileText className="h-5 w-5" />
+            Medical Chart
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
-      {/* Options */}
-      <div className="space-y-3">
-        {question.options.map((option) => {
-          const isSelected = selectedOptions.has(option.id);
-          
-          return (
-            <button
-              key={option.id}
-              onClick={() => handleOptionClick(option.id)}
-              disabled={disabled || hasSubmitted}
-              className={cn(
-                "w-full text-left rounded-lg border-2 p-4 transition-all",
-                "hover:border-accent hover:shadow-soft focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
-                isSelected 
-                  ? "border-accent bg-highlight shadow-soft" 
-                  : "border-border bg-card",
-                (disabled || hasSubmitted) && "opacity-60 cursor-not-allowed hover:border-border hover:shadow-none"
-              )}
-            >
-              <div className="flex items-start gap-3">
-                {/* Option Label */}
-                <div className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-semibold transition-colors",
-                  isSelected 
-                    ? "bg-accent text-accent-foreground" 
-                    : "bg-secondary text-secondary-foreground"
-                )}>
-                  {isSelected ? (
-                    <Check className="h-5 w-5" />
-                  ) : (
-                    option.label
+      {/* Phase: Chart - Show Chart Entries */}
+      {phase === "chart" && (
+        <div className="space-y-4 animate-fade-in">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Medical Chart Entries
+          </h3>
+          <div className="space-y-3">
+            {questionChartEntries.map((entry) => (
+              <Card key={entry.id} className="border-l-4 border-l-accent/50">
+                <CardHeader className="py-3 pb-1">
+                  <CardTitle className="text-base font-semibold">{entry.title}</CardTitle>
+                  {(entry.timing || entry.source) && (
+                    <p className="text-xs text-muted-foreground">
+                      {entry.timing && <span>{entry.timing}</span>}
+                      {entry.timing && entry.source && <span> — </span>}
+                      {entry.source && <span>{entry.source}</span>}
+                    </p>
                   )}
-                </div>
+                </CardHeader>
+                <CardContent className="py-2">
+                  <p className="text-sm leading-relaxed">{entry.content}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="flex justify-center pt-2">
+            <Button
+              onClick={handleProceedToOptions}
+              size="lg"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground gap-2"
+            >
+              View Answer Options
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
-                {/* Option Text */}
-                <div className="flex-1 pt-1">
-                  <p className="font-medium leading-relaxed">{option.text}</p>
+      {/* Phase: Options - Show Answer Choices */}
+      {phase === "options" && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Chart Summary (collapsed) */}
+          <details className="group">
+            <summary className="cursor-pointer text-sm font-medium text-muted-foreground flex items-center gap-2 hover:text-foreground transition-colors">
+              <FileText className="h-4 w-4" />
+              Medical Chart ({questionChartEntries.length} entries)
+            </summary>
+            <div className="mt-3 space-y-2 pl-6">
+              {questionChartEntries.map((entry) => (
+                <div key={entry.id} className="text-sm">
+                  <span className="font-medium">{entry.title}:</span>{" "}
+                  <span className="text-muted-foreground">{entry.content}</span>
                 </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+              ))}
+            </div>
+          </details>
 
-      {/* Submit Button */}
-      <div className="flex justify-end">
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          size="lg"
-          className="bg-accent hover:bg-accent/90 text-accent-foreground"
-        >
-          {hasSubmitted ? (
-            <>
-              <Check className="mr-2 h-5 w-5" />
-              Submitted
-            </>
-          ) : (
-            "Submit Answer"
+          {/* Selection Counter */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium">Selected:</span>
+            <span className={cn(
+              "px-2 py-0.5 rounded-full font-semibold",
+              selectedOptions.size === 2 
+                ? "bg-success text-success-foreground" 
+                : "bg-secondary text-secondary-foreground"
+            )}>
+              {selectedOptions.size}/2
+            </span>
+            {selectedOptions.size < 2 && (
+              <span className="text-muted-foreground">
+                (Select exactly 2 options)
+              </span>
+            )}
+          </div>
+
+          {/* Options */}
+          <div className="space-y-3">
+            {question.options.map((option) => {
+              const isSelected = selectedOptions.has(option.id);
+              
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => handleOptionClick(option.id)}
+                  disabled={disabled || hasSubmitted}
+                  className={cn(
+                    "w-full text-left rounded-lg border-2 p-4 transition-all",
+                    "hover:border-accent hover:shadow-soft focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
+                    isSelected 
+                      ? "border-accent bg-highlight shadow-soft" 
+                      : "border-border bg-card",
+                    (disabled || hasSubmitted) && "opacity-60 cursor-not-allowed hover:border-border hover:shadow-none"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Option Label */}
+                    <div className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-semibold transition-colors",
+                      isSelected 
+                        ? "bg-accent text-accent-foreground" 
+                        : "bg-secondary text-secondary-foreground"
+                    )}>
+                      {isSelected ? (
+                        <Check className="h-5 w-5" />
+                      ) : (
+                        option.label
+                      )}
+                    </div>
+
+                    {/* Option Text */}
+                    <div className="flex-1 pt-1">
+                      <p className="font-medium leading-relaxed">{option.text}</p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              size="lg"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              {hasSubmitted ? (
+                <>
+                  <Check className="mr-2 h-5 w-5" />
+                  Submitted
+                </>
+              ) : (
+                "Submit Answer"
+              )}
+            </Button>
+          </div>
+
+          {/* Hint if stuck */}
+          {selectedOptions.size === 0 && !hasSubmitted && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <AlertCircle className="h-4 w-4" />
+              <span>Click on two options that you believe are the best clinical priorities.</span>
+            </div>
           )}
-        </Button>
-      </div>
-
-      {/* Hint if stuck */}
-      {selectedOptions.size === 0 && !hasSubmitted && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <AlertCircle className="h-4 w-4" />
-          <span>Click on two options that you believe are the best clinical priorities.</span>
         </div>
       )}
     </div>

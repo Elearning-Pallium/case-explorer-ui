@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Check, Lightbulb, Target, Brain, Search, BookOpen } from "lucide-react";
-import type { ClusterFeedback } from "@/lib/content-schema";
+import { Check, Lightbulb, Target, Brain, Search, Shield, AlertTriangle } from "lucide-react";
+import type { ClusterAFeedback, ClusterBFeedback, ClusterCFeedback } from "@/lib/content-schema";
 import { useGame } from "@/contexts/GameContext";
 import {
   Accordion,
@@ -12,8 +12,33 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
+// Section definitions per cluster type
+const clusterASections = [
+  { id: "rationale", label: "Rationale", icon: Lightbulb, key: "rationale" as const },
+  { id: "outcomes", label: "Known Outcomes", icon: Target, key: "knownOutcomes" as const },
+  { id: "pattern", label: "Thinking Pattern Insight", icon: Brain, key: "thinkingPatternInsight" as const },
+  { id: "trace", label: "Reasoning Trace", icon: Search, key: "reasoningTrace" as const },
+];
+
+const clusterBSections = [
+  { id: "rationale", label: "Rationale", icon: Lightbulb, key: "rationale" as const },
+  { id: "consequences", label: "Likely Consequences", icon: AlertTriangle, key: "likelyConsequences" as const },
+  { id: "pattern", label: "Thinking Pattern Insight", icon: Brain, key: "thinkingPatternInsight" as const },
+  { id: "trace", label: "Reasoning Trace", icon: Search, key: "reasoningTrace" as const },
+];
+
+const clusterCSections = [
+  { id: "boundary", label: "Boundary Explanation", icon: AlertTriangle, key: "boundaryExplanation" as const },
+  { id: "detrimental", label: "Likely Detrimental Outcomes", icon: Target, key: "likelyDetrimentalOutcomes" as const },
+  { id: "pattern", label: "Thinking Pattern Insight", icon: Brain, key: "thinkingPatternInsight" as const },
+  { id: "trace", label: "Reasoning Trace", icon: Search, key: "reasoningTrace" as const },
+  { id: "safety", label: "Safety Reframe", icon: Shield, key: "safetyReframe" as const },
+];
+
+type ClusterFeedbackUnion = ClusterAFeedback | ClusterBFeedback | ClusterCFeedback;
+
 interface ClusterFeedbackPanelProps {
-  feedback: ClusterFeedback;
+  feedback: ClusterFeedbackUnion;
   cluster: "A" | "B" | "C";
   questionId: string;
   onAllSectionsViewed: () => void;
@@ -23,14 +48,6 @@ interface ClusterFeedbackPanelProps {
 
 const DWELL_TIME_MS = 5000; // 5 seconds to mark as read
 
-const sections = [
-  { id: "rationale", label: "Rationale", icon: Lightbulb, key: "rationale" as const },
-  { id: "outcomes", label: "Known Outcomes", icon: Target, key: "knownOutcomes" as const },
-  { id: "pattern", label: "Thinking Pattern", icon: Brain, key: "thinkingPattern" as const },
-  { id: "trace", label: "Reasoning Trace", icon: Search, key: "reasoningTrace" as const },
-  { id: "evidence", label: "Evidence Anchors", icon: BookOpen, key: "evidenceAnchors" as const },
-];
-
 export function ClusterFeedbackPanel({
   feedback,
   cluster,
@@ -39,10 +56,17 @@ export function ClusterFeedbackPanel({
   onRetry,
   onContinue,
 }: ClusterFeedbackPanelProps) {
-  const { state, dispatch } = useGame();
+  const { dispatch } = useGame();
   const [openSection, setOpenSection] = useState<string | undefined>();
   const [viewedSections, setViewedSections] = useState<Set<string>>(new Set());
   const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get sections based on cluster type
+  const sections = cluster === "A" 
+    ? clusterASections 
+    : cluster === "B" 
+      ? clusterBSections 
+      : clusterCSections;
 
   const allSectionsViewed = viewedSections.size === sections.length;
   const progressPercent = (viewedSections.size / sections.length) * 100;
@@ -92,6 +116,12 @@ export function ClusterFeedbackPanel({
 
   const clusterMessage = getClusterMessage();
 
+  // Get content for a section based on cluster type
+  const getSectionContent = (sectionKey: string): string => {
+    const feedbackAny = feedback as Record<string, unknown>;
+    return (feedbackAny[sectionKey] as string) || "";
+  };
+
   return (
     <div className="rounded-xl border bg-card p-6 shadow-soft-lg animate-scale-in">
       {/* Cluster Badge */}
@@ -120,28 +150,7 @@ export function ClusterFeedbackPanel({
         {sections.map((section) => {
           const isViewed = viewedSections.has(section.id);
           const Icon = section.icon;
-          
-          // Get content for this section
-          let content: React.ReactNode;
-          if (section.key === "evidenceAnchors") {
-            content = (
-              <ul className="space-y-2">
-                {feedback.evidenceAnchors.map((anchor, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="text-accent">•</span>
-                    <div>
-                      <span className="font-medium">{anchor.title}</span>
-                      {anchor.citation && (
-                        <span className="text-muted-foreground ml-2">({anchor.citation})</span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            );
-          } else {
-            content = <p className="leading-relaxed">{feedback[section.key]}</p>;
-          }
+          const content = getSectionContent(section.key);
 
           return (
             <AccordionItem
@@ -164,7 +173,7 @@ export function ClusterFeedbackPanel({
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-4 pl-11">
-                {content}
+                <p className="leading-relaxed">{content}</p>
                 {!isViewed && (
                   <p className="mt-3 text-xs text-muted-foreground italic">
                     Keep this section open for 5 seconds to mark as read...
@@ -180,9 +189,9 @@ export function ClusterFeedbackPanel({
       <div className="mt-4 flex items-center gap-2 text-sm">
         <span className="text-muted-foreground">Exploratory tokens:</span>
         <div className="flex gap-1">
-          {sections.map((s, i) => (
+          {sections.map((s) => (
             <span
-              key={i}
+              key={s.id}
               className={cn(
                 "h-2 w-2 rounded-full transition-colors",
                 viewedSections.has(s.id) ? "bg-accent" : "bg-secondary"

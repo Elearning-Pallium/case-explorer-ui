@@ -73,11 +73,17 @@ export function ChartSidebar({ entries, revealedCount = entries.length }: ChartS
                 </div>
               ) : (
                 <>
-                  {/* Timestamp */}
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{entry.timestamp}</span>
-                  </div>
+                  {/* Timing & Source */}
+                  {(entry.timing || entry.source) && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <Clock className="h-3 w-3" />
+                      <span>
+                        {entry.timing}
+                        {entry.timing && entry.source && " — "}
+                        {entry.source}
+                      </span>
+                    </div>
+                  )}
                   
                   {/* Title */}
                   <div className="flex items-center gap-2 mb-2">
