@@ -1319,7 +1319,58 @@ export default new CaseEngine();
 
 ---
 
-### 4.2 Progression Engine
+### 4.2 Simulacra Engine
+
+**File**: `src/engines/SimulacraEngine.js`
+
+**Responsibilities**:
+- Load simulacra JSON (case summary, evidence, 4 MCQs)
+- Manage single-selection MCQs (A/B/C/D)
+- Provide immediate feedback per MCQ
+- Track results (4 MCQs → calculate pass: ≥3/4)
+- Award points: 10 if pass, 15 if perfect, 0 if fail
+- Allow retry (reset all 4 MCQs) or topic switch
+
+**Key Functions**:
+```javascript
+class SimulacraEngine {
+  async loadSimulacrum(simId) {
+    const data = await fetch(`/content/${simId}.json`);
+    const simulacrum = await data.json();
+    validateSimulacrumSchema(simulacrum); // Zod validation
+    return simulacrum;
+  }
+
+  submitSimMCQ(mcqId, selection) {
+    const mcq = this.currentSimulacrum.mcqs.find(m => m.mcqId === mcqId);
+    const isCorrect = mcq.correctOption === selection;
+    simStore.getState().recordAttempt(mcqId, { selection, isCorrect });
+    return { isCorrect, feedback: mcq.feedback };
+  }
+
+  calculateSimResult() {
+    const attempts = simStore.getState().attempts;
+    const correct = Object.values(attempts).filter(a => a.isCorrect).length;
+    const total = Object.keys(attempts).length;
+
+    let points = 0;
+    if (correct === 4) points = 15;
+    else if (correct >= 3) points = 10;
+
+    return { correct, total, points, passed: correct >= 3 };
+  }
+
+  resetSimulacrum() {
+    simStore.getState().resetAttempts();
+  }
+}
+
+export default new SimulacraEngine();
+```
+
+---
+
+### 4.3 Progression Engine
 
 **File**: `src/engines/ProgressionEngine.js`
 
@@ -1365,7 +1416,8 @@ class ProgressionEngine {
     const scormState = await StateManager.getSCORMSuspendData();
     const totalPoints = this.recomputePointsFromAttempts(scormState);
     
-    const mvpMaxPoints = 67;
+    const mvpMaxPoints = 67; // Base MVP (case + IP Insights + simulacrum)
+    // If JIT/podcast points are enabled, include them in totalPoints and adjust max points accordingly.
     const scorePercent = Math.round((totalPoints / mvpMaxPoints) * 100);
     
     // Use SCORM 2004-compatible method
@@ -1396,6 +1448,14 @@ class ProgressionEngine {
     // IP Insights: 2 points each
     const ipCompleted = Object.keys(state?.ipInsightsCompleted || {}).length;
     points += ipCompleted * 2;
+
+    // JIT Resources: 2 points each (read/viewed)
+    const jitReadCount = Object.keys(state?.jitResourcesRead || {}).length;
+    points += jitReadCount * 2;
+
+    // Podcasts: 1 point each (completed)
+    const podcastCompletedCount = Object.keys(state?.podcastsCompleted || {}).length;
+    points += podcastCompletedCount * 1;
     
     // Simulacra: verify from actual performance
     Object.values(state?.simulacra || {}).forEach(sim => {
@@ -1415,7 +1475,7 @@ export default new ProgressionEngine();
 
 ---
 
-### 4.3 State Manager
+### 4.4 State Manager
 
 **File**: `src/engines/StateManager.js`
 
@@ -1673,6 +1733,8 @@ const useGameStore = create(
       badges: [], // ['case01-standard', 'sim01-perfect']
       unlockedLevels: [1],
       ipInsightsCompleted: {}, // {case01: true}
+      jitResourcesRead: {}, // {case01: ['jit-01', 'jit-02']}
+      podcastsCompleted: {}, // {case01: ['podcast-01', 'podcast-02']}
       simulacra: {}, // {sim01: {correct: 4, total: 4, attempts: 1}}
 
       // Actions
@@ -1727,6 +1789,32 @@ const useGameStore = create(
         },
         totalPoints: state.totalPoints + 2 // 2 pts for IP Insights
       })),
+
+      markJITRead: (caseId, jitId) => set((state) => {
+        const existing = state.jitResourcesRead[caseId] || [];
+        if (existing.includes(jitId)) return state;
+
+        return {
+          jitResourcesRead: {
+            ...state.jitResourcesRead,
+            [caseId]: [...existing, jitId]
+          },
+          totalPoints: state.totalPoints + 2 // 2 pts per JIT read
+        };
+      }),
+
+      markPodcastCompleted: (caseId, podcastId) => set((state) => {
+        const existing = state.podcastsCompleted[caseId] || [];
+        if (existing.includes(podcastId)) return state;
+
+        return {
+          podcastsCompleted: {
+            ...state.podcastsCompleted,
+            [caseId]: [...existing, podcastId]
+          },
+          totalPoints: state.totalPoints + 1 // 1 pt per podcast completed
+        };
+      }),
 
       recordSimResult: (simId, correct, total) => set((state) => {
         const points = correct === total ? 15 : (correct >= 3 ? 10 : 0);
