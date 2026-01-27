@@ -1319,7 +1319,58 @@ export default new CaseEngine();
 
 ---
 
-### 4.2 Progression Engine
+### 4.2 Simulacra Engine
+
+**File**: `src/engines/SimulacraEngine.js`
+
+**Responsibilities**:
+- Load simulacra JSON (case summary, evidence, 4 MCQs)
+- Manage single-selection MCQs (A/B/C/D)
+- Provide immediate feedback per MCQ
+- Track results (4 MCQs → calculate pass: ≥3/4)
+- Award points: 10 if pass, 15 if perfect, 0 if fail
+- Allow retry (reset all 4 MCQs) or topic switch
+
+**Key Functions**:
+```javascript
+class SimulacraEngine {
+  async loadSimulacrum(simId) {
+    const data = await fetch(`/content/${simId}.json`);
+    const simulacrum = await data.json();
+    validateSimulacrumSchema(simulacrum); // Zod validation
+    return simulacrum;
+  }
+
+  submitSimMCQ(mcqId, selection) {
+    const mcq = this.currentSimulacrum.mcqs.find(m => m.mcqId === mcqId);
+    const isCorrect = mcq.correctOption === selection;
+    simStore.getState().recordAttempt(mcqId, { selection, isCorrect });
+    return { isCorrect, feedback: mcq.feedback };
+  }
+
+  calculateSimResult() {
+    const attempts = simStore.getState().attempts;
+    const correct = Object.values(attempts).filter(a => a.isCorrect).length;
+    const total = Object.keys(attempts).length;
+
+    let points = 0;
+    if (correct === 4) points = 15;
+    else if (correct >= 3) points = 10;
+
+    return { correct, total, points, passed: correct >= 3 };
+  }
+
+  resetSimulacrum() {
+    simStore.getState().resetAttempts();
+  }
+}
+
+export default new SimulacraEngine();
+```
+
+---
+
+### 4.3 Progression Engine
 
 **File**: `src/engines/ProgressionEngine.js`
 
@@ -1415,7 +1466,7 @@ export default new ProgressionEngine();
 
 ---
 
-### 4.3 State Manager
+### 4.4 State Manager
 
 **File**: `src/engines/StateManager.js`
 
