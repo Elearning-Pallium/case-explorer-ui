@@ -69,8 +69,8 @@ export default function CaseFlowPage() {
   const jitTotalPoints = caseData.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
   const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2; // +2 for IP Insights + JIT points + 2 for reflections
 
-  // Get submitted reflections for current case
-  const submittedReflections = state.learnerReflections[caseId || ""] || {};
+  // Get submitted reflections for current case (safe access for existing localStorage data)
+  const submittedReflections = state.learnerReflections?.[caseId || ""] || {};
 
   // Handle reflection submission
   const handleSubmitReflection = (questionId: string, text: string) => {
