@@ -99,7 +99,7 @@ export default function LandingPage() {
               <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <Badge className="bg-accent text-accent-foreground">Level 1</Badge>
+                  <Badge className="bg-accent text-accent-foreground">Case 1 • Level 1</Badge>
                   <Badge variant="outline" className="border-success text-success">
                     Available
                   </Badge>
@@ -161,14 +161,14 @@ export default function LandingPage() {
               <div className="absolute top-0 left-0 right-0 h-1 bg-muted" />
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <Badge variant="secondary">Level 2</Badge>
+                  <Badge variant="secondary">Case 2 • Level 1</Badge>
                   <Badge variant="outline" className="text-muted-foreground">
                     Locked
                   </Badge>
                 </div>
                 <CardTitle className="mt-3 text-muted-foreground">Coming Soon</CardTitle>
                 <CardDescription>
-                  Complete Level 1 to unlock
+                  Complete Case 1 to unlock
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -203,7 +203,7 @@ export default function LandingPage() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground font-bold">
                     2
                   </div>
-                  <p className="mt-2 text-sm font-medium text-center">IP Insights</p>
+                  <p className="mt-2 text-sm font-medium text-center">Interprofessional Insights</p>
                 </div>
                 
                 <div className="h-0.5 w-8 bg-border flex-shrink-0" />

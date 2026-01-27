@@ -20,13 +20,13 @@ export function HUD({ maxPoints = 67, showBadgeGallery }: HUDProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-soft">
       <div className="container flex h-14 items-center justify-between gap-4 px-4">
-        {/* Left: Level & Case */}
+        {/* Left: Case & Level */}
         <div className="flex items-center gap-3">
           <Badge variant="secondary" className="bg-accent text-accent-foreground font-semibold">
-            Level {state.currentLevel}
+            Case {state.currentCase.replace("case-", "")} of 5
           </Badge>
           <span className="text-sm font-medium opacity-90">
-            Case {state.currentCase.replace("case-", "")}
+            Level {state.currentLevel}
           </span>
         </div>
 
