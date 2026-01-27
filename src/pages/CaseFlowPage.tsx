@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Eye } from "lucide-react";
 import { HUD } from "@/components/HUD";
 import { PatientHeader } from "@/components/PatientHeader";
 import { ChartSidebar } from "@/components/ChartSidebar";
 import { PersonInContextSection } from "@/components/PersonInContextSection";
 import { MCQComponent } from "@/components/MCQComponent";
 import { ClusterFeedbackPanel } from "@/components/ClusterFeedbackPanel";
-import { IPInsightsModal } from "@/components/IPInsightsModal";
+import { IPInsightsPanel } from "@/components/IPInsightsPanel";
 import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
@@ -15,7 +14,7 @@ import { loadCase } from "@/lib/content-loader";
 import type { Case } from "@/lib/content-schema";
 import { stubCase } from "@/lib/stub-data";
 
-type CaseFlowPhase = "intro" | "mcq" | "feedback" | "ip-insights" | "complete";
+type CaseFlowPhase = "intro" | "mcq" | "feedback" | "complete";
 
 export default function CaseFlowPage() {
   const { caseId } = useParams<{ caseId: string }>();
@@ -35,9 +34,7 @@ export default function CaseFlowPage() {
   const [revealedChartEntries, setRevealedChartEntries] = useState(2); // Start with 2 entries revealed
 
   // Modal state
-  const [showIPInsights, setShowIPInsights] = useState(false);
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
-  const [ipInsightsComplete, setIPInsightsComplete] = useState(false);
 
   // Load case content
   useEffect(() => {
@@ -107,22 +104,14 @@ export default function CaseFlowPage() {
       setCurrentQuestionIndex((prev) => prev + 1);
       setPhase("mcq");
     } else {
-      // All questions done - show IP Insights
-      setPhase("ip-insights");
-      setShowIPInsights(true);
+      // All questions done - navigate to completion
+      navigate(`/completion/${caseId}`);
     }
   };
 
   // Handle retry
   const handleRetry = () => {
     setPhase("mcq");
-  };
-
-  // Handle IP Insights completion
-  const handleIPInsightsComplete = () => {
-    setIPInsightsComplete(true);
-    setShowIPInsights(false);
-    navigate(`/completion/${caseId}`);
   };
 
   // Start case from intro
@@ -160,32 +149,17 @@ export default function CaseFlowPage() {
         </div>
       )}
 
-      {/* Main Layout */}
+      {/* Main Layout - Three Column */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Chart Sidebar */}
+        {/* Chart Sidebar (Left) */}
         <ChartSidebar 
           entries={caseData.chartEntries} 
           revealedCount={revealedChartEntries}
         />
 
-        {/* Main Content Area */}
+        {/* Main Content Area (Center) */}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto space-y-6">
-            {/* Interprofessional Insights Button */}
-            {phase !== "intro" && (
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => setShowIPInsights(true)}
-                  variant={ipInsightsComplete ? "outline" : "default"}
-                  className={!ipInsightsComplete ? "bg-accent hover:bg-accent/90" : ""}
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Interprofessional Insights
-                  {ipInsightsComplete && " ✓"}
-                </Button>
-              </div>
-            )}
-
             {/* Intro Phase */}
             {phase === "intro" && (
               <>
@@ -193,6 +167,7 @@ export default function CaseFlowPage() {
                   personInContext={caseData.personInContext}
                   openingScene={caseData.openingScene}
                   patientPerspective={caseData.patientPerspective}
+                  patientBaseline={caseData.patientBaseline}
                   patientName={caseData.patientBaseline.name}
                 />
                 <div className="flex justify-center pt-4">
@@ -214,6 +189,7 @@ export default function CaseFlowPage() {
                   personInContext={caseData.personInContext}
                   openingScene={caseData.openingScene}
                   patientPerspective={caseData.patientPerspective}
+                  patientBaseline={caseData.patientBaseline}
                   patientName={caseData.patientBaseline.name}
                 />
                 <MCQComponent
@@ -235,34 +211,12 @@ export default function CaseFlowPage() {
                 onContinue={handleContinue}
               />
             )}
-
-            {/* Interprofessional Insights Phase Indicator */}
-            {phase === "ip-insights" && !showIPInsights && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">
-                  Review Interprofessional Insights to complete this case.
-                </p>
-                <Button
-                  onClick={() => setShowIPInsights(true)}
-                  className="bg-accent hover:bg-accent/90"
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Open Interprofessional Insights
-                </Button>
-              </div>
-            )}
           </div>
         </main>
-      </div>
 
-      {/* IP Insights Modal */}
-      {showIPInsights && (
-        <IPInsightsModal
-          perspectives={caseData.ipInsights}
-          onComplete={handleIPInsightsComplete}
-          onClose={() => setShowIPInsights(false)}
-        />
-      )}
+        {/* IP Insights Panel (Right) */}
+        <IPInsightsPanel perspectives={caseData.ipInsights} />
+      </div>
 
       {/* Badge Gallery Modal */}
       {showBadgeGallery && (

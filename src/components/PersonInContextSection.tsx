@@ -1,11 +1,13 @@
-import type { PersonInContext, OpeningScene, PatientPerspective } from "@/lib/content-schema";
+import type { PersonInContext, OpeningScene, PatientPerspective, PatientBaseline } from "@/lib/content-schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, BookOpen, MessageCircle } from "lucide-react";
+import { User, BookOpen, MessageCircle, ClipboardList } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface PersonInContextSectionProps {
   personInContext: PersonInContext;
   openingScene: OpeningScene;
   patientPerspective?: PatientPerspective;
+  patientBaseline: PatientBaseline;
   patientName: string;
 }
 
@@ -13,18 +15,19 @@ export function PersonInContextSection({
   personInContext, 
   openingScene, 
   patientPerspective,
+  patientBaseline,
   patientName 
 }: PersonInContextSectionProps) {
   return (
     <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
-      <Tabs defaultValue="scene" className="w-full">
-        <TabsList className="w-full justify-start rounded-none border-b bg-muted/50 p-0 h-auto">
+      <Tabs defaultValue="baseline" className="w-full">
+        <TabsList className="w-full justify-start rounded-none border-b bg-muted/50 p-0 h-auto flex-wrap">
           <TabsTrigger 
-            value="scene" 
+            value="baseline" 
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
           >
-            <BookOpen className="h-4 w-4 mr-2" />
-            Scene
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Patient Baseline
           </TabsTrigger>
           <TabsTrigger 
             value="about" 
@@ -38,44 +41,83 @@ export function PersonInContextSection({
               value="perspective" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
             >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            {patientName} Speaks
+              <MessageCircle className="h-4 w-4 mr-2" />
+              {patientName} Speaks
             </TabsTrigger>
           )}
+          <TabsTrigger 
+            value="scene" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
+          >
+            <BookOpen className="h-4 w-4 mr-2" />
+            Scene
+          </TabsTrigger>
         </TabsList>
 
-        {/* Scene Tab */}
-        <TabsContent value="scene" className="mt-0 p-6">
-          <div className="border-l-4 border-accent bg-highlight/50 p-6 rounded-r-lg">
-            <p className="text-foreground leading-relaxed whitespace-pre-line">
-              {openingScene.narrative}
-            </p>
-
-            {/* Media if present */}
-            {openingScene.mediaType !== "none" && openingScene.mediaUrl && (
-              <div className="mt-6 rounded-lg overflow-hidden">
-                {openingScene.mediaType === "image" ? (
-                  <div>
-                    <img
-                      src={openingScene.mediaUrl}
-                      alt={openingScene.mediaAlt || "Scene illustration"}
-                      className="w-full h-auto max-h-64 object-cover"
-                    />
-                    {openingScene.mediaCaption && (
-                      <p className="mt-2 text-sm text-muted-foreground italic">
-                        {openingScene.mediaCaption}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <video
-                    src={openingScene.mediaUrl}
-                    controls
-                    className="w-full"
-                  />
-                )}
+        {/* Patient Baseline Tab */}
+        <TabsContent value="baseline" className="mt-0 p-6">
+          <div className="space-y-6">
+            {/* Patient & Living Situation */}
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="font-semibold text-foreground">Patient:</span>
+                <span className="text-foreground">{patientBaseline.name}</span>
               </div>
-            )}
+              <div className="flex items-start gap-2">
+                <span className="font-semibold text-foreground">Living situation:</span>
+                <span className="text-foreground">{patientBaseline.livingSituation}</span>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Diagnosis / Illness Context */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground">Diagnosis / Illness Context</h4>
+              <div className="pl-4 space-y-1 text-foreground/90">
+                <div className="flex items-start gap-2">
+                  <span className="text-muted-foreground">Primary diagnosis:</span>
+                  <span>{patientBaseline.diagnosis}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-muted-foreground">Broad disease state:</span>
+                  <span>Recurrent</span>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Care Context */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground">Care Context</h4>
+              <div className="pl-4 space-y-1 text-foreground/90">
+                <div className="flex items-start gap-2">
+                  <span className="text-muted-foreground">Current involved services:</span>
+                  <span>{patientBaseline.additionalInfo?.["Care Context"] ? "Oncology; home care" : "Not documented"}</span>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Treatment History */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground">Treatment History (High-Level)</h4>
+              <div className="pl-4 text-foreground/90">
+                <span>Receiving disease-focused care through oncology</span>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Medications */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-foreground">Medications</h4>
+              <div className="pl-4 text-foreground/90">
+                <span>Medications: None listed in chart.</span>
+              </div>
+            </div>
           </div>
         </TabsContent>
 
@@ -150,6 +192,41 @@ export function PersonInContextSection({
             </div>
           </TabsContent>
         )}
+
+        {/* Scene Tab */}
+        <TabsContent value="scene" className="mt-0 p-6">
+          <div className="border-l-4 border-accent bg-highlight/50 p-6 rounded-r-lg">
+            <p className="text-foreground leading-relaxed whitespace-pre-line">
+              {openingScene.narrative}
+            </p>
+
+            {/* Media if present */}
+            {openingScene.mediaType !== "none" && openingScene.mediaUrl && (
+              <div className="mt-6 rounded-lg overflow-hidden">
+                {openingScene.mediaType === "image" ? (
+                  <div>
+                    <img
+                      src={openingScene.mediaUrl}
+                      alt={openingScene.mediaAlt || "Scene illustration"}
+                      className="w-full h-auto max-h-64 object-cover"
+                    />
+                    {openingScene.mediaCaption && (
+                      <p className="mt-2 text-sm text-muted-foreground italic">
+                        {openingScene.mediaCaption}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <video
+                    src={openingScene.mediaUrl}
+                    controls
+                    className="w-full"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );

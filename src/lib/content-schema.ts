@@ -114,6 +114,7 @@ export const IPPerspectiveSchema = z.object({
   role: z.enum(["nurse", "care_aide", "wound_specialist", "mrp"]),
   title: z.string(),
   perspective: z.string(),
+  imageUrl: z.string().optional(),
   videoNoteUrl: z.string().optional(),
   keyInsights: z.array(z.string()).optional(),
 });
