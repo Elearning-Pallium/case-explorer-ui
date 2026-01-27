@@ -309,6 +309,80 @@ export const stubCase: Case = {
       },
       correctCombination: ["q3-a", "q3-c"],
     },
+    {
+      id: "q4",
+      questionNumber: 4,
+      stem: "Which two interventions are most appropriate if Adam experiences a sudden significant hemorrhage at home?",
+      options: [
+        {
+          id: "q4-a",
+          label: "A",
+          text: "Apply direct pressure and administer prepared anxiolytic/sedative medication",
+          score: 5,
+          feedbackIfSelected: "Correct initial response combining physical intervention with comfort measures.",
+        },
+        {
+          id: "q4-b",
+          label: "B",
+          text: "Call 911 and prepare for emergency transport to hospital",
+          score: 1,
+          feedbackIfSelected: "May conflict with documented patient preferences for home care.",
+        },
+        {
+          id: "q4-c",
+          label: "C",
+          text: "Position Adam for comfort and stay with him and family providing calm presence",
+          score: 5,
+          feedbackIfSelected: "Essential comfort care aligned with patient's wish to remain at home.",
+        },
+        {
+          id: "q4-d",
+          label: "D",
+          text: "Attempt to locate and clamp the bleeding vessel",
+          score: 1,
+          feedbackIfSelected: "Not appropriate or feasible in home setting without surgical facilities.",
+        },
+        {
+          id: "q4-e",
+          label: "E",
+          text: "Document vital signs every 5 minutes during the event",
+          score: 2,
+          feedbackIfSelected: "Documentation is secondary to comfort care during an acute event.",
+        },
+      ],
+      clusterFeedback: {
+        A: {
+          rationale: "Excellent crisis response. You correctly identified that applying pressure with sedation and providing a calm, comforting presence are the two most appropriate interventions during a hemorrhage event when the patient wishes to remain at home.",
+          knownOutcomes: "Studies on catastrophic hemorrhage in palliative care show that prepared families with sedatives available report less trauma than those who call emergency services. Calm presence and comfort positioning reduce patient distress during terminal events.",
+          thinkingPattern: "Your response reflects understanding of palliative crisis management: prioritize comfort and sedation over futile interventions, and maintain human connection during a frightening event.",
+          reasoningTrace: "Patient wants to stay home + hemorrhage kit prepared + goals of care established → Physical comfort measures (pressure + positioning) + pharmacological comfort (sedation) + emotional support (calm presence).",
+          evidenceAnchors: [
+            { title: "Catastrophic Hemorrhage: A Practical Guide", citation: "Journal of Hospice & Palliative Nursing, 2021" },
+            { title: "Family Presence During Palliative Emergencies", citation: "Palliative Medicine, 2020" },
+            { title: "Sedation in Palliative Care Emergencies", citation: "BMJ Supportive & Palliative Care, 2022" },
+          ],
+        },
+        B: {
+          rationale: "Your response includes some appropriate elements but may not fully align with Adam's documented preferences. Consider what interventions would provide the most comfort in a home setting where curative intervention is not the goal.",
+          knownOutcomes: "Interventions that prioritize comfort and presence over medical procedures result in less traumatic experiences for both patients and families during end-of-life emergencies.",
+          thinkingPattern: "In a hemorrhage event where the patient has chosen comfort care at home, the focus shifts from stopping the bleed to ensuring the patient is comfortable and not alone.",
+          reasoningTrace: "Adam's preference for home + prepared hemorrhage kit → Focus on comfort (sedation, pressure, presence) rather than emergency transport.",
+          evidenceAnchors: [
+            { title: "Aligning Care with Patient Preferences", citation: "JPSM, 2021" },
+          ],
+        },
+        C: {
+          rationale: "The selected interventions may not optimally address Adam's comfort or align with his expressed wishes. A catastrophic hemorrhage in someone with advanced cancer is typically a terminal event requiring comfort-focused response.",
+          knownOutcomes: "Emergency transport during terminal hemorrhage often results in patient death en route or in emergency department, contrary to expressed wishes for home death. Families report greater distress when death occurs in unexpected settings.",
+          thinkingPattern: "Consider Adam's documented wish to remain at home and avoid hospital. What interventions provide comfort rather than attempting to reverse an irreversible event?",
+          reasoningTrace: "Advanced cancer + hemorrhage near carotid + wishes to stay home = Need comfort measures (sedation, presence, positioning), not emergency transport or futile interventions.",
+          evidenceAnchors: [
+            { title: "End-of-Life Care Preferences and Outcomes", citation: "Annals of Internal Medicine, 2020" },
+          ],
+        },
+      },
+      correctCombination: ["q4-a", "q4-c"],
+    },
   ],
   ipInsights: [
     {
@@ -361,8 +435,8 @@ export const stubCase: Case = {
     },
   ],
   badgeThresholds: {
-    standard: 21, // 3 questions × 7 points minimum to pass
-    premium: 30,  // 3 questions × 10 points for perfect score
+    standard: 28, // 4 questions × 7 points minimum to pass
+    premium: 40,  // 4 questions × 10 points for perfect score
   },
 };
 
