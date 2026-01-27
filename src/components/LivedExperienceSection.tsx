@@ -15,20 +15,20 @@ export function LivedExperienceSection({ onContinue }: LivedExperienceSectionPro
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Side-by-side layout: Image LEFT, Text RIGHT */}
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Family Image - Left Side */}
+        {/* Side-by-side layout: Image LEFT (drives height), Text RIGHT (aligned) */}
+        <div className="flex flex-col md:flex-row gap-6 md:items-stretch">
+          {/* Family Image - Left Side (drives the height) */}
           <div className="md:w-1/2 flex-shrink-0">
             <img
               src="/case-assets/adam-family-lived-experience.png"
               alt="Adam's family standing in a doorway"
-              className="w-full h-auto rounded-lg object-cover"
+              className="w-full h-full rounded-lg object-cover"
             />
           </div>
 
-          {/* Narrative Text - Right Side */}
-          <div className="md:w-1/2">
-            <blockquote className="text-muted-foreground italic leading-relaxed">
+          {/* Narrative Text - Right Side (vertically centered to match image) */}
+          <div className="md:w-1/2 flex items-center">
+            <blockquote className="text-muted-foreground italic leading-relaxed text-lg">
               We didn't know what each day would bring or how the bleeding 
               might change. Staying home felt right, but we weren't always 
               sure. The physician came when the room felt tight. The nurse 
