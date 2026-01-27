@@ -96,21 +96,6 @@ export function IPInsightsPanel({ perspectives }: IPInsightsPanelProps) {
         </ScrollArea>
       )}
 
-      {/* Collapsed state - vertical text indicator */}
-      {isCollapsed && (
-        <div className="flex-1 flex items-center justify-center">
-          <span
-            className="text-xs text-muted-foreground font-medium"
-            style={{
-              writingMode: "vertical-rl",
-              textOrientation: "mixed",
-              transform: "rotate(180deg)",
-            }}
-          >
-            IP Insights
-          </span>
-        </div>
-      )}
     </aside>
   );
 }
