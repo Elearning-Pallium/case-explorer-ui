@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Check, Lightbulb, Target, Brain, Search, Shield, AlertTriangle } from "lucide-react";
 import type { ClusterAFeedback, ClusterBFeedback, ClusterCFeedback } from "@/lib/content-schema";
 import { useGame } from "@/contexts/GameContext";
@@ -46,8 +46,6 @@ interface ClusterFeedbackPanelProps {
   onContinue?: () => void;
 }
 
-const DWELL_TIME_MS = 5000; // 5 seconds to mark as read
-
 export function ClusterFeedbackPanel({
   feedback,
   cluster,
@@ -57,9 +55,8 @@ export function ClusterFeedbackPanel({
   onContinue,
 }: ClusterFeedbackPanelProps) {
   const { dispatch } = useGame();
-  const [openSection, setOpenSection] = useState<string | undefined>();
+  const [openSections, setOpenSections] = useState<string[]>([]);
   const [viewedSections, setViewedSections] = useState<Set<string>>(new Set());
-  const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get sections based on cluster type
   const sections = cluster === "A" 
@@ -71,30 +68,31 @@ export function ClusterFeedbackPanel({
   const allSectionsViewed = viewedSections.size === sections.length;
   const progressPercent = (viewedSections.size / sections.length) * 100;
 
-  // Track dwell time when section opens
-  useEffect(() => {
-    if (openSection && !viewedSections.has(openSection)) {
-      dwellTimerRef.current = setTimeout(() => {
-        setViewedSections((prev) => {
-          const newSet = new Set(prev);
-          newSet.add(openSection);
-          return newSet;
+  // Handle section toggle - mark as viewed immediately when opened
+  const handleSectionsChange = (newOpenSections: string[]) => {
+    // Find newly opened sections
+    const newlyOpened = newOpenSections.filter(s => !openSections.includes(s));
+    
+    // Mark newly opened sections as viewed immediately
+    if (newlyOpened.length > 0) {
+      setViewedSections((prev) => {
+        const newSet = new Set(prev);
+        newlyOpened.forEach(sectionId => {
+          if (!newSet.has(sectionId)) {
+            newSet.add(sectionId);
+            // Dispatch to global state for exploratory token
+            dispatch({
+              type: "VIEW_FEEDBACK_SECTION",
+              sectionId: `${questionId}-${sectionId}`,
+            });
+          }
         });
-        
-        // Dispatch to global state for exploratory token
-        dispatch({
-          type: "VIEW_FEEDBACK_SECTION",
-          sectionId: `${questionId}-${openSection}`,
-        });
-      }, DWELL_TIME_MS);
+        return newSet;
+      });
     }
-
-    return () => {
-      if (dwellTimerRef.current) {
-        clearTimeout(dwellTimerRef.current);
-      }
-    };
-  }, [openSection, viewedSections, questionId, dispatch]);
+    
+    setOpenSections(newOpenSections);
+  };
 
   // Check if all sections viewed
   useEffect(() => {
@@ -139,12 +137,11 @@ export function ClusterFeedbackPanel({
         <Progress value={progressPercent} className="h-2" />
       </div>
 
-      {/* Feedback Accordion */}
+      {/* Feedback Accordion - Multiple sections can stay open */}
       <Accordion
-        type="single"
-        collapsible
-        value={openSection}
-        onValueChange={setOpenSection}
+        type="multiple"
+        value={openSections}
+        onValueChange={handleSectionsChange}
         className="space-y-2"
       >
         {sections.map((section) => {
@@ -174,11 +171,6 @@ export function ClusterFeedbackPanel({
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-4 pl-11">
                 <p className="leading-relaxed">{content}</p>
-                {!isViewed && (
-                  <p className="mt-3 text-xs text-muted-foreground italic">
-                    Keep this section open for 5 seconds to mark as read...
-                  </p>
-                )}
               </AccordionContent>
             </AccordionItem>
           );
