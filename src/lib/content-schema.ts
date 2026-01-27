@@ -115,7 +115,7 @@ export const IPPerspectiveSchema = z.object({
   title: z.string(),
   perspective: z.string(),
   videoNoteUrl: z.string().optional(),
-  keyInsights: z.array(z.string()),
+  keyInsights: z.array(z.string()).optional(),
 });
 
 // Complete case schema

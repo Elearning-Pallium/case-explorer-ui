@@ -5,6 +5,8 @@ import { useGame } from "@/contexts/GameContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 interface IPInsightsModalProps {
@@ -35,6 +37,7 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
   const [viewedPerspectives, setViewedPerspectives] = useState<Set<string>>(new Set());
   const [reflectedPerspectives, setReflectedPerspectives] = useState<Set<string>>(new Set());
   const [canReflect, setCanReflect] = useState<Set<string>>(new Set());
+  const [reflections, setReflections] = useState<Record<string, string>>({});
   const [dwellProgress, setDwellProgress] = useState<Record<string, number>>({});
   const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -201,17 +204,24 @@ export function IPInsightsModal({ perspectives, onComplete, onClose }: IPInsight
                     </p>
                   </div>
 
-                  {/* Key Insights */}
+                  {/* Your Reflection */}
                   <div className="rounded-lg border bg-highlight p-4">
-                    <h4 className="font-semibold mb-2 text-highlight-foreground">Key Insights</h4>
-                    <ul className="space-y-2">
-                      {perspective.keyInsights.map((insight, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <span className="text-accent font-bold">•</span>
-                          <span>{insight}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <Label 
+                      htmlFor={`reflection-${perspective.id}`} 
+                      className="font-semibold mb-2 block text-highlight-foreground"
+                    >
+                      Your Reflection
+                    </Label>
+                    <Textarea
+                      id={`reflection-${perspective.id}`}
+                      placeholder="What stands out to you from this perspective?"
+                      value={reflections[perspective.id] || ""}
+                      onChange={(e) => setReflections(prev => ({
+                        ...prev,
+                        [perspective.id]: e.target.value
+                      }))}
+                      className="mt-2 min-h-[100px] bg-background"
+                    />
                   </div>
 
                   {/* Video Note if available */}
