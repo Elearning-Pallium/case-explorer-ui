@@ -38,8 +38,8 @@ export function PersonInContextSection({
               value="perspective" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
             >
-              <MessageCircle className="h-4 w-4 mr-2" />
-              {patientName}'s Perspective
+            <MessageCircle className="h-4 w-4 mr-2" />
+            {patientName} Speaks
             </TabsTrigger>
           )}
         </TabsList>
