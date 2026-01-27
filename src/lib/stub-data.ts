@@ -367,14 +367,14 @@ export const stubCase: Case = {
     {
       id: "ip-nurse",
       role: "nurse",
-      title: "Home Care Nurse",
+      title: "Nurse",
       perspective: "The nurse has noticed the family returning to the same questions when worry rises, often re-checking the dressing in short intervals. Brief, concrete explanations can settle the room for a time. The tension often builds again, and the family starts scanning faces for reassurance they can hold onto.",
       imageUrl: "/ip-insights/nurse.png",
     },
     {
       id: "ip-aide",
       role: "care_aide",
-      title: "Personal Support Worker",
+      title: "Care Aide / Assistant / Support Worker",
       perspective: "The support worker has noticed how tired the household feels in the small hours and in the in-between moments. The family keeps normal routines going, but they hover close and listen for any change. When the wound comes up, conversation narrows. The home feels less like a refuge and more like a watch post.",
       imageUrl: "/ip-insights/care-aide.png",
     },
@@ -388,7 +388,7 @@ export const stubCase: Case = {
     {
       id: "ip-mrp",
       role: "mrp",
-      title: "Most Responsible Practitioner",
+      title: "Most Responsible Practitioner (MRP)",
       perspective: "The MRP has noticed how easily the family's questions land on a single point, \"How do we know it's really an emergency?\" They return to it after each explanation. When language stays plain and steady, the family can take in what is said. When language drifts into medical framing, they stiffen and push for a hospital plan.",
       imageUrl: "/ip-insights/mrp.png",
     },
