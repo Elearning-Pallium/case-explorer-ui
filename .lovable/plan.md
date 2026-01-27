@@ -1,185 +1,170 @@
 
 
-## Implementation Plan: IP Insights Panel Improvements
+## Implementation Plan: Add Lived Experience Screen
 
-### Summary of Changes
+### Overview
 
-1. **Match Chart Notes panel behavior** - IP Insights panel opens by default (like Chart Notes)
-2. **Update titles** - Replace role titles with simplified names
-3. **Update subtitles** - Remove subtitles for Nurse/Care Aide/Wound Specialist, add MRP subtitle
-4. **Fix image positioning** - Center faces for Care Aide and Wound Specialist images
+Add a new "Lived Experience" screen that appears after the last MCQ feedback and before navigating to the Completion page. This screen features a family perspective narrative with an accompanying image positioned to the left of the text.
 
 ---
 
-### Part 1: Match Chart Notes Panel Experience
+### What the User Will See
 
-**Current Differences:**
-
-| Aspect | Chart Notes | IP Insights |
-|--------|-------------|-------------|
-| Default state | Open (`useState(false)`) | Collapsed (`useState(true)`) |
-| Toggle button | Floating circular button on edge | Header click area |
-| Header style | Distinct header with icon + title | Same header with click area |
-
-**Changes to `src/components/IPInsightsPanel.tsx`:**
-
-1. Change default collapsed state from `true` to `false`:
-```tsx
-// Before
-const [isCollapsed, setIsCollapsed] = useState(true);
-
-// After  
-const [isCollapsed, setIsCollapsed] = useState(false);
-```
-
-2. Add floating toggle button (matching Chart Notes style):
-```tsx
-<button
-  onClick={() => setIsCollapsed(!isCollapsed)}
-  className="absolute -left-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border bg-card shadow-sm hover:bg-secondary transition-colors"
-  aria-label={isCollapsed ? "Expand IP insights" : "Collapse IP insights"}
->
-  {isCollapsed ? <ChevronLeft /> : <ChevronRight />}
-</button>
-```
-
-3. Update header to be non-clickable (just displays title):
-```tsx
-<div className={cn("flex items-center gap-2 border-b p-3", isCollapsed && "justify-center")}>
-  <Users className="h-5 w-5 text-primary" />
-  {!isCollapsed && (
-    <h3 className="font-semibold text-primary">Interprofessional Insights</h3>
-  )}
-</div>
+```text
++----------------------------------------------------------+
+|                    Lived Experience                       |
++----------------------------------------------------------+
+|                           |                               |
+|                           |  We didn't know what each     |
+|      [Family Photo]       |  day would bring or how the   |
+|                           |  bleeding might change...     |
+|                           |                               |
+|                           |  The support worker noticed   |
+|                           |  when we were worn down...    |
+|                           |                               |
++----------------------------------------------------------+
+|                     [ Continue ]                          |
++----------------------------------------------------------+
 ```
 
 ---
 
-### Part 2: Update Titles in Stub Data
+### Implementation Details
 
-**File: `src/lib/stub-data.ts`**
+#### 1. Add New Phase to Case Flow
 
-| Current Title | New Title |
-|---------------|-----------|
-| Home Care Nurse | Nurse |
-| Personal Support Worker | Care Aide / Assistant / Support Worker |
-| Wound Care Specialist | Wound Care Specialist (no change) |
-| Most Responsible Practitioner | Most Responsible Practitioner (MRP) |
+**File: `src/pages/CaseFlowPage.tsx`**
 
----
-
-### Part 3: Update Subtitle Display Logic
-
-**File: `src/components/IPInsightsPanel.tsx`**
-
-Current code displays role as subtitle for all perspectives:
+Update the phase type:
 ```tsx
-<span className="text-xs text-muted-foreground capitalize">
-  {perspective.role.replace("_", " ")}
-</span>
+type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
 ```
 
-**New logic:** Only show subtitle for MRP role:
+Modify `handleContinue` to show lived experience after the last question:
 ```tsx
-{perspective.role === "mrp" && (
-  <span className="text-xs text-muted-foreground">
-    (e.g., physician or nurse practitioner)
-  </span>
+const handleContinue = () => {
+  if (currentQuestionIndex < caseData.questions.length - 1) {
+    setCurrentQuestionIndex((prev) => prev + 1);
+    setPhase("mcq");
+  } else {
+    setPhase("lived-experience");
+  }
+};
+```
+
+Add render block for the new phase:
+```tsx
+{phase === "lived-experience" && (
+  <LivedExperienceSection
+    onContinue={() => navigate(`/completion/${caseId}`)}
+  />
 )}
 ```
 
-This removes subtitles for:
-- Nurse (was showing "nurse")
-- Care Aide (was showing "care aide")  
-- Wound Specialist (was showing "wound specialist")
+#### 2. Create Lived Experience Component
 
-And replaces MRP subtitle with: "(e.g., physician or nurse practitioner)"
+**New File: `src/components/LivedExperienceSection.tsx`**
 
----
-
-### Part 4: Fix Image Centering
-
-**Issue:** Care Aide and Wound Specialist images have faces positioned to the side, getting cut off with `object-top`.
-
-**File: `src/components/IPInsightsPanel.tsx`**
-
-Current image styling:
 ```tsx
-className="h-full w-full object-cover object-top"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
+
+interface LivedExperienceSectionProps {
+  onContinue: () => void;
+}
+
+export function LivedExperienceSection({ onContinue }: LivedExperienceSectionProps) {
+  return (
+    <Card className="shadow-soft">
+      <CardHeader>
+        <CardTitle className="text-2xl text-primary">
+          Lived Experience
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Side-by-side layout: Image LEFT, Text RIGHT */}
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Family Image - Left Side */}
+          <div className="md:w-1/2 flex-shrink-0">
+            <img
+              src="/case-assets/adam-family-lived-experience.png"
+              alt="Adam's family standing in a doorway"
+              className="w-full h-auto rounded-lg object-cover"
+            />
+          </div>
+
+          {/* Narrative Text - Right Side */}
+          <div className="md:w-1/2">
+            <blockquote className="text-muted-foreground italic leading-relaxed">
+              We didn't know what each day would bring or how the bleeding 
+              might change. Staying home felt right, but we weren't always 
+              sure. The physician came when the room felt tight. The nurse 
+              stayed close, checking in without making it feel like we were 
+              failing.
+              <br /><br />
+              The support worker noticed when we were worn down, before we 
+              said it out loud. There was a steadiness in how people showed 
+              up, even without clear answers. It mattered that no one left 
+              us alone with the uncertainty, while Adam was still trying to 
+              understand what home could hold.
+            </blockquote>
+          </div>
+        </div>
+
+        {/* Continue Button */}
+        <div className="flex justify-center pt-4">
+          <Button onClick={onContinue} size="lg">
+            Continue
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 ```
 
-**New approach:** Use role-specific object positioning:
-```tsx
-const getImagePosition = (role: string) => {
-  switch (role) {
-    case "care_aide":
-    case "wound_specialist":
-      return "object-center"; // Faces are centered in these images
-    default:
-      return "object-top"; // Nurse and MRP faces are at top
-  }
-};
+#### 3. Add Image Asset
 
-// In render:
-<img
-  src={perspective.imageUrl}
-  alt={perspective.title}
-  className={cn("h-full w-full object-cover", getImagePosition(perspective.role))}
-/>
+Copy the uploaded family image:
+```
+user-uploads://Adam_Family_Lived_Experience_Case_01.png
+  -> public/case-assets/adam-family-lived-experience.png
 ```
 
 ---
 
-### Technical Summary
+### Responsive Behavior
 
-| File | Changes |
-|------|---------|
-| `src/components/IPInsightsPanel.tsx` | Default open, floating toggle button, conditional subtitles, role-based image positioning |
-| `src/lib/stub-data.ts` | Update 4 perspective titles |
+| Screen Size | Layout |
+|-------------|--------|
+| Desktop (md+) | Image left (50%), Text right (50%) - side by side |
+| Mobile (<md) | Image on top, Text below - stacked vertically |
 
 ---
 
-### Visual Comparison
+### File Changes Summary
 
-**Before:**
+| File | Action | Description |
+|------|--------|-------------|
+| `public/case-assets/adam-family-lived-experience.png` | Create | Copy family image asset |
+| `src/components/LivedExperienceSection.tsx` | Create | New component with side-by-side layout |
+| `src/pages/CaseFlowPage.tsx` | Modify | Add "lived-experience" phase and render logic |
+
+---
+
+### User Flow
+
 ```text
-┌─────────────────────────────────────┐
-│ [◀] 👥 Interprofessional Insights   │  ← Header is clickable
-├─────────────────────────────────────┤
-│ ┌───────────────────────────────┐   │
-│ │ [Photo]  Home Care Nurse      │   │
-│ │          nurse                │   │  ← Subtitle shown
-│ │ "The nurse has noticed..."    │   │
-│ └───────────────────────────────┘   │
+MCQ 1 -> Feedback 1 -> ... -> MCQ (last) -> Feedback (last)
+                                                   |
+                                                   v
+                                          Lived Experience
+                                     (Image left, Text right)
+                                                   |
+                                                   v
+                                          Completion Page
+                                      "Congratulations!..."
 ```
-
-**After:**
-```text
-○ ← Floating toggle button
-├─────────────────────────────────────┤
-│ 👥 Interprofessional Insights       │  ← Header is not clickable
-├─────────────────────────────────────┤
-│ ┌───────────────────────────────┐   │
-│ │ [Photo]  Nurse                │   │
-│ │                               │   │  ← No subtitle
-│ │ "The nurse has noticed..."    │   │
-│ └───────────────────────────────┘   │
-│                                     │
-│ ┌───────────────────────────────┐   │
-│ │ [Photo]  MRP                  │   │
-│ │    (e.g., physician or NP)    │   │  ← Only MRP has subtitle
-│ │ "The MRP has noticed..."      │   │
-│ └───────────────────────────────┘   │
-```
-
----
-
-### Deliverables
-
-1. IP Insights panel opens by default (matches Chart Notes)
-2. Floating circular toggle button on left edge (matches Chart Notes style)
-3. Titles updated: "Nurse", "Care Aide / Assistant / Support Worker", "Wound Care Specialist", "Most Responsible Practitioner (MRP)"
-4. Subtitles removed for Nurse, Care Aide, Wound Specialist
-5. MRP subtitle changed to "(e.g., physician or nurse practitioner)"
-6. Care Aide and Wound Specialist photos centered to show faces properly
 
