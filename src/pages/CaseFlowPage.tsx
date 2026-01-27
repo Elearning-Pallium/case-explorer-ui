@@ -192,6 +192,8 @@ export default function CaseFlowPage() {
                 <PersonInContextSection
                   personInContext={caseData.personInContext}
                   openingScene={caseData.openingScene}
+                  patientPerspective={caseData.patientPerspective}
+                  patientName={caseData.patientBaseline.name}
                 />
                 <div className="flex justify-center pt-4">
                   <Button
@@ -211,6 +213,8 @@ export default function CaseFlowPage() {
                 <PersonInContextSection
                   personInContext={caseData.personInContext}
                   openingScene={caseData.openingScene}
+                  patientPerspective={caseData.patientPerspective}
+                  patientName={caseData.patientBaseline.name}
                 />
                 <MCQComponent
                   question={currentQuestion}
