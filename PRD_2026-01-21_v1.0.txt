@@ -1,0 +1,2021 @@
+# Product Requirements Document (PRD)
+## Palliative Care Gamified Learning Platform
+
+**Version**: 1.0  
+**Date**: January 21, 2026  
+**Status**: Planning Phase  
+**Product Name**: TBD (working title: "LEAP Case Journey")
+
+---
+
+## Executive Summary
+
+A web-based, SCORM-packaged gamified learning application for healthcare professionals to develop palliative care clinical judgment through case-based scenarios. The platform uses a dual-scoring system (formative micro-feedback + summative macro-points) to assess reasoning patterns while maintaining learner engagement through badges, progression unlocking, and exploration incentives.
+
+**MVP Scope**: Level 1, Case 1 (5 MCQs) + 3 Simulacra (learner chooses 1) + progression stub  
+**Full Product**: 5 Levels, 25 Cases (5 per level), 15+ Simulacra, Topic Summaries, JITs, Podcasts
+
+---
+
+## 1. Product Vision & Goals
+
+### 1.1 Vision Statement
+Enable healthcare professionals to develop expert-level palliative care judgment through immersive, case-based learning that provides formative feedback on reasoning patterns while respecting learner autonomy and trauma-informed design principles.
+
+### 1.2 Target Users
+
+**Primary Users**:
+- Registered Nurses (RNs) practicing in home care, acute care, long-term care
+- Physicians (family medicine, internal medicine, oncology)
+- Nurse Practitioners (NPs) in community or hospital settings
+- Allied health professionals (social workers, pharmacists, physiotherapists)
+
+**User Characteristics**:
+- **Experience level**: Novice to Advanced Beginner (Dreyfus model)
+- **Clinical context**: Canadian healthcare system
+- **Time constraints**: Busy professionals seeking CPD credit
+- **Learning preferences**: Case-based, self-paced, accessible 24/7
+- **Device usage**: Primarily desktop/laptop (work computers), some tablet/mobile
+
+**Secondary Users**:
+- Instructors/Course Coordinators (view analytics, track completion)
+- Learning Development Team (author new cases, update content)
+- SMEs/Content Reviewers (validate clinical accuracy)
+
+### 1.3 Business Goals
+
+**For Pallium Canada**:
+- Increase reach of LEAP training beyond in-person workshops
+- Provide scalable, self-paced CPD option
+- Collect analytics on common reasoning gaps to improve curriculum
+- Maintain accreditation standards (MAINPRO+, MOC, CNE)
+
+**For Learners**:
+- Earn CPD credit (estimated 5 hours for full game)
+- Develop clinical judgment in safe environment
+- Build confidence in palliative care conversations
+- Access evidence-based resources on-demand
+
+### 1.4 Success Metrics (MVP)
+
+**Completion Metrics**:
+- 70%+ of users complete Case 1 (finish all 5 MCQs)
+- 60%+ earn Case 1 badge (all 5 correct tokens)
+- 50%+ pass Simulacrum 1 (≥3/4 correct)
+
+**Engagement Metrics**:
+- 40%+ explore at least 3 feedback clusters (retry to see different reasoning)
+- 30%+ click IP Insights button
+- Average time per case: 15-20 minutes (not too fast = skipping, not too slow = confusing)
+
+**Quality Metrics**:
+- SME feedback: 4/5+ on clinical accuracy
+- Learning Dev team feedback: 4/5+ on UX clarity
+- No critical accessibility violations (WCAG 2.2 AA)
+- No blocking bugs (learners can complete full MVP flow)
+
+**Learning Metrics** (measured via SCORM analytics):
+- Average attempts per MCQ: 1.5-2.5 (indicates appropriate difficulty)
+- Cluster distribution: <30% reach Cluster C on first attempt (safety flag if higher)
+- Replay rate: 20%+ retry at least one MCQ (exploration encouraged)
+
+---
+
+## 2. Non-Goals (Out of Scope for MVP)
+
+**Explicitly excluded from MVP**:
+- ❌ Full 5 levels (only Level 1 MVP)
+- ❌ All 25 cases (only Case 1)
+- ❌ Real evidence anchor links (placeholders only)
+- ❌ Podcasts (deferred to post-MVP)
+- ❌ Instructor dashboard (manual analytics only)
+- ❌ Cross-device sync (localStorage is browser-specific)
+- ❌ xAPI/LRS integration (SCORM only)
+- ❌ Custom Moodle plugin (SCORM package only)
+- ❌ Animated badges (static emoji icons only)
+- ❌ Audio playback of feedback (text only)
+- ❌ Leaderboards/social features (individual progression only)
+- ❌ Mobile app (responsive web only)
+
+**Deferred to Post-MVP** (explicitly planned for later):
+- Cases 2-25 (scale from MVP template)
+- Levels 2-5
+- Podcasts integration
+- Badge animations (CSS/SVG upgrade from emoji)
+- Real-time instructor analytics dashboard
+- Cross-device state sync (Moodle API or external storage)
+- Additional simulacra pools (MVP has 3, full game needs 15+)
+
+---
+
+## 3. User Stories & Use Cases
+
+### 3.1 Primary User Journeys
+
+#### Journey 1: First-Time Learner (Complete Case 1)
+**As a** home care nurse new to palliative care  
+**I want to** practice clinical judgment in realistic scenarios  
+**So that** I can build confidence before encountering situations in real practice
+
+**Steps**:
+1. Access SCORM package in Moodle LMS
+2. View Patient Baseline (Adam, 72, recurrent cancer)
+3. Read "About Adam" and "Adam Speaks" (build empathy) - GATED
+4. Review pre-MCQ chart notes
+5. Read Opening Scene (immersive narrative)
+6. Answer MCQ 1 (select 2 options from 5)
+7. View cluster feedback (must read all 5 sections) - GATED
+8. See chart update (progression of scenario)
+9. Repeat for MCQs 2-5
+10. Click IP Insights button, view all 4 perspectives (Nurse, Aide, Specialist, MRP) - MANDATORY, GATED
+11. Read Lived Experience (family perspective)
+12. Review personal attempt history (reflection)
+13. See case completion summary (badge earned, points awarded)
+
+**Success criteria**: 
+- Completes all 5 MCQs
+- Views IP Insights (all 4 perspectives)
+- Earns ≥37 points (standard badge: 35 case + 2 IP Insights)
+- Time: 18-22 minutes total (includes IP Insights reading)
+
+---
+
+#### Journey 2: Exploration-Oriented Learner
+**As a** experienced palliative care physician  
+**I want to** explore incorrect reasoning patterns (even after getting correct answers)  
+**So that** I can understand common biases and teach them to residents
+
+**Steps**:
+1. Complete MCQ 1, achieve Cluster A (perfect score)
+2. See prompt: "Explore other options to learn about common reasoning patterns?"
+3. Click "Explore Other Options"
+4. Retry MCQ 1, select different options (e.g., B+C)
+5. See Cluster C feedback (unsafe reasoning)
+6. Collect exploratory tokens (4/5 collected)
+7. Continue through case, earning premium badge (all tokens collected)
+
+**Success criteria**:
+- Collects ≥80% exploratory tokens (20/25 in full case)
+- Earns premium badge (50 points instead of 35)
+- Clicks IP Insights button at least once
+
+---
+
+#### Journey 3: Struggling Learner (Multiple Retries)
+**As a** nursing student unfamiliar with palliative care  
+**I want to** retry MCQs when I don't understand, without penalty  
+**So that** I can learn at my own pace and improve my reasoning
+
+**Steps**:
+1. Attempt MCQ 1, select B+E (score 4, Cluster B)
+2. Read feedback: "Reframing + Priority Reset"
+3. Click "Retry MCQ"
+4. Attempt MCQ 1 again, select A+C (score 6, Cluster C)
+5. Read feedback: "Boundary Setting + Risk Awareness" (includes Safety Reframe)
+6. Retry again, select A+D (score 10, Cluster A)
+7. Earn correct token, continue to MCQ 2
+8. See run history at end: "MCQ 1: Attempt 1 (B) → Attempt 2 (C) → Attempt 3 (A) ✓"
+
+**Success criteria**:
+- Can retry unlimited times (no attempt cap)
+- Chart reveals persist across retries (progressive learning)
+- Micro scores saved but not punitive (first attempt counts for macro points)
+- Eventually earns case badge (may take longer, but achieves learning)
+
+---
+
+#### Journey 4: Simulacrum Completion (Between Levels)
+**As a** learner who completed Level 1 (5 cases)  
+**I want to** choose a consolidation topic and pass a knowledge check  
+**So that** I can reinforce learning and unlock Level 2
+
+**Steps**:
+1. Complete all 5 cases in Level 1 (earn 5 case badges + view IP Insights in each)
+2. See message: "Level 1 Complete! Choose a Simulacrum to unlock Level 2"
+3. See 3 topic options:
+   - Home-Based Care Innovations (Maria Alvarez case)
+   - COPD Breathlessness Management (Tom Greene case)
+   - [Third topic TBD from content]
+4. Select "Home-Based Care Innovations"
+5. Answer 4 single-selection MCQs (A/B/C/D format)
+6. Get immediate correct/incorrect feedback per MCQ
+7. Score 4/4 correct (100%) → PERFECT
+8. Earn 15 points (perfect bonus)
+9. Level 2 unlocked (stub message: "Level 2 coming soon. You've completed the MVP!")
+
+**Success criteria**:
+- Chooses 1 of 3 simulacra topics
+- Passes with ≥3/4 correct (75%) - can retry or switch topics if fails
+- Earns 10-15 points (10 for pass, 15 for perfect)
+- MVP completion signaled to Moodle (SCORM status = completed)
+
+---
+
+### 3.2 Instructor/Admin Use Cases
+
+#### Use Case 1: View Completion Data
+**As an** instructor  
+**I want to** see which learners completed the module  
+**So that** I can award CPD credit
+
+**How** (MVP):
+- Export SCORM data from Moodle gradebook
+- See: Learner name, completion status, final score (0-100)
+- Manually process for CPD credit
+
+**How** (Post-MVP):
+- Custom Moodle report or dashboard
+- Real-time analytics on case/MCQ completion
+- Automated CPD certificate generation
+
+---
+
+#### Use Case 2: Identify Problematic MCQs
+**As a** learning designer  
+**I want to** see which MCQs have high failure rates  
+**So that** I can revise or replace them
+
+**How** (MVP):
+- Run quarterly extraction script (PHP/Python)
+- Analyze SCORM suspend_data for all learners
+- Calculate: avg attempts per MCQ, Cluster C rate, time spent
+- Flag MCQs with ≥40% Cluster C on first attempt
+
+**How** (Post-MVP):
+- Real-time dashboard with red-flag alerts
+- Automated reports sent to content team
+- A/B testing capability for revised MCQs
+
+---
+
+## 4. Functional Requirements
+
+### 4.0 Scoring & Completion Logic (Single Source of Truth)
+
+This section defines ALL points, badges, thresholds, and completion criteria. All other sections reference this as the definitive source.
+
+---
+
+#### 4.0.1 Points Scale & Budget
+
+**Global Points Scale**: 750 points (full game maximum)
+- Rationale: Consistent scale across MVP and full game for analytics normalization
+- MVP uses same 750-point scale even though only ~67 points achievable
+- Allows seamless transition from MVP → full game without recalculating
+
+**Full Game Budget** (shows exact mapping to 750 max):
+
+**Core Required Points** (assuming standard badges):
+- 25 cases × 28 pts (average: mix of 3Q, 4Q, 5Q) = 700 pts
+- 5 simulacra × 10 pts (pass) = 50 pts
+- **Subtotal: 750 pts**
+
+**How We Reached 750**:
+1. Started with case points only: 25 cases × 28 pts avg = 700 pts
+2. Added simulacra minimum: 5 × 10 pts = 50 pts
+3. Total = 750 pts (no bonuses included in maximum)
+
+**Optional Bonuses** (NOT counted toward 750 max):
+- Premium badges: +15 pts per case (25 × 15) = +375 pts extra
+- Perfect simulacra: +5 pts per sim (5 × 5) = +25 pts extra
+- IP Insights: 25 × 2 pts = +50 pts extra
+- Total possible with all bonuses: 1,200 pts (but reported max = 750)
+
+**Why Cap at 750**:
+- Creates consistent grading scale across all learners
+- 60% threshold (450 pts) is achievable without premium badges
+- Bonus points reward excellence but don't inflate scale
+- SCORM `cmi.core.score.raw` stays within 0-100% range
+
+**Calculation Rule (platform-wide normalization)**:
+```
+platformPercent = min(totalPoints, 750) / 750 × 100
+```
+- Example: Learner earns 850 pts (with bonuses) → Normalizes to 100%
+- Example: Learner earns 450 pts (60%) → Normalizes to 60%
+
+**MVP Budget** (Level 1, Case 1 only):
+- Case 1: 35 pts (standard) or 50 pts (premium)
+- IP Insights: 2 pts (mandatory)
+- Simulacrum: 10 pts (pass) or 15 pts (perfect)
+- **MVP Maximum**: 67 pts (50 + 2 + 15)
+- **MVP Minimum to Complete**: 47 pts (35 + 2 + 10)
+
+---
+
+#### 4.0.2 Badge Definitions
+
+**Case Badge** (Standard):
+- **Unlock Condition**: All 5 correct tokens earned (one per MCQ, requires score=10 per MCQ)
+- **Points Awarded**: 35 pts (for 5Q case like Case 1)
+  - Points awarded WHEN badge unlocks, not a prerequisite
+  - Badge logic: `if (correctTokens === 5) { awardBadge(); addPoints(35); }`
+- **Independent of**: IP Insights (separate requirement)
+- **Case-length scaling**:
+  - 3Q case: 21 points (standard badge)
+  - 4Q case: 28 points (standard badge)
+  - 5Q case: 35 points (standard badge)
+
+**Premium Badge**:
+- **Unlock Condition**: All 5 correct tokens + ALL 25 exploratory tokens (5 options × 5 MCQs)
+- **Points Awarded**: 50 pts (for 5Q case)
+- **Note**: Exploratory tokens awarded once per unique option per MCQ (see 4.0.4)
+- **Case-length scaling**:
+  - 3Q case: 30 points (premium badge)
+  - 4Q case: 40 points (premium badge)
+  - 5Q case: 50 points (premium badge)
+- **Scoring rule**: Points come from badges only (tokens unlock badges, but do not award points directly)
+
+**Simulacrum Badge**:
+- **Unlock Condition**: ≥3/4 correct on single simulacrum
+- **Points Awarded**: 10 pts (pass) or 15 pts (perfect 4/4)
+- **Note**: Learner chooses 1 of 3 simulacra in MVP
+
+**Level Badge** (Post-MVP):
+- **Unlock Condition**: 5 case badges + 1 simulacrum passed
+- **Not implemented in MVP** (stub only)
+
+---
+
+#### 4.0.3 Completion Criteria
+
+**MVP Completion Requirements** (all must be met):
+
+1. **Case Badge**: Earn standard or premium badge (35-50 pts)
+   - Requires: All 5 correct tokens from MCQs
+   
+2. **IP Insights**: View all 4 perspectives (mandatory, gated)
+   - Awards: 2 pts
+   - Gating: Case cannot be completed until viewed
+   - Engagement: Each perspective must be viewed for ≥5 seconds AND acknowledged (see 4.0.7)
+   
+3. **Simulacrum**: Pass 1 of 3 available simulacra (10-15 pts)
+   - Requires: ≥3/4 correct answers
+   - Can retry same simulacrum or switch topics
+
+**Total Points for MVP Completion**:
+- Minimum: 47 pts (35 case + 2 IP + 10 sim)
+- Typical: 52 pts (35 case + 2 IP + 15 sim perfect)
+- Maximum: 67 pts (50 premium + 2 IP + 15 sim perfect)
+
+**SCORM Reporting** (Revised for Instructor Clarity):
+
+**Approach**: Use package-specific max points for `cmi.core.score.raw` (Recommendation A from Section D.4)
+
+- `cmi.core.score.raw = round((totalPoints / packageMaxPoints) × 100)`
+  - MVP package: `packageMaxPoints = 67`
+  - Full game package: `packageMaxPoints = 750` (will be updated when full game ships)
+  - Example (MVP): 52 pts → (52/67) × 100 = 77.6% → round to 78%
+  - Example (MVP): 47 pts → (47/67) × 100 = 70.1% → round to 70%
+
+**Rationale**:
+- Instructors and learners see meaningful percentage for the package they're using
+- Avoids confusing 7-9% scores for MVP completions
+- Full-game percentage will be different (requires content update when shipping full version)
+
+**Platform-Wide Tracking** (for analytics across versions):
+- Also store in `suspend_data`:
+  - `pointsEarned`: Raw points (e.g., 52)
+  - `moduleMaxPoints`: Package max (e.g., 67 for MVP, 750 for full game)
+  - `platformPercent`: Normalized to 750 (e.g., 52/750 = 7%)
+- Platform reports can aggregate using `platformPercent` for cross-version comparison
+
+---
+
+#### 4.0.4 Exploratory Token Rules (Anti-Farming)
+
+**Definition**: One token per unique option across ALL attempts at an MCQ
+
+**Awarding Logic**:
+```typescript
+// Example: MCQ 1 has options A, B, C, D, E
+// Attempt 1: Select A+D → Award tokens: [A, D]
+// Attempt 2: Select B+C → Award tokens: [B, C] (new)
+// Attempt 3: Select A+E → Award token: [E] (new), A already awarded
+// Total exploratory tokens for MCQ 1: [A, B, C, D, E] = 5/5
+```
+
+**Anti-Farming Rules**:
+1. **Tokens awarded ONLY when learner views associated feedback**:
+   - Must view the debrief cluster corresponding to the selected options for that attempt
+   - Example: Select A+D (score 7, Cluster B) → Must view Cluster B feedback
+   - Viewing requirement: Expand Cluster B accordion AND (dwell ≥4 seconds OR click "I read this feedback" button)
+   - Note: Does NOT require viewing all 5 debrief sections, only the relevant cluster
+   
+2. **Tokens are per-MCQ, not per-case**:
+   - Each MCQ tracks its own exploratory tokens independently
+   - Premium badge requires all tokens across all 5 MCQs (25 total)
+   
+3. **Tokens persist across retries**:
+   - Once token awarded for option A, it stays awarded
+   - Learner cannot "lose" tokens by retrying
+
+**Display**: 
+- "Exploratory Tokens: ●●●○○ (3/5)" shown after each MCQ debrief
+- Encourages exploration without mandating it
+
+---
+
+#### 4.0.5 Retry & Progression Semantics
+
+**Retry Behavior** (Progressive Reset):
+- **Resets**: MCQ selections (must choose again)
+- **Persists**: Chart reveals (information stays visible)
+- **Persists**: Micro score history (learner can see previous clusters)
+- **Persists**: Exploratory tokens (accumulated across retries)
+
+**Macro Points** (First-Attempt-Counts):
+- **Correct token**: Awarded only when first achievement of score=10
+- **Subsequent retries**: Do not award additional correct tokens
+- **Exploratory tokens**: Continue to accrue (see 4.0.4)
+
+**Badge Irrevocability**:
+- Once case badge earned, it cannot be revoked
+- Retrying case after badge earned:
+  - Does NOT remove badge
+  - Does NOT deduct points
+  - CAN collect additional exploratory tokens (toward premium badge)
+  - CAN review feedback for learning (no penalty)
+
+**State Management**:
+- `clearReplayState(caseId)`: Resets MCQ selections only
+- `badges` and `points` stored separately (not cleared on replay)
+- Analytics track all attempts (for instructor visibility)
+
+---
+
+#### 4.0.6 Micro vs. Macro Scoring (Pedagogical Clarity)
+
+**Micro Scoring** (Formative, Hidden):
+- **Purpose**: Assess reasoning patterns, not right/wrong
+- **Calculation**: Sum of option scores (each option = 0/1/2/5 pts)
+  - **Score 5**: Sound clinical judgment (correct reasoning)
+  - **Score 2**: Partial understanding (reasonable but incomplete)
+  - **Score 1**: Misframed or unsafe reasoning
+  - **Score 0**: Clearly incorrect or harmful
+- **Determines**: Cluster feedback (A/B/C based on total score)
+- **Visible to Learner**: Cluster assignment only ("You reached Cluster B")
+- **NOT Visible**: Actual score (e.g., "You scored 7/10")
+- **NOT Graded**: Does not directly contribute to badges
+
+**Complete Cluster Mapping** (for 2-selection MCQs):
+```
+Score → Cluster Assignment:
+10 (5+5) → A (Affirmation + Calibration)
+7  (5+2) → B (Reframing + Priority Reset)
+4  (2+2) → B (Reframing + Priority Reset)
+6  (5+1) → C (Boundary Setting + Risk Awareness)
+3  (2+1) → C (Boundary Setting + Risk Awareness)
+2  (1+1) → C (Boundary Setting + Risk Awareness)
+1  (1+0) → C (Boundary Setting + Risk Awareness)
+0  (0+0) → C (critical intervention required)
+```
+
+**Scoring Rules**:
+- **Score 10**: Both selections show sound judgment → Cluster A + correct token
+- **Score 7-10**: Passing score (does not award correct token unless score=10)
+- **Score 7 or 4**: Cluster B (partial credit reasoning)
+- **Score ≤6**: Cluster C (boundary setting)
+
+**Configurability**:
+- Option scores (0/1/2/5) are defined per-MCQ in case JSON
+- Cluster thresholds (10=A, 7 or 4=B, ≤6=C) are global defaults
+- Future: Cluster map can be overridden per-MCQ if needed (e.g., harder questions with stricter thresholds)
+
+**Macro Scoring** (Summative, Visible):
+- **Purpose**: Track progression, award badges, signal completion
+- **Sources**:
+  - Case badges (standard or premium)
+  - IP Insights (2 pts for viewing all perspectives)
+  - Simulacra (10-15 pts for passing)
+- **Visible to Learner**: HUD, badge gallery, completion summary
+- **Graded**: Used for SCORM score.raw, CPD credit
+
+**Relationship**:
+- Micro score ≥10 → Correct token → Contributes to case badge (macro)
+- Micro score 7/4/6/3/2 → Cluster B/C → Formative feedback only
+- Exploratory tokens derived from micro attempts → Premium badge (macro)
+
+**Why This Matters**: 
+- Prevents "teaching to the test" (micro is about learning, macro is about completion)
+- Encourages exploration (trying "wrong" options awards tokens)
+- Supports trauma-informed design (failure is learning, not penalty)
+
+---
+
+#### 4.0.7 IP Insights Gating (Enhanced Engagement)
+
+**Mandatory Requirement**: Must view all 4 perspectives before case completion
+
+**View Criteria** (strengthened from 3-second timer):
+
+**Per Perspective**:
+1. Perspective must be opened (tab/accordion expanded)
+2. **AND** dwell time ≥5 seconds (increased from 3 for more reading time)
+3. **AND** learner marks the perspective as read by either:
+   - Clicking the "Mark as Reflected" button, **or**
+   - Scrolling to the bottom of the perspective (screen reader fallback)
+
+**Accessibility**:
+- "Mark as Reflected" button has clear aria-label
+- Screen readers announce: "Viewed 2 of 4 perspectives"
+- Keyboard-accessible (Tab to button, Enter to mark)
+- No reliance on mouse/pointer events
+
+**Progress Indicator**:
+```
+┌─────────────────────────────────────────┐
+│ IP Insights                             │
+├─────────────────────────────────────────┤
+│ Progress: ✓ Nurse  ✓ Aide  ○ Specialist  ○ MRP │
+│                                         │
+│ [Nurse perspective text...]             │
+│                                         │
+│ [Mark as Reflected ✓] ← Button at bottom │
+└─────────────────────────────────────────┘
+```
+
+**Gating**:
+- "Complete Case" button disabled until all 4 perspectives marked
+- Modal closable, but button remains highlighted/pulsing until complete
+- Awards 2 pts only when all 4 perspectives viewed
+
+**Points Award**:
+- 2 pts awarded as macro points (separate from case badge threshold)
+- Tracked in SCORM as `ipInsightsCompleted: true`
+
+---
+
+#### 4.0.8 SCORM Suspend Data (Size Management)
+
+**Target Size**: <4KB (SCORM 1.2 limit)
+
+**Compression Strategy**:
+1. Use short keys: `cid` (caseId), `mid` (mcqId), `sel` (selections)
+2. Store timestamps as Unix epoch (not ISO strings): `ts: 1737500000`
+3. Omit default values (e.g., if `exploratoryTokens: []`, omit entirely)
+4. Use arrays where possible (smaller than objects)
+
+**Example Compressed**:
+```json
+{
+  "v": "1.0",
+  "c01": {
+    "m1": {
+      "att": [
+        {"sel": ["A","D"], "sc": 10, "cl": "A", "ts": 1737500000}
+      ],
+      "ct": true,
+      "et": ["A","D"]
+    }
+  },
+  "s01": {"p": true, "pts": 15},
+  "ip": true,
+  "pts": 52
+}
+```
+
+**Size Estimate** (compressed):
+- 5 MCQs × 2 attempts × 120 bytes = 1.2KB
+- 1 Simulacrum × 100 bytes = 0.1KB
+- IP + metadata: 0.2KB
+- **Total: ~1.5KB** (well under 4KB limit)
+
+**Fallback Plan**:
+- Generate **TWO separate SCORM packages**:
+  - `level1_scorm12.zip` (SCORM 1.2, 4KB limit)
+  - `level1_scorm2004.zip` (SCORM 2004, 64KB limit)
+- Deploy appropriate package per target LMS capability
+- Do NOT bundle two manifests in single archive (confuses LMS)
+- Default: Deploy SCORM 1.2 (maximum compatibility)
+- If size exceeds 3.5KB during testing, deploy SCORM 2004 instead
+
+**Testing Protocol**:
+- CI test builds worst-case compacted state (50 attempts across 5 MCQs)
+- Compress using JSON minification (remove whitespace) + gzip
+- Assert: compressed size < 3.5KB (safety margin below 4KB limit)
+- If test fails, flag for SCORM 2004 deployment
+- Test script:
+  ```javascript
+  function testSuspendDataSize() {
+    const worstCase = generateWorstCaseState(); // 50 attempts
+    const json = JSON.stringify(worstCase);
+    const minified = JSON.stringify(JSON.parse(json)); // Remove whitespace
+    const compressed = gzip(minified); // LZ-String or similar
+    const size = compressed.length;
+    assert(size < 3500, `Suspend data ${size}B exceeds 3.5KB threshold`);
+  }
+  ```
+
+---
+
+#### 4.0.9 Privacy & Case Data (Fictional Cases)
+
+**Fictional case clarification**  
+All case content in this PRD and the early product is fictional (patients, family members, and vignettes are not real people). Therefore there is no regulatory privacy constraint on case content: the learner-facing case JSON may include fictional patient names and narrative details for pedagogical realism.
+
+**Suspend data / state & analytics**  
+Because suspend_data and analytics are stored alongside LMS user records, the product will use `caseId` as the canonical reference key in state objects. Do **not** store `patientName` in suspend_data or localStorage. Keep patient names only in content JSON for learner-facing display.
+
+**Moodle user identity**  
+Learner identity and PII is still handled by the LMS (Moodle). This PRD assumes the LMS provides user identification and authentication; the game should not duplicate or attempt to store LMS-managed PII.
+
+**Developer note**  
+For clarity and future auditing, the schema validator allows `patientName` in case content JSON only. State and analytics schemas should exclude patient names.
+
+**Case Identifiers** (recommended pattern):
+```json
+// Recommended (minimal):
+{"caseId": "case01", "mcqId": "mcq1"}
+
+// Note: Use caseId as primary key. Do not store patientName in state.
+```
+
+**Analytics Export Policy**:
+- When exporting to CSV for instructor review:
+  - Include: caseId, mcqId, cluster, attempt count, timestamp
+  - Exclude: patient names or narrative text
+  - User ID: Pseudonymized or hashed (Moodle handles real identity)
+  - Add meta-row or README: "Patient names are fictional and not included in exports"
+
+**Implementation Recommendations**:
+1. **Audit toggle**: Include `privacyMode: 'fictional' | 'strict'` flag in build config
+   - If set to `strict` (for future real-data scenarios), validator enforces PII-free state
+2. **Suspend_data minimalism**: Store `caseId` only (avoid long narrative strings)
+3. **Future-proofing**: If real patient data ever introduced:
+   - Switch `privacyMode: 'strict'`
+   - Keep patient names in content only
+   - Conduct full privacy review
+
+---
+
+**End of Section 4.0** — All subsequent engine definitions reference this section.
+
+---
+
+### 4.1 Core Engines (Must-Have for MVP)
+
+#### 4.1.1 Case Engine
+**Purpose**: Load case content, manage narrative flow, track micro scores
+
+**Capabilities**:
+- Load case JSON (patient baseline, MCQs, feedback clusters, chart notes)
+- Display screens in sequence (About Adam → Adam Speaks → Chart Notes → Opening Scene → MCQ 1)
+- Manage progressive chart reveals (filter chart notes by "reveal timing")
+- Track attempt history per MCQ (timestamp, selections, score, cluster)
+- Calculate micro scores (2-selection MCQs: sum of option scores)
+- Determine cluster based on total score (10=A, 7/4=B, 6/3/2=C)
+- Award correct tokens (score=10) and exploratory tokens (unique options selected)
+- Persist state to SCORM suspend_data
+
+**Key Functions**:
+```typescript
+loadCase(caseId: string): CaseData
+displayScreen(screenType: ScreenType): void
+submitMCQ(mcqId: string, selections: [string, string]): MCQResult
+getClusterFeedback(cluster: 'A'|'B'|'C'): ClusterFeedback
+awardTokens(mcqId: string, result: MCQResult): void
+saveProgress(): void
+```
+
+---
+
+#### 4.1.2 Simulacra Engine
+**Purpose**: Load simulacra, manage single-selection MCQs, award pass/fail points
+
+**Capabilities**:
+- Load simulacra JSON (case summary, evidence, 4 MCQs)
+- Display single-selection MCQs (A/B/C/D, one correct answer)
+- Immediate correct/incorrect feedback per MCQ
+- Track results (4 MCQs → calculate pass: ≥3/4)
+- Award points: 10 if pass, 15 if perfect (4/4), 0 if fail
+- Allow retry (reset all 4 MCQs) or topic switch
+
+**Key Functions**:
+```typescript
+loadSimulacrum(simId: string): SimulacraData
+submitSimMCQ(mcqId: string, selection: string): SimMCQResult
+calculateSimResult(results: SimMCQResult[]): SimResult
+awardSimPoints(result: SimResult): number
+```
+
+---
+
+#### 4.1.3 Progression Engine
+**Purpose**: Track level/case completion, unlock next content, signal LMS
+
+**Capabilities** (MVP = stub only):
+- Check if case badge earned (all 5 correct tokens)
+  - Note: Badge awards 35 pts when unlocked (see Section 4.0.2)
+  - Logic: `if (correctTokens.length === 5) return true;`
+- Check if simulacrum passed (≥3/4 correct)
+- Unlock Level 2 when Level 1 complete (5 badges + 1 sim passed)
+- Display "Coming soon" stub for Level 2 (no actual content)
+- Signal SCORM completion when MVP flow complete
+
+**Key Functions**:
+```typescript
+checkCaseBadge(caseId: string): boolean
+checkSimPassed(simId: string): boolean
+unlockNextLevel(): void
+signalSCORMComplete(): void
+```
+
+---
+
+#### 4.1.4 State Manager
+**Purpose**: Centralize localStorage + SCORM API read/write with conflict resolution
+
+**Capabilities**:
+- Read/write to localStorage (global state: points, badges, unlocks)
+- Read/write to SCORM suspend_data (case-specific state: attempts, micro scores)
+- Handle edge cases (cleared storage, SCORM API unavailable, multi-tab conflicts)
+- Provide consistent API for all engines
+
+**Conflict Resolution Rules**:
+1. **SCORM vs localStorage mismatch**:
+   - Authority: SCORM (if available) > localStorage
+   - On load: If SCORM has newer timestamp, use SCORM; else merge
+   - Merge rule: Use newest timestamp per key, preserve exploratory token union
+
+2. **Multi-tab conflicts**:
+   - Not supported in MVP (localStorage is per-tab, SCORM is per-session)
+   - Warning shown: "Complete course in one tab to avoid data loss"
+   - Post-MVP: Use `storage` event listener to sync across tabs
+
+3. **SCORM API unavailable**:
+   - Fallback: localStorage only
+   - Display warning: "Progress saved locally. Complete in one session."
+   - On reconnect: Attempt to sync to SCORM (best-effort)
+
+**Key Functions** (async):
+```typescript
+async getGlobalState(): Promise<GlobalState> // from localStorage
+async saveGlobalState(state: GlobalState): Promise<void>
+async getCaseState(caseId: string): Promise<CaseState> // from SCORM with fallback
+async saveCaseState(caseId: string, state: CaseState): Promise<void>
+async syncState(): Promise<void> // Merge SCORM + localStorage
+clearReplayState(caseId: string): void // for retry (synchronous)
+```
+
+**Error Handling**:
+```typescript
+try {
+  await saveCaseState('case01', state);
+} catch (error) {
+  if (error.code === 'SCORM_UNAVAILABLE') {
+    // Fallback to localStorage only
+    localStorage.setItem('case01', JSON.stringify(state));
+    showWarning('Progress saved locally');
+  }
+}
+```
+
+---
+
+### 4.2 UI Components (Must-Have for MVP)
+
+#### 4.2.1 Patient Baseline Header (Sticky)
+- Always visible at top of screen during case
+- Displays: Name, age, diagnosis, living situation, PPS
+- Collapsible (click to minimize, shows only name/age)
+- ARIA label: "Patient chart banner"
+
+#### 4.2.2 Chart Notes Sidebar (Growing)
+- Left or right sidebar (collapsible)
+- Shows chart entries filtered by reveal timing
+- New entries appear after MCQ submissions
+- Visual design: Medical chart aesthetic (sans-serif, clinical language, timestamps)
+- Scrollable if content exceeds viewport
+
+#### 4.2.3 MCQ Component (2-Selection)
+- Display decision stem (narrative question)
+- Display chart reveals (inline or in sidebar)
+- 5 options (A-E) with checkboxes
+- Counter: "Selected: 1/2" (updates as user clicks)
+- Submit button: Disabled until exactly 2 selected
+- After submit: Options become read-only (show selections)
+
+#### 4.2.4 Debrief Component (Accordion)
+- Case 1: Show full labels + icons (💡 Rationale, 🎯 Outcomes, etc.)
+- Cases 2-25: Show icons only + hover tooltips (post-MVP)
+- **View tracking** (consistent with IP Insights, Section 4.0.7):
+  - Section counts as "viewed" when: Expanded AND (dwell ≥4 seconds OR click "Mark as Read" button at bottom of section)
+  - Accessible via keyboard (Tab to button, Enter to mark)
+  - Screen reader announces: "Marked 2 of 5 sections as read"
+- Show checkmarks when section viewed
+- Progress counter: "2/5 sections viewed"
+- Disable "Retry" and "Continue" until all sections viewed
+
+#### 4.2.5 HUD (Heads-Up Display)
+- Top bar with: Level | Case | Points | Badges
+- Example (MVP): `Level 1 | Case 1 | 52/67 pts (78%) | Badges: ⭐⭐☆☆☆`
+- Click badges → open badge gallery modal
+- Contextual display:
+  - During case: Minimal (just progress)
+  - After case: Expanded (points earned, new badges)
+  - Between levels: Full (all stats, leaderboard tease)
+
+#### 4.2.6 Badge Gallery Modal
+- Grid of badges (case badges, premium badges, level badges)
+- Locked badges shown grayed out
+- Click badge → tooltip with unlock conditions
+- Full-screen celebration modal when badge unlocked
+
+#### 4.2.7 IP Insights Button & Modal (MANDATORY)
+- Button in header: `[🔍 IP Insights]` - persistent, highlighted
+- **GATED**: Must click and view all 4 perspectives before case completion
+- Click → modal overlay with 4 perspectives:
+  - Nurse
+  - Care Aide / Assistant / Support Worker
+  - Wound Care Specialist
+  - Most Responsible Practitioner (MRP)
+- Tabs or accordion to switch between perspectives
+- Track viewed: Each perspective must be opened, viewed for ≥5 seconds, and marked as reflected (button or scroll-to-bottom fallback)
+- Progress indicator: "Viewed: 2/4 perspectives"
+- Awards 2 points when all 4 perspectives viewed
+- "Complete Case" button disabled until IP Insights viewed
+- Modal closable but button remains highlighted until requirement met
+
+#### 4.2.8 Simulacrum Choice Screen
+- Display 3 simulacrum options (cards with title, focus, patient, duration)
+- Radio buttons (select one)
+- "Continue" button enabled when one selected
+- Shows placeholder text for MVP: "More topics coming in full version"
+
+---
+
+### 4.3 Content Requirements
+
+#### 4.3.1 Case 01 Content (Must-Have)
+- All 9 .docx files converted to single `case01.json`:
+  - Patient Baseline
+  - Person-in-Context (About Adam)
+  - Patient Perspective (Adam Speaks)
+  - Chart Notes (with reveal timing metadata)
+  - Opening Scene
+  - 5 MCQs (stems, options, scoring, feedback clusters)
+  - IP Insights (4 perspectives: Nurse, Aide, Specialist, MRP) - MANDATORY
+  - Lived Experience
+
+#### 4.3.2 Simulacra Content (Must-Have - 3 cases)
+- **Simulacrum 01**: Maria Alvarez - Home-Based Care Innovations
+- **Simulacrum 02**: Tom Greene - COPD Breathlessness Management  
+- **Simulacrum 03**: [Third case TBD from Simulacra_MCQs_DC.docx]
+
+Each converted to JSON:
+- Case Summary
+- Evidence Summary
+- 4 MCQs (single-selection, A/B/C/D, one correct per question)
+- Rationale for each option (Reasoning, Evidence, Context)
+- Reflective hints
+
+#### 4.3.3 Topic Summaries (Post-MVP)
+Deferred from MVP. Plan to deliver after core case + simulacrum flow is validated.
+From `B__Level_I_Topic_Summaries_and_JITs.docx`:
+- **Topic 1**: Overcoming Professional Barriers and "Too Early" Misconceptions
+- **Topic 2**: Concurrent Care Models—Integrating Palliative and Disease-Focused Treatment
+- **Topic 3**: Prognostic Triggers and Timing of Early Palliative Care Initiation
+
+Each topic includes:
+- Summary (2-3 pages with evidence, references)
+- TLDR bullets
+- "Why This Matters" section
+- APA references
+
+#### 4.3.4 JITs (Post-MVP)
+Deferred from MVP. Plan to deliver after core case + simulacrum flow is validated.
+From `Step_4D2_Section_I_JIT_Write_Ups.docx`:
+- **JIT 1**: Overcoming the "Too Early" Misconception
+- **JIT 2**: Concurrent Care: Palliative + Disease-Focused Treatment
+- **JIT 3**: Prognostic Triggers and Early Palliative Care Timing
+
+Each JIT follows structure:
+- Recognize (warning signs)
+- Regulate/Reframe (perspective shift)
+- Reason/Respond (action steps)
+- Pause and Broaden Support When (escalation triggers)
+
+---
+
+### 4.4 SCORM Integration (Must-Have)
+
+#### 4.4.1 SCORM Version
+- **Target**: SCORM 1.2 (maximum compatibility with Moodle)
+- **Fallback**: SCORM 2004 if suspend_data exceeds 4KB
+
+#### 4.4.2 SCORM API Calls
+```javascript
+// On launch:
+scormAPI.Initialize("");
+const suspendData = scormAPI.GetValue("cmi.suspend_data");
+const lessonLocation = scormAPI.GetValue("cmi.core.lesson_location");
+
+// During play:
+scormAPI.SetValue("cmi.core.lesson_location", "case1_mcq3");
+scormAPI.SetValue("cmi.suspend_data", JSON.stringify(state));
+
+// On exit:
+scormAPI.SetValue("cmi.core.lesson_status", "completed");
+scormAPI.SetValue("cmi.core.score.raw", 85); // 0-100 scale
+scormAPI.Commit("");
+scormAPI.Terminate("");
+```
+
+#### 4.4.3 Completion Criteria
+**MVP completes when**:
+- Learner earns Case 1 badge (all 5 correct tokens; badge awards 35 points)
+- AND views IP Insights (all 4 perspectives) - awards 2 points
+- AND passes 1 of 3 Simulacra (≥3/4 correct on chosen simulacrum)
+- Signal: `cmi.core.lesson_status = "completed"`
+- Score: Total points achieved / package max points × 100
+  - Example: 52 pts (35 case + 2 IP + 15 sim) / 67 = 77.6% → report as 78%
+
+**Minimum to complete MVP**: 47 points (35 case + 2 IP + 10 sim)
+
+#### 4.4.4 Suspend Data Structure (MVP)
+```json
+{
+  "version": "1.0",
+  "case01": {
+    "mcq1": {
+      "attempts": [ /* array of attempt objects */ ],
+      "correctTokenEarned": true,
+      "exploratoryTokens": ["A", "B", "D"]
+    },
+    "mcq2": { /* same structure */ }
+  },
+  "sim01": {
+    "attempts": [ /* sim attempt objects */ ],
+    "passed": true,
+    "points": 10
+  },
+  "analytics": {
+    "totalTime": 1250, // seconds
+    "ipInsightsClicked": true,
+    "completedAt": "2026-01-21T18:30:00Z"
+  }
+}
+```
+
+**Size check**: 
+- 5 MCQs × 3 attempts × 200 bytes = 3KB
+- 1 Simulacrum × 2 attempts × 150 bytes = 0.3KB
+- Analytics: 0.2KB
+- **Total: ~3.5KB** (under 4KB limit ✓)
+
+---
+
+### 4.5 Accessibility Requirements (WCAG 2.2 AA)
+
+#### 4.5.1 Keyboard Navigation
+- All interactive elements (buttons, checkboxes, accordions) accessible via Tab
+- Enter/Space activates buttons
+- Arrow keys navigate accordion sections (optional enhancement)
+- Skip links: "Skip to MCQ" (bypass header)
+
+#### 4.5.2 Screen Reader Support
+- All images have alt text
+- Buttons have aria-labels (e.g., `aria-label="Retry MCQ 1"`)
+- Accordion sections: `aria-expanded="true/false"`
+- Live regions for dynamic content (e.g., `<div aria-live="polite">Progress: 3/5 sections viewed</div>`)
+- Chart notes marked as `role="complementary"`
+
+#### 4.5.3 Color & Contrast
+- Text contrast: 4.5:1 minimum (normal text), 3:1 (large text)
+- Don't rely on color alone (use icons + text)
+- Focus indicators visible (2px outline)
+
+#### 4.5.4 Responsive Design
+- Mobile breakpoints: 320px (phone), 768px (tablet), 1024px+ (desktop)
+- Touch targets: 44×44px minimum (iOS), 48×48px (Android)
+- Font scaling: Respects browser zoom (rem units)
+
+#### 4.5.5 Reduced Motion
+- Respect `prefers-reduced-motion` (disable badge animations if set)
+- Smooth scrolling optional (instant scroll if motion reduced)
+
+---
+
+## 5. Non-Functional Requirements
+
+### 5.1 Performance
+- Initial load: <3 seconds (on broadband)
+- MCQ submission → feedback display: <500ms
+- SCORM API calls: <100ms (synchronous calls only when necessary)
+- JSON file size: <500KB per case (text compression if needed)
+
+### 5.2 Browser Compatibility
+**Must support**:
+- Chrome 100+ (primary)
+- Firefox 100+
+- Safari 15+ (macOS/iOS)
+- Edge 100+
+
+**Not required**:
+- IE11 (end of life)
+- Older mobile browsers (<2 years old)
+
+### 5.3 Security
+- No user authentication (LMS handles this)
+- No PII stored in localStorage (only game state)
+- SCORM API calls sanitized (no XSS via suspend_data)
+- HTTPS required for deployment (Moodle enforces this)
+
+### 5.4 Data Privacy
+- SCORM data stored in Moodle database (governed by org privacy policy)
+- localStorage cleared if user clears browser data (acceptable)
+- No third-party analytics (Google Analytics, etc.) in MVP
+- No cookies (except Moodle session cookie)
+
+### 5.5 Localization (Post-MVP)
+- MVP: English only (Canadian spelling: "honour", "centre")
+- Future: French translation (required for national reach)
+
+---
+
+## 6. Constraints & Assumptions
+
+### 6.1 Technical Constraints
+- Cannot install custom Moodle plugins (SCORM package only)
+- Cannot use external hosting (must run within Moodle)
+- Cannot access Moodle database directly (SCORM API only)
+- LocalStorage limited to 5-10MB per domain (sufficient for state)
+- SCORM suspend_data limited to 4KB (SCORM 1.2) or 64KB (SCORM 2004)
+
+### 6.2 Organizational Constraints
+- No private GitHub repo (store code locally)
+- Limited IT support (cannot request server infrastructure)
+- Manual build/test process (developer runs locally)
+- Single developer for MVP (Pallium eLearning + Claude Code)
+
+### 6.3 Content Constraints
+- 25 cases already authored (Case 01 complete, 24 pending)
+- SME availability limited (VP reviews content, not code)
+- Clinical accuracy more critical than UX polish (healthcare context)
+
+### 6.4 Assumptions
+- Learners use desktop/laptop (not phone) for primary interaction
+- Learners complete course on one device (no cross-device requirement)
+- Moodle 4.6+ supports SCORM 1.2 and 2004 (verified)
+- Learners have modern browsers with JavaScript enabled
+- Moodle gradebook sufficient for basic completion tracking (no custom reports in MVP)
+
+---
+
+## 7. Dependencies & Integrations
+
+### 7.1 External Dependencies
+- **Moodle LMS 4.6+**: Hosting platform, SCORM player, gradebook
+- **SCORM API wrapper**: pipwerks/SCORM_API_wrapper.js (open source)
+- **React 18+**: UI framework
+- **TypeScript 5+**: Type safety
+- **Vite 5+**: Build tool, dev server
+
+### 7.2 Content Dependencies
+- **Case 01 .docx files** (9 files): Must be converted to JSON before development
+- **Simulacra .docx**: Must extract 1 simulacrum for MVP
+- **Topic Summaries .docx**: Post-MVP content (deferred)
+- **JITs .docx**: Post-MVP content (deferred)
+
+### 7.3 No External APIs
+- No external authentication (Moodle SSO)
+- No external storage (SCORM + localStorage only)
+- No CDNs for libraries (bundle locally for offline compatibility)
+
+---
+
+## 8. Risks & Mitigation
+
+### 8.1 Critical Technical Risks (HIGH Priority)
+
+#### 8.1.1 SCORM suspend_data Overflow & Platform Brittleness
+
+**Risk**: Suspend data exceeds 4KB SCORM 1.2 limit, causing state loss  
+**Impact**: HIGH - Learners lose all progress, cannot complete course  
+**Probability**: MEDIUM - Original 3.5KB estimate was optimistic
+
+**Root Causes**:
+- JSON with timestamps, encoding overhead easily exceeds estimates
+- SCORM 1.2 `cmi.suspend_data` is fragile (truncates silently in some LMS)
+- Cannot switch SCORM versions at runtime if limit exceeded
+
+**Mitigation Strategy**:
+
+1. **Implement Compression** (See Section 4.0.8):
+   - Use short keys: `cid` not `caseId`, `ts` not `timestamp`
+   - Unix epoch timestamps (10 digits) vs ISO strings (24 chars)
+   - Omit default values, null fields
+   - Estimated compressed size: ~1.5KB (well under limit)
+
+2. **Package BOTH SCORM Versions**:
+   - Build two separate ZIPs: one SCORM 1.2 and one SCORM 2004
+   - Moodle selects appropriate package based on LMS capability
+   - SCORM 2004 has 64KB limit (43x larger)
+
+3. **Rigorous Size Testing**:
+   ```javascript
+   // Test after every 5 commits
+   function testSuspendDataSize() {
+     const worstCase = generateState({
+       mcqs: 5,
+       attemptsPerMCQ: 10, // Extreme case
+       simulacra: 3
+     });
+     const json = JSON.stringify(worstCase);
+     const size = new Blob([json]).size;
+     assert(size < 3500, `Suspend data ${size}B exceeds 3.5KB!`);
+   }
+   ```
+
+4. **Graceful Degradation**:
+   - If SCORM write fails, fall back to localStorage only
+   - Show warning: "Progress saved locally. Complete in one session."
+   - Log error to analytics for monitoring
+
+**Acceptance Criteria**:
+- [ ] Size test passes for 50 attempts (worst case)
+- [ ] SCORM 2004 package tested in Moodle 4.6+
+- [ ] Fallback to localStorage functional
+
+---
+
+#### 8.1.2 Accessibility Conflict: Gating vs. Skip Links
+
+**Risk**: Skip links allow bypass of mandatory gates, OR assistive tech blocked by gating  
+**Impact**: HIGH - WCAG violation or learners unable to complete  
+**Probability**: MEDIUM - Dwell-time gating is unreliable for screen readers
+
+**Root Causes**:
+- Skip links ("Skip to MCQ") bypass headers for keyboard nav
+- IP Insights gating uses ≥5sec dwell + "Mark as Reflected"
+- Screen readers may not trigger same events as mouse users
+
+**Mitigation Strategy**:
+
+1. **Separate Navigation from Gating**:
+   - Skip links jump focus, but gating remains enforced
+   - Example: Skip to MCQ button moves focus, but "Continue" still disabled until IP viewed
+   - Gating logic independent of navigation shortcuts
+
+2. **Strengthen IP Insights Engagement** (See Section 4.0.7):
+   - Replace pure dwell-time with explicit "Mark as Reflected" button
+   - Button is keyboard-accessible (Tab + Enter)
+   - Screen reader announces: "Mark Nurse perspective as reflected"
+   - Fallback: Scroll to bottom also counts (for screen reader line-by-line)
+
+3. **ARIA Live Regions**:
+   ```html
+   <div aria-live="polite" aria-atomic="true">
+     Viewed 2 of 4 perspectives. Complete all to proceed.
+   </div>
+   ```
+   - Announces progress without visual reliance
+
+4. **Testing Protocol**:
+   - NVDA screen reader test (Windows)
+   - VoiceOver test (macOS/iOS)
+   - Keyboard-only navigation test (no mouse)
+   - Ensure all gates passable without mouse/vision
+
+**Acceptance Criteria**:
+- [ ] Screen reader user can complete MVP without assistance
+- [ ] Keyboard-only user can complete MVP
+- [ ] Skip links do not bypass mandatory content
+
+---
+
+#### 8.1.3 Gamability of Exploratory Tokens
+
+**Risk**: Learners spam-click options to farm tokens without learning  
+**Impact**: MEDIUM - Premium badges earned without reflection, defeats pedagogy  
+**Probability**: HIGH - Current design rewards clicks, not cognition
+
+**Root Causes**:
+- Exploratory tokens awarded for "unique options selected"
+- No requirement to read associated feedback
+- Learners can click all 5 options across retries in <1 minute
+
+**Mitigation Strategy** (See Section 4.0.4):
+
+1. **Tie Tokens to Feedback Viewing**:
+   - Token awarded ONLY if learner views debrief for that attempt
+   - Must expand all 5 accordion sections (tracked with checkmarks)
+   - Fast-clicking options without reading feedback = no tokens
+
+2. **Per-MCQ Deduplication**:
+   - One token per option per MCQ (lifetime)
+   - Cannot re-earn token for same option on retry
+   - Example: Select A+D (get tokens A, D), retry with A+B (get token B only)
+
+3. **Premium Badge Message**:
+   ```
+   You've collected 23/25 exploratory tokens.
+   To earn the Premium Badge, explore the remaining 
+   reasoning patterns by trying different options 
+   AND reading the associated feedback.
+   ```
+
+4. **Analytics Monitoring**:
+   - Track: Time between MCQ submission and feedback dismissal
+   - Flag: <10 seconds = likely not reading (spam behavior)
+   - Review flagged users manually to validate learning
+
+**Acceptance Criteria**:
+- [ ] Cannot earn exploratory token without viewing feedback
+- [ ] Premium badge requires genuine exploration (validated in testing)
+- [ ] Analytics detect spam behavior (for post-MVP improvement)
+
+---
+
+### 8.2 Learning Design Risks
+
+#### 8.2.1 Micro vs. Macro Scoring Confusion
+
+**Risk**: Learners optimize for points rather than reasoning  
+**Impact**: MEDIUM - Defeats formative assessment, reduces learning  
+**Probability**: MEDIUM - Gamification can override pedagogy
+
+**Clarification** (See Section 4.0.6):
+- **Micro Scoring**: Hidden, formative, determines cluster feedback only
+- **Macro Scoring**: Visible, summative, determines badges/points/completion
+
+**Mitigation Strategy**:
+
+1. **Never Show Micro Scores**:
+   - Learner sees: "You reached Cluster A (Affirmation)"
+   - Learner does NOT see: "You scored 10/10"
+   - Prevents score-chasing behavior
+
+2. **Emphasize Reasoning Over Results**:
+   - Debrief leads with "Thinking Pattern Insight" (not score)
+   - Reflection prompts focus on "Why did I choose that?" not "Was I right?"
+
+3. **Reward Exploration**:
+   - Premium badge for trying ALL options (not just correct ones)
+   - Encourages learning from mistakes
+
+4. **Learner Messaging**:
+   ```
+   This game assesses your clinical reasoning, not just 
+   right/wrong answers. Explore different approaches to 
+   understand common thinking patterns.
+   ```
+
+**Acceptance Criteria**:
+- [ ] Micro scores never displayed to learners
+- [ ] Debrief emphasizes reasoning over results
+- [ ] Pilot testing confirms learners explore (not min/max)
+
+---
+
+#### 8.2.2 IP Insights: Gating Creates Checkbox Behavior
+
+**Risk**: Mandatory IP Insights becomes "click to proceed" without reflection  
+**Impact**: MEDIUM - Required content skipped mentally, reduces learning  
+**Probability**: HIGH - Time-only gating is easily gamed
+
+**Original Design Issue**:
+- "View for ≥3 seconds" is insufficient
+- Learners can click, wait, click next (no cognitive engagement)
+
+**Enhanced Design** (See Section 4.0.7):
+
+1. **"Mark as Reflected" Button**:
+   - Explicit action required (not just passive viewing)
+   - Button at bottom of each perspective (must scroll to reach)
+   - Encourages reading before marking
+
+2. **Optional Micro-Reflection** (Post-MVP Enhancement):
+   - After viewing all 4 perspectives, ask:
+     "Which perspective resonated most with your practice? (1 sentence)"
+   - Text input (not multiple choice)
+   - No right/wrong answer, but requires thought
+
+3. **Varied Perspective Lengths**:
+   - Keep perspectives concise (100-150 words each)
+   - Use narrative voice (not bullet points) to encourage reading
+   - Include surprising details (not just summaries)
+
+4. **Analytics**:
+   - Track time spent per perspective (avg should be >15 sec if actually reading)
+   - Flag outliers (<5 sec per perspective = checkbox behavior)
+
+**Acceptance Criteria**:
+- [ ] "Mark as Reflected" replaces pure dwell time
+- [ ] Pilot testing shows learners read perspectives (time tracking)
+- [ ] Accessibility confirmed (screen reader compatible)
+
+---
+
+### 8.3 Content & Timeline Risks
+
+#### 8.3.1 Unclear Retry Semantics with Progression & Badges
+
+**Risk**: Non-deterministic state if retries interact unexpectedly with badges/points  
+**Impact**: MEDIUM - Analytics inconsistent, learners confused  
+**Probability**: LOW - Well-defined in Section 4.0.5, but requires strict implementation
+
+**Clarification** (Section 4.0.5):
+- **Badges**: Irrevocable once earned
+- **Points**: First-attempt-counts for correct tokens
+- **Exploratory tokens**: Continue to accrue across retries
+- **Chart reveals**: Persist (information does not hide)
+
+**Testing Scenarios**:
+
+1. **Earn badge, then retry**:
+   - Expected: Badge stays, no points lost
+   - Test: Verify badge persists after retry
+
+2. **Retry to collect exploratory tokens**:
+   - Expected: New tokens added, old tokens kept
+   - Test: Token count increases correctly
+
+3. **Retry after case complete**:
+   - Expected: Can still replay for learning (no penalty)
+   - Test: "Review Case" button functional post-completion
+
+**Acceptance Criteria**:
+- [ ] All 3 test scenarios pass
+- [ ] `clearReplayState()` only resets selections (not badges)
+- [ ] Analytics track all attempts without state corruption
+
+---
+
+#### 8.3.2 MVP Scope Creep
+
+**Risk**: Pulling topics + JITs + premium badges into MVP increases scope by ~40%  
+**Impact**: HIGH - Timeline extends from 4-6 weeks to 6-8 weeks  
+**Probability**: HIGH - Already confirmed scope expansion
+
+**Mitigation Strategy**:
+
+1. **Phased Implementation**:
+   - **Phase 1** (Weeks 1-3): Core case flow (Case 1, debrief, basic scoring)
+   - **Phase 2** (Weeks 4-5): 1 simulacrum + IP Insights gating
+   - **Phase 3** (Weeks 6-7): 2 more simulacra + topic menu + premium badges
+   - **Phase 4** (Week 8): Testing, bug fixes, polish
+
+2. **Content Preparation Parallel Track**:
+   - Week 1-2: Parse MVP content files (Case 1 + 3 sims)
+   - Post-MVP: Parse Topic Summaries + JITs
+   - Don't wait for code to finish
+   - Content team validates JSON schemas early
+
+3. **Cut List** (if timeline slips):
+   - CUT FIRST: Premium badges (keep standard badges only)
+   - CUT SECOND: Topics/JITs menu (include as PDFs instead)
+   - CUT THIRD: 3rd simulacrum (launch with 2 choices)
+   - NEVER CUT: Case 1, IP Insights, 1 simulacrum (core MVP)
+
+4. **Weekly Check-Ins**:
+   - Every Friday: Timeline review
+   - If >1 week behind, trigger cut list decision
+
+**Acceptance Criteria**:
+- [ ] Phased plan approved before implementation starts
+- [ ] Content parsing complete by Week 2
+- [ ] Weekly timeline reviews documented
+
+---
+
+### 8.4 Privacy & Compliance Risks
+
+#### 8.4.1 PII in Suspend Data & Analytics
+
+**Risk**: Patient names or identifiable info stored in SCORM data  
+**Impact**: MEDIUM - Privacy policy violation, regulatory risk  
+**Probability**: LOW - Mitigated in Section 4.0.9, but requires vigilance
+
+**Clarification**:
+- Store: `caseId: "case01"` (code)
+- Never store: `caseId: "Adam"` or `patientName: "Adam"`
+- Case content (narratives) contains patient names, but NOT in state tracking
+
+**Mitigation Strategy**:
+
+1. **Content Model Validation**:
+   - JSON schema enforces: `caseId` must match pattern `^case\d{2}$`
+   - Automated check rejects patient names
+
+2. **Analytics Export Rules**:
+   - CSV export includes: caseId, mcqId, cluster, attempt count
+   - CSV excludes: Patient names, family details, narrative content
+   - User IDs pseudonymized (Moodle handles identity linkage)
+
+3. **Code Review Checklist**:
+   - [ ] No patient names in state objects
+   - [ ] No PII in localStorage keys/values
+   - [ ] Analytics export sanitized
+
+**Acceptance Criteria**:
+- [ ] Schema validation catches patient names
+- [ ] Code review confirms no PII in suspend_data
+- [ ] Sample CSV export reviewed by privacy team (if applicable)
+
+---
+
+## 8.5 Risk Summary & Priority Matrix
+
+| **Risk** | **Impact** | **Prob** | **Priority** | **Status** |
+|----------|----------|---------|-------------|-----------|
+| SCORM suspend_data overflow | HIGH | MED | 🔴 CRITICAL | Mitigated (Section 4.0.8) |
+| Accessibility + gating conflict | HIGH | MED | 🔴 CRITICAL | Mitigated (Section 4.0.7) |
+| Exploratory token gaming | MED | HIGH | 🟡 HIGH | Mitigated (Section 4.0.4) |
+| Micro/macro scoring confusion | MED | MED | 🟡 HIGH | Mitigated (Section 4.0.6) |
+| IP Insights checkbox behavior | MED | HIGH | 🟡 HIGH | Mitigated (Section 4.0.7) |
+| Retry badge semantics unclear | MED | LOW | 🟢 MEDIUM | Clarified (Section 4.0.5) |
+| MVP scope creep | HIGH | HIGH | 🟡 HIGH | Plan B defined (cut list) |
+| PII in suspend data | MED | LOW | 🟢 MEDIUM | Mitigated (Section 4.0.9) |
+
+**Action Items Before Development**:
+1. ✅ Define compression strategy (Done: Section 4.0.8)
+2. ✅ Strengthen IP Insights gating (Done: "Mark as Reflected")
+3. ✅ Add anti-farming rules (Done: Token tied to feedback)
+4. ✅ Clarify scoring pedagogy (Done: Section 4.0.6)
+5. ✅ Document retry semantics (Done: Section 4.0.5)
+6. ⏳ Create phased implementation plan (Roadmap.md)
+7. ⏳ Set up size testing protocol (DevEnvironment.md)
+8. ⏳ Privacy review with stakeholders (Pre-launch)
+
+---
+
+## 9. Design Decisions (RESOLVED)
+
+All design questions have been resolved:
+
+1. **Badge icons**: ✅ Use emoji (⭐🏆🎯) for MVP
+2. **Chart sidebar**: ✅ LEFT side (medical chart convention)
+3. **IP Insights modal**: ✅ Overlay (less disruptive than fullscreen)
+4. **Simulacrum retry**: ✅ Retry entire simulacrum (all 4 MCQs reset)
+5. **Completion message**: ✅ Show "Level 2 coming soon. You've completed the MVP!"
+
+**Brand Colors**: See Appendix C for full color palette (6 families: purple, blue, orange, yellow, red, green)
+
+---
+
+## 10. Approval & Sign-Off
+
+**Prepared by**: Claude Code (AI Assistant)  
+**Reviewed by**: Pallium eLearning (Learning Designer)  
+**Approved by**: TBD (SME/VP)  
+**Approval Date**: TBD
+
+**Next Steps**:
+1. Review and approve PRD
+2. Generate remaining planning artifacts (LearningDesign.md, Scoring.md, etc.)
+3. Technical review by sub-agent
+4. Decompose into atomic tasks
+5. Begin implementation
+
+**Key Design Decisions** (for future reference):
+1. **Privacy Policy for Fictional Cases** (Section 4.0.9, Appendix D.1):
+   - All case content is fictional (patients, families, narratives)
+   - No regulatory PII concern for fictional content
+   - `patientName` permitted in case JSON only (not stored in state/analytics)
+   - Analytics exports exclude patient names
+   - Future-proofing: If real patient data ever introduced, switch to `privacyMode: strict` and keep PII out of state/exports
+   - Decision rationale: Pedagogical realism requires patient names; state remains PII-free
+
+---
+
+## Appendix A: Glossary
+
+- **Case**: A complete patient scenario with 5 MCQs (15-20 min)
+- **Simulacrum**: A mini-case with 4 MCQs (1.5-2 min)
+- **MCQ**: Multiple-choice question (2-selection for cases, single-selection for simulacra)
+- **Cluster**: Feedback category based on score (A=Affirmation, B=Reframing, C=Boundary)
+- **Micro scoring**: Hidden, formative assessment of reasoning patterns (not for points)
+- **Macro scoring**: Visible, summative points and badges (for progression)
+- **Correct token**: Awarded for achieving Cluster A (score=10 on an MCQ)
+- **Exploratory token**: Awarded for selecting each unique option (5 per MCQ)
+- **Case badge**: Unlocked by earning all 5 correct tokens (badge awards 35 points)
+- **Premium badge**: Unlocked by earning all correct + all exploratory tokens (≥50 points)
+- **HUD**: Heads-up display (persistent UI showing points/badges/progress)
+- **IP Insights**: Interprofessional perspectives on the case (4 viewpoints)
+- **JIT**: Just-In-Time resource (quick clinical decision support)
+- **Topic Summary**: Long-form educational content (evidence + reflection)
+- **SCORM**: Shareable Content Object Reference Model (LMS packaging standard)
+- **LMS**: Learning Management System (Moodle in this case)
+- **CPD**: Continuing Professional Development (CME/CNE/MOC credit)
+
+---
+
+## Appendix B: Referenced Documents
+
+1. **Case_01_learner_facing.docx**: Production case content (cleaned for learners)
+2. **Case_01_6C_MCQs_v1.docx**: MCQ questions with scoring and feedback
+3. **Simulacra_MCQs_DC.docx**: Simulacra cases (Maria Alvarez, Tom Greene, etc.)
+4. **B__Level_I_Topic_Summaries_and_JITs.docx**: Educational content (Topics 1-3)
+5. **Step_4D2_Section_I_JIT_Write_Ups.docx**: Just-In-Time quick references
+6. **SCORING_rules_for_MCQs_Jan_21.docx**: Detailed scoring algorithm
+7. **Guide_Developer_CASE_BUILD_ORDER.docx**: Content sequencing guidance
+8. **Color_Codes_for_UI.docx**: Brand color palette (6 families, 7 shades each)
+
+---
+
+## Appendix C: Brand Color Palette
+
+### Color Families (6 total, 7 shades each)
+
+#### 1. Purple (Primary Brand Color)
+- **Primary**: #5F4190 (RGB: 95, 65, 144)
+- Light 4: #FBFAFD | Light 3: #DBD2EB | Light 2: #AA96CB | Light 1: #7E64AA
+- Dark 1: #48297A | Dark 2: #311460
+
+**Usage**: Primary UI elements, headers, active states
+
+#### 2. Blue (Secondary)
+- **Primary**: #69A5D2 (RGB: 105, 165, 210)
+- Light 4: #F1F6FB | Light 3: #E2EDF6 | Light 2: #C8E3F7 | Light 1: #94C3E6
+- Dark 1: #4688BA | Dark 2: #2A6DA0
+
+**Usage**: Links, informational elements, chart sidebar
+
+#### 3. Orange (Accent)
+- **Primary**: #E65825 (RGB: 230, 89, 37)
+- Light 4: #FCEEE9 | Light 3: #F5BCA7 | Light 2: #F09A7C | Light 1: #EB7950
+- Dark 1: #B8461D | Dark 2: #8A3416
+
+**Usage**: Calls-to-action, IP Insights button, warnings
+
+#### 4. Yellow (Attention)
+- **Primary**: #EED549 (RGB: 238, 213, 73)
+- Light 4: #FDFAEA | Light 3: #FAF2C7 | Light 2: #FFF09B | Light 1: #FFE970
+- Dark 1: #DFC21D | Dark 2: #AB930E
+
+**Usage**: Highlights, badges, success states
+
+#### 5. Red (Alert)
+- **Primary**: #B24540 (RGB: 178, 40, 69)
+- Light 4: #F7ECEB | Light 3: #E0B4B2 | Light 2: #D08F8C | Light 1: #C16A66
+- Dark 1: #8E3733 | Dark 2: #6A2926
+
+**Usage**: Errors, Cluster C feedback, safety warnings
+
+#### 6. Green (Success)
+- **Primary**: #A7C13F (RGB: 167, 193, 63)
+- Light 4: #F9FAF1 | Light 3: #EBF1D3 | Light 2: #E4F79B | Light 1: #C9E268
+- Dark 1: #89A322 | Dark 2: #667E08
+
+**Usage**: Correct answers, Cluster A feedback, completion states
+
+### Accessibility Notes
+- All primary colors meet WCAG 2.2 AA contrast ratio (4.5:1) against white background
+- Use Light 4 shades for backgrounds
+- Use Dark 1/Dark 2 shades for text on light backgrounds
+- Purple primary + white text = 4.8:1 contrast (PASS)
+- Blue primary + white text = 3.2:1 contrast (use Dark 1 for text instead)
+
+---
+
+## Appendix D: Machine-Readable Schema (Definitive Source)
+
+**PURPOSE**: This schema is the **single source of truth** for all scoring, badging, and completion logic. All code must read rules from this schema, not hard-code values.
+
+---
+
+### D.1 Content Data Schema
+
+**NOTE (Fictional content)**: Case JSON (content package) contains fictional patient names and narrative details for learner realism. This is acceptable for the MVP — there is no privacy or regulatory concern for fictional case content.
+
+**State vs Content**: `patientName` may be present in content JSON for learner-facing display, but must not be stored in suspend_data/localStorage or analytics exports. If real patient data is ever introduced later, the project must re-enable strict PII validation and remove identifiable fields from state and exports.
+
+---
+
+#### CaseData JSON Structure
+```json
+{
+  "caseId": "case01",
+  "title": "Case 1: Adam's Story",
+  "maxPoints": {
+    "standard": 35,
+    "premium": 50,
+    "ipInsights": 2
+  },
+  "patientBaseline": {
+    "name": "Adam",
+    "age": 72,
+    "diagnosis": "Recurrent squamous cell carcinoma of jaw",
+    "pps": 40
+  },
+  "mcqs": [
+    {
+      "mcqId": "mcq1",
+      "stem": "After examining the wound...",
+      "options": [
+        {
+          "id": "A",
+          "text": "Frame the current bleeding as manageable...",
+          "score": 5,
+          "type": "sound"
+        },
+        {
+          "id": "B",
+          "text": "Maintain focus on wound management today...",
+          "score": 2,
+          "type": "partial"
+        },
+        {
+          "id": "C",
+          "text": "Emphasize the seriousness of recurrent bleeding...",
+          "score": 1,
+          "type": "unsafe"
+        },
+        {
+          "id": "D",
+          "text": "Acknowledge the bleeding concern while naming...",
+          "score": 5,
+          "type": "sound"
+        },
+        {
+          "id": "E",
+          "text": "Reassure the family that no further planning...",
+          "score": 2,
+          "type": "partial"
+        }
+      ],
+      "clusterMap": {
+        "10": "A",
+        "9": "A",
+        "8": "B",
+        "7": "B",
+        "6": "C",
+        "5": "C",
+        "4": "B",
+        "3": "C",
+        "2": "C",
+        "1": "C",
+        "0": "C"
+      },
+      "clusters": {
+        "A": {
+          "name": "Affirmation + Calibration",
+          "sections": {
+            "rationale": "This reasoning fits the chart reality...",
+            "outcomes": "Families often feel less panicked...",
+            "pattern": "Pattern: You integrated symptom assessment...",
+            "trace": "You selected options that name bleeding...",
+            "evidence": "Pallium Pocketbook (2nd ed.) — bleeding...",
+            "safety": null
+          }
+        },
+        "B": { /* Cluster B feedback */ },
+        "C": { /* Cluster C feedback + safety reframe */ }
+      }
+    }
+  ],
+  "ipInsights": {
+    "nurse": "The nurse has noticed...",
+    "aide": "The support worker has noticed...",
+    "specialist": "The wound care specialist...",
+    "mrp": "The MRP has noticed..."
+  },
+  "livedExperience": "The hardest part was not knowing..."
+}
+```
+
+#### SimulacraData JSON Structure
+```json
+{
+  "simId": "sim01",
+  "title": "Home-Based Care Innovations",
+  "patientName": "Maria Alvarez",
+  "caseSummary": "Maria Alvarez, aged 68...",
+  "evidenceSummary": "Palliative care in Canada...",
+  "maxPoints": {
+    "pass": 10,
+    "perfect": 15
+  },
+  "mcqs": [
+    {
+      "mcqId": "mcq1",
+      "stem": "Maria experiences intense bone pain...",
+      "options": [
+        {
+          "id": "A",
+          "text": "Request immediate emergency transport...",
+          "isCorrect": false,
+          "rationale": {
+            "reasoning": "Reactive hospital transfer may disrupt...",
+            "evidence": "Home-based paramedic models support...",
+            "context": "In both rural and urban settings..."
+          }
+        },
+        {
+          "id": "B",
+          "text": "Have the paramedics assess and manage...",
+          "isCorrect": true,
+          "rationale": { /* rationale for correct answer */ }
+        },
+        {
+          "id": "C",
+          "text": "Advise the daughter to adjust...",
+          "isCorrect": false,
+          "rationale": { /* rationale */ }
+        },
+        {
+          "id": "D",
+          "text": "Delay calling 9-1-1...",
+          "isCorrect": false,
+          "rationale": { /* rationale */ }
+        }
+      ],
+      "reflectiveHint": "What system processes can ensure..."
+    }
+  ],
+  "references": [
+    {
+      "title": "Government of Ontario. Progress on...",
+      "url": "https://www.ontario.ca/files/..."
+    }
+  ]
+}
+```
+
+#### TopicSummary JSON Structure
+```json
+{
+  "topicId": "topic01",
+  "title": "Overcoming Professional Barriers",
+  "linkedLOs": ["S1-LO3", "S1-LO4"],
+  "finkDomains": ["Human Dimension", "Caring"],
+  "summary": "Many healthcare providers hesitate...",
+  "tldr": [
+    "47% of immunotherapy patients believe they'll be cured...",
+    "'PC is end-of-life only' is the #1 barrier...",
+    "Reflection on personal hesitations is critical...",
+    "Early PC + disease-focused care is evidence-based..."
+  ],
+  "whyMatters": "Professional barriers directly delay patient access...",
+  "references": [ /* APA citations */ ]
+}
+```
+
+#### JIT JSON Structure
+```json
+{
+  "jitId": "jit01",
+  "title": "Overcoming the 'Too Early' Misconception",
+  "recognize": [
+    "Belief that early PC means giving up on treatment",
+    "Hesitation to discuss PC concurrently with disease-focused care",
+    "Pattern of waiting until curative options exhausted"
+  ],
+  "reframe": [
+    "Early PC + disease-focused care are compatible",
+    "Recognizing hesitations is the starting point",
+    "Structured reflection surfaces the bias"
+  ],
+  "respond": [
+    "Ask yourself: When do I hesitate about early PC?",
+    "Name the misconception explicitly",
+    "Initiate early PC independently of your uncertainty"
+  ],
+  "pauseWhen": [
+    "Organizational culture reinforces 'end-of-life only'",
+    "Team members actively resist early PC integration",
+    "Patient/family preference conflicts with clinical evidence"
+  ]
+}
+```
+
+---
+
+### D.2 Badge Rules Schema
+
+```json
+{
+  "badgeRules": {
+    "caseBadge": {
+      "unlockCondition": {
+        "type": "correctTokens",
+        "required": 5,
+        "description": "All 5 correct tokens earned (one per MCQ, score=10)"
+      },
+      "pointsAwarded": 35,
+      "awardLogic": "if (correctTokens.length === mcqs.length) { awardBadge(); addPoints(35); }"
+    },
+    "premiumBadge": {
+      "unlockCondition": {
+        "type": "exploratoryTokens",
+        "required": 25,
+        "description": "All 25 exploratory tokens (5 options × 5 MCQs)"
+      },
+      "pointsAwarded": 50,
+      "note": "Replaces standard badge (not additive)"
+    },
+    "simulacrumBadge": {
+      "unlockCondition": {
+        "type": "correctCount",
+        "threshold": 3,
+        "total": 4,
+        "description": "≥3/4 correct answers (75%)"
+      },
+      "pointsAwarded": {
+        "pass": 10,
+        "perfect": 15
+      },
+      "awardLogic": "if (correct >= 4) award 15; else if (correct >= 3) award 10; else 0"
+    }
+  }
+}
+```
+
+---
+
+### D.3 Exploratory Token Policy
+
+```json
+{
+  "exploratoryPolicy": {
+    "scope": "perMCQ",
+    "deduplication": true,
+    "viewRequirement": {
+      "type": "cluster-specific",
+      "description": "Must view debrief cluster for selected options",
+      "criteria": [
+        {
+          "action": "expand-accordion",
+          "cluster": "determined-by-score"
+        },
+        {
+          "condition": "AND",
+          "options": [
+            {
+              "type": "dwell",
+              "seconds": 4
+            },
+            {
+              "type": "explicit-button",
+              "label": "I read this feedback"
+            }
+          ],
+          "operator": "OR"
+        }
+      ]
+    },
+    "awardLogic": "if (viewedClusterFeedback && !alreadyAwarded) { awardToken(optionId); }",
+    "persistence": "tokens persist across retries",
+    "display": "Exploratory Tokens: ●●●○○ (3/5)"
+  }
+}
+```
+
+---
+
+### D.4 Global Points Configuration
+
+```json
+{
+  "maxPoints": {
+    "game": 750,
+    "level": 150,
+    "mvp": 67,
+    "explanation": "750 = 25 cases × 28 pts avg + 5 simulacra × 10 pts (see Section 4.0.1)"
+  },
+  "thresholds": {
+    "pass": {
+      "percent": 60,
+      "points": 450,
+      "description": "60% of 750 max points"
+    },
+    "mvp": {
+      "minimum": 47,
+      "typical": 52,
+      "maximum": 67
+    }
+  },
+  "reporting": {
+    "scorm": {
+      "scoreRaw": "totalPoints / packageMaxPoints × 100",
+      "example": "52 pts → (52/67) × 100 = 77.6% → round to 78%"
+    },
+    "platformPercent": {
+      "formula": "totalPoints / gameMaxPoints × 100",
+      "example": "52 pts → (52/750) × 100 = 6.9% → round to 7%",
+      "storage": "suspend_data key: platformPercent"
+    }
+  }
+}
+```
+
+---
+
+### D.5 Cluster Mapping (Default)
+
+**Per-MCQ Configurable**: Cluster thresholds can be overridden in `mcq.clusterMap` if needed.
+
+```json
+{
+  "clusterMapDefault": {
+    "10": "A",
+    "9": "A",
+    "8": "B",
+    "7": "B",
+    "6": "C",
+    "5": "C",
+    "4": "B",
+    "3": "C",
+    "2": "C",
+    "1": "C",
+    "0": "C"
+  },
+  "clusterRules": {
+    "A": {
+      "scoreRange": [9, 10],
+      "description": "Both selections show sound judgment"
+    },
+    "B": {
+      "scoreRange": [4, 8],
+      "description": "One sound or both partial; reframe needed"
+    },
+    "C": {
+      "scoreRange": [0, 6],
+      "description": "At least one unsafe (≤1) or both weak; boundary setting required"
+    },
+    "overrideRule": "If any option scores ≤1, always assign Cluster C (unsafe reasoning dominates)"
+  }
+}
+```
+
+---
+
+### D.6 Analytics Thresholds
+
+```json
+{
+  "analyticsThresholds": {
+    "spamDetection": {
+      "dwellTimeMin": 4,
+      "description": "Flag if dwell < 4 seconds between MCQ submit and feedback dismiss",
+      "action": "soft-flag for manual review (no automatic penalty)"
+    },
+    "tokenFarming": {
+      "consecutiveAttempts": 5,
+      "description": "Flag if >5 consecutive attempts on same MCQ with no cluster improvement",
+      "action": "flag account for review"
+    },
+    "ipInsights": {
+      "minDwellPerPerspective": 5,
+      "description": "Expected minimum time to read each IP Insight perspective",
+      "action": "flag if <5 seconds per perspective"
+    }
+  },
+  "telemetryEvents": {
+    "token.awarded": {
+      "schema": {
+        "mcqId": "string",
+        "optionId": "string",
+        "timestamp": "ISO8601",
+        "dwellSeconds": "number"
+      }
+    },
+    "ip.marked": {
+      "schema": {
+        "perspective": "nurse|aide|specialist|mrp",
+        "timestamp": "ISO8601",
+        "dwellSeconds": "number"
+      }
+    },
+    "attempt.submitted": {
+      "schema": {
+        "mcqId": "string",
+        "selections": "array<string>",
+        "score": "number",
+        "cluster": "A|B|C",
+        "duration": "number"
+      }
+    }
+  }
+}
+```
+
+---
+
+### D.7 Implementation Contract
+
+**All engines MUST**:
+1. Read `maxPoints`, `clusterMap`, `badgeRules` from JSON (never hard-code)
+2. Validate JSON schema on load (fail fast if malformed)
+3. Log telemetry events to suspend_data for analytics
+4. Use `exploratoryPolicy.viewRequirement` for token awarding logic
+5. Calculate SCORM score using `reporting.scorm.scoreRaw` formula
+
+**Schema Validation**:
+- Use JSON Schema Draft 7 validator
+- Fail build if case JSON doesn't match schema
+- Schema location: `/schemas/CaseData.schema.json`
+
+**Precedence Rules**:
+- Case JSON > Global defaults (in this appendix)
+- Example: If `case01.clusterMap` exists, use it; else use `clusterMapDefault`
+
+---
+
+**END OF APPENDIX D**
+
+---
+
+**END OF PRD**

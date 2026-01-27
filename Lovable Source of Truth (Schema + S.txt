@@ -1,0 +1,59 @@
+Lovable Source of Truth (Schema + Scoring)
+
+**Purpose**: Single-page reference for Lovable implementation. This document is the **SSOT** (source of truth) for Lovable and supersedes conflicting statements in other files. Other documents are background only unless explicitly referenced here.
+
+## 1) Content Schema
+- **Authoritative schemaVersion**: **1.1**
+- **Content files** must include:
+  - `schemaVersion: "1.1"`
+  - `contentType` (e.g., `case`, `simulacrum`)
+  - Version metadata if present (`contentVersion`, `createdAt`, `updatedAt`, `deprecated`)
+- **v1.1 fields to support**:
+  - `openingScene.patientVideo` and/or `openingScene.patientImage`
+  - `chartEntries[].renderType` with `text` | `image` | `hybrid`
+  - `patientPerspective.videoNote` (optional)
+  - `personInContext.imageAlt` and `imageCaption` (if `imageUrl` exists)
+
+## 2) MCQ Mechanics
+- **Case MCQs**:
+  - Exactly **2 selections** from **5 options (A–E)**.
+  - **Option score values**: `5`, `2`, `1`, `0` (per option, per MCQ).
+- **Simulacra MCQs**:
+  - Single-selection **A–D**.
+
+## 3) Cluster Mapping (Case MCQs)
+**Score → Cluster**
+- `10 (5+5)` → **A** (Affirmation + Calibration) → **Correct token**
+- `7 (5+2)` → **B** (Reframing + Priority Reset) → **Exploratory token**
+- `4 (2+2)` → **B** (Reframing + Priority Reset) → **Exploratory token**
+- `6 (5+1)` → **C** (Boundary + Risk Awareness) → **Exploratory token**
+- `3 (2+1)` → **C** (Boundary + Risk Awareness) → **Exploratory token**
+- `2 (1+1)` → **C** (Boundary + Risk Awareness) → **Exploratory token**
+- `1 (1+0)` → **C** (Boundary + Risk Awareness) → **Exploratory token**
+- `0 (0+0)` → **C** (Boundary + Risk Awareness) → **Exploratory token**
+
+**Passing score**: **7–10** (passing does **not** award a correct token unless score=10).
+
+## 4) Tokens & Badges
+- **Correct token**: earned only when **both correct answers** selected in the same attempt (score=10).
+- **Exploratory tokens**: one per **unique option** selected per MCQ (max 5 per MCQ).
+- **Tokens do not award points directly**; they only unlock badges.
+
+**Badge thresholds by case length**:
+- **Standard badge**: all correct tokens
+  - 3Q case = **21 pts**
+  - 4Q case = **28 pts**
+  - 5Q case = **35 pts**
+- **Premium badge**: all correct tokens **+ all exploratory tokens**
+  - 3Q case = **30 pts**
+  - 4Q case = **40 pts**
+  - 5Q case = **50 pts**
+
+## 5) Macro Scoring (MVP)
+- **Points come from badges + IP Insights + simulacra** (no per-token points).
+- **MVP Max Points**: **67** = 50 (premium case) + 2 (IP Insights) + 15 (perfect simulacrum)
+- **MVP Minimum Completion**: **47** = 35 (standard case) + 2 (IP Insights) + 10 (pass simulacrum)
+
+## 6) Progression Gates
+- **Case completion** requires: standard or premium badge **AND** IP Insights complete.
+- **Level unlock** requires: 5 case or premium badges **+** 1 simulacrum passed.

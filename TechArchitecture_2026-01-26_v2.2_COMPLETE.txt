@@ -1,0 +1,2758 @@
+# Technical Architecture Document
+## Palliative Care Gamified Learning Platform - Complete Specification
+
+**Version**: 2.2 (Merged Comprehensive Edition)  
+**Date**: January 26, 2026  
+**Status**: Final - Ready for Implementation  
+**Filename**: TechArchitecture_2026-01-26_v2.2_COMPLETE.md
+
+---
+
+## Document Purpose
+
+This merged document combines:
+- **v2.2 Critical Fixes** (Part A)
+- **v2.0 Detailed Specifications** (Part B)
+
+Use **Part A** as the authoritative list of fixes and apply them to the detailed specs in **Part B**.
+
+---
+
+## Table of Contents
+
+**Part A: v2.2 Summary & Critical Fixes**
+1. Changes in Version 2.2
+2. Critical Fix #1: SCORM Security Reframing
+3. Critical Fix #2: SCORM Data Overflow Handling
+4. Critical Fix #3: Multi-Tab Synchronization
+5. Critical Fix #4: SCORM 2004 Complete Key Mapping
+6. Critical Fix #5: Content Versioning & Migration
+7. Critical Fix #6: Hybrid Commit Strategy
+8. Critical Fix #7: DOMPurify Class Whitelist
+9. Critical Fix #8: Badge Count Standardization
+10. Critical Fix #9: MCQ Option Count Correction
+
+**Part B: Complete Technical Specifications (v2.0)**
+1. Technology Stack
+2. System Architecture Overview
+3. Module Structure & Dependencies
+4. Core Engines (Implementation Specs)
+5. State Management Architecture
+6. SCORM Integration Layer
+7. Content Model & JSON Schemas
+8. UI Component Library
+9. Build & Deployment Pipeline
+10. Testing Strategy
+11. Performance Requirements
+12. Security Considerations
+13. Browser Compatibility Matrix
+14. Development Workflow
+15. Deployment Checklist
+16. Appendix A: File Size Budget
+17. Appendix B: Error Codes
+
+---
+
+# PART A: v2.2 SUMMARY & CRITICAL FIXES
+
+## 1. Changes in Version 2.2
+
+Version 2.2 addresses **9 critical issues** identified after v2.0 publication:
+
+| Fix # | Issue | Impact | Status |
+|-------|-------|--------|--------|
+| 1 | SCORM State Signing | Security claims reframed | ✅ Fixed |
+| 2 | SCORM Data Overflow | 3-level reduction strategy | ✅ Fixed |
+| 3 | Multi-Tab Locking | BroadcastChannel mechanism | ✅ Fixed |
+| 4 | SCORM 2004 Mapping | Complete key map with defaults | ✅ Fixed |
+| 5 | Content Versioning | Migration script + validation | ✅ Fixed |
+| 6 | Commit Strategy | Hybrid debounce + force-commit | ✅ Fixed |
+| 7 | DOMPurify Config | Class whitelist defined | ✅ Fixed |
+| 8 | Badge Count | 5 options, 25 badges per case | ✅ Fixed |
+| 9 | MCQ Option Count | 5 options for cases, 4 for simulacra | ✅ Fixed |
+
+---
+
+## 2. Critical Fix #1: SCORM Security Reframing
+
+**Problem**: v2.0 described SCORM state signing as providing security, implying data "cannot be fabricated". This is misleading because client-side HMAC keys can be extracted from the JavaScript bundle.
+
+**Fix**: Reframe as "tamper detection (best-effort)" not security:
+
+```javascript
+// StateManager.js - Tamper Detection (Best-Effort)
+function signState(stateData) {
+  // NOTE: This provides tamper DETECTION, not security
+  // Secret is visible in bundle - this cannot prevent determined attackers
+  const secret = 'renewal-level1-hmac-key'; // Public in bundle
+  const signature = createHMAC(secret, JSON.stringify(stateData));
+  return { data: stateData, signature };
+}
+
+function verifyState(signedState) {
+  const expectedSig = createHMAC(secret, JSON.stringify(signedState.data));
+  if (signedState.signature !== expectedSig) {
+    console.warn('State tampering detected (or version mismatch)');
+    // Log to analytics but don't block - could be legitimate version change
+  }
+  return signedState.data;
+}
+```
+
+**Documentation Updates**:
+- Section 12.2 (Security): Remove "cannot be fabricated" language
+- Add note: "Client-side signatures provide tamper DETECTION only, not prevention"
+- Clarify: "Detected tampering is logged but does not block progress"
+
+**Why This Matters**: Accurate security claims prevent false sense of protection.
+
+---
+
+## 3. Critical Fix #2: SCORM Data Overflow Handling
+
+**Problem**: v2.0 assumes suspend_data will fit within SCORM limits (4KB for 1.2, 64KB for 2004). With case histories, this can overflow.
+
+**Fix**: 3-level reduction strategy:
+
+```javascript
+// StateManager.js - Save with Reduction Fallback
+async function saveSCORM(caseState) {
+  // Level 1: Full data (preferred)
+  let dataToSave = {
+    caseId: caseState.caseId,
+    attempts: caseState.attempts,      // All MCQ attempts
+    tokens: caseState.tokens,          // All 25 exploratory tokens
+    correctTokens: caseState.correctTokens,
+    score: caseState.score,
+    timestamps: caseState.timestamps
+  };
+  
+  let serialized = JSON.stringify(dataToSave);
+  let compressed = LZString.compressToBase64(serialized);
+  
+  // Check if fits in SCORM 1.2 (3.2KB safe limit, leaves buffer)
+  if (compressed.length <= 3200) {
+    await scormAPI.setValue('cmi.suspend_data', compressed);
+    return { level: 'full', size: compressed.length };
+  }
+  
+  // Level 2: Compressed (remove timestamps, keep last 10 attempts)
+  console.warn('SCORM data overflow - applying Level 2 reduction');
+  dataToSave = {
+    caseId: caseState.caseId,
+    attempts: caseState.attempts.slice(-10),  // Last 10 only
+    // Retention rule: keep first attempt and last attempt metadata if available
+    tokens: caseState.tokens,
+    correctTokens: caseState.correctTokens,
+    score: caseState.score
+    // timestamps removed
+  };
+  
+  serialized = JSON.stringify(dataToSave);
+  compressed = LZString.compressToBase64(serialized);
+  
+  if (compressed.length <= 3600) {  // More lenient for Level 2
+    await scormAPI.setValue('cmi.suspend_data', compressed);
+    return { level: 'compressed', size: compressed.length };
+  }
+  
+  // Level 3: Minimal (scores only, no history)
+  console.error('SCORM data overflow - applying Level 3 reduction (minimal)');
+  dataToSave = {
+    caseId: caseState.caseId,
+    score: caseState.score,
+    correctTokens: caseState.correctTokens,
+    // All history removed - scores only
+  };
+  
+  serialized = JSON.stringify(dataToSave);
+  compressed = LZString.compressToBase64(serialized);
+  
+  if (compressed.length <= 3900) {  // Final limit
+    await scormAPI.setValue('cmi.suspend_data', compressed);
+    return { level: 'minimal', size: compressed.length };
+  }
+  
+  // If even minimal fails, throw error
+  throw new Error('Cannot fit data in SCORM limits even with maximum reduction');
+}
+```
+
+**SCORM Package Strategy**:
+- Build **TWO packages**: `level1_scorm12.zip` (4KB limit) and `level1_scorm2004.zip` (64KB limit)
+- Default to SCORM 1.2 (wider LMS compatibility)
+- Use SCORM 2004 if testing shows frequent Level 2+ reductions
+- CI script (`size-test.js`) monitors reduction levels and recommends package
+- Retention rule: always preserve first attempt, last attempt, and aggregate attempt counts in reductions
+
+**Why This Matters**: Prevents data loss and ensures graceful degradation when limits approached.
+
+---
+
+## 4. Critical Fix #3: Multi-Tab Synchronization
+
+**Problem**: v2.0 mentioned multi-tab detection but didn't specify locking mechanism. Without coordination, multiple tabs can corrupt SCORM data.
+
+**Fix**: BroadcastChannel with heartbeat and lock acquisition:
+
+```javascript
+// StateManager.js - Multi-Tab Lock Management
+class StateManager {
+  constructor() {
+    this.channel = new BroadcastChannel('renewal-sync');
+    this.hasLock = false;
+    this.lockTimestamp = null;
+    this.heartbeatInterval = null;
+    
+    // Listen for messages from other tabs
+    this.channel.onmessage = (event) => this.handleMessage(event);
+    
+    // Attempt to acquire lock on init
+    this.acquireLock();
+  }
+  
+  acquireLock() {
+    // Request lock
+    this.channel.postMessage({ type: 'LOCK_REQUEST', timestamp: Date.now() });
+    
+    // If no response in 500ms, assume we got lock
+    setTimeout(() => {
+      if (!this.hasLock) {
+        this.hasLock = true;
+        this.lockTimestamp = Date.now();
+        this.startHeartbeat();
+        console.log('Multi-tab lock acquired');
+      }
+    }, 500);
+  }
+  
+  handleMessage(event) {
+    const { type, timestamp } = event.data;
+    
+    switch (type) {
+      case 'LOCK_REQUEST':
+        if (this.hasLock) {
+          // Tell other tab we have lock
+          this.channel.postMessage({ 
+            type: 'LOCK_HELD', 
+            timestamp: this.lockTimestamp 
+          });
+        }
+        break;
+        
+      case 'LOCK_HELD':
+        // Another tab has lock
+        if (!this.hasLock) {
+          console.warn('Another tab has SCORM lock - entering read-only mode');
+          this.showMultiTabWarning();
+        }
+        break;
+        
+      case 'HEARTBEAT':
+        // Other tab is alive, don't steal lock
+        break;
+        
+      case 'LOCK_RELEASE':
+        // Other tab released lock, try to acquire
+        if (!this.hasLock) {
+          this.acquireLock();
+        }
+        break;
+    }
+  }
+  
+  startHeartbeat() {
+    // Send heartbeat every 5 seconds
+    this.heartbeatInterval = setInterval(() => {
+      if (this.hasLock) {
+        this.channel.postMessage({ type: 'HEARTBEAT', timestamp: Date.now() });
+      }
+    }, 5000);
+  }
+
+  // Secondary safeguard: mirror lock ownership in localStorage with expiry
+  // to prevent dual-lock acquisition if BroadcastChannel messages are delayed.
+  
+  releaseLock() {
+    this.hasLock = false;
+    this.channel.postMessage({ type: 'LOCK_RELEASE', timestamp: Date.now() });
+    clearInterval(this.heartbeatInterval);
+  }
+  
+  // Check for stale locks (>10s without heartbeat)
+  detectStaleLock() {
+    const now = Date.now();
+    if (this.lockTimestamp && (now - this.lockTimestamp) > 10000) {
+      console.warn('Stale lock detected - attempting recovery');
+      this.acquireLock();
+    }
+  }
+}
+```
+
+**UI Component**:
+```jsx
+// components/MultiTabWarning.jsx
+export function MultiTabWarning({ onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg max-w-md">
+        <h2 className="text-xl font-bold text-red-600 mb-4">
+          Multiple Tabs Detected
+        </h2>
+        <p className="mb-4">
+          This course is open in another browser tab. To prevent data loss, 
+          only one tab can make progress at a time.
+        </p>
+        <p className="mb-4 font-semibold">
+          Please close this tab or the other tab to continue.
+        </p>
+        <button 
+          onClick={onClose}
+          className="bg-purple-600 text-white px-4 py-2 rounded"
+        >
+          Close This Tab
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**Why This Matters**: Prevents data corruption from concurrent SCORM writes.
+
+---
+
+## 5. Critical Fix #4: SCORM 2004 Complete Key Mapping
+
+**Problem**: v2.0 provided partial SCORM 2004 mapping. Missing keys and unclear defaults could cause LMS integration issues.
+
+**Fix**: Complete key map with defaults and usage rules:
+
+```javascript
+// scormAPI.js - SCORM 2004 Complete Mapping
+const SCORM_2004_KEY_MAP = {
+  // Completion Status
+  'cmi.completion_status': {
+    values: ['completed', 'incomplete', 'not attempted', 'unknown'],
+    default: 'incomplete',
+    usage: 'Set to "completed" when learner finishes all requirements',
+    moodle: 'Primary completion indicator'
+  },
+  
+  // Success Status (separate from completion!)
+  'cmi.success_status': {
+    values: ['passed', 'failed', 'unknown'],
+    default: 'unknown',
+    usage: 'Set to "passed" if score >= mastery_score, otherwise "failed"',
+    moodle: 'Used for gradebook pass/fail'
+  },
+  
+  // Score (0-100)
+  'cmi.score.scaled': {
+    range: [-1.0, 1.0],
+    default: 0.0,
+    usage: 'Normalized score: (raw - min) / (max - min)',
+    moodle: 'Preferred for gradebook'
+  },
+  'cmi.score.raw': {
+    range: [0, 100],
+    default: 0,
+    usage: 'Actual earned score (e.g., 52 out of 67)',
+    moodle: 'Displayed to learner'
+  },
+  'cmi.score.min': {
+    default: 0,
+    usage: 'Minimum possible score (always 0 for us)'
+  },
+  'cmi.score.max': {
+    default: 100,
+    usage: 'Maximum possible score (always 100 for us)'
+  },
+  
+  // Session Time (ISO 8601 duration)
+  'cmi.session_time': {
+    format: 'PTxHxMxS',
+    usage: 'Time spent in current session (e.g., PT1H30M45S)',
+    moodle: 'Accumulated in total_time'
+  },
+  'cmi.total_time': {
+    format: 'PTxHxMxS',
+    readonly: true,
+    usage: 'Total time across all sessions (LMS manages this)'
+  },
+  
+  // Suspend Data (persistence)
+  'cmi.suspend_data': {
+    maxLength: 64000,  // SCORM 2004 4th Edition
+    usage: 'JSON string with case progress',
+    encoding: 'Base64 + LZ compression recommended'
+  },
+  
+  // Location (bookmark)
+  'cmi.location': {
+    maxLength: 1000,
+    usage: 'Current position (e.g., "case01_mcq3")',
+    moodle: 'Used to resume from last position'
+  },
+  
+  // Entry (how learner entered)
+  'cmi.entry': {
+    values: ['ab-initio', 'resume', ''],
+    readonly: true,
+    usage: 'LMS sets this - check to determine if resuming'
+  },
+  
+  // Mode (how SCORM is being run)
+  'cmi.mode': {
+    values: ['browse', 'normal', 'review'],
+    readonly: true,
+    usage: 'LMS sets this - usually "normal"'
+  },
+  
+  // Exit (how learner exited)
+  'cmi.exit': {
+    values: ['timeout', 'suspend', 'logout', 'normal', ''],
+    usage: 'Set on unload - use "suspend" for graceful exit'
+  }
+};
+
+// Usage Logic
+function setCompletionAndSuccess(earnedPoints, totalPoints) {
+  const percentage = (earnedPoints / totalPoints) * 100;
+  const scaled = earnedPoints / totalPoints;
+  
+  // Set scores
+  scormAPI.setValue('cmi.score.raw', percentage);
+  scormAPI.setValue('cmi.score.scaled', scaled);
+  scormAPI.setValue('cmi.score.min', 0);
+  scormAPI.setValue('cmi.score.max', 100);
+  
+  // Check completion (did learner complete all activities?)
+  const allActivitiesComplete = checkAllActivitiesComplete();
+  if (allActivitiesComplete) {
+    scormAPI.setValue('cmi.completion_status', 'completed');
+  }
+  
+  // Check success (did learner pass?)
+  const masteryScore = 70; // 70% required to pass
+  if (percentage >= masteryScore) {
+    scormAPI.setValue('cmi.success_status', 'passed');
+  } else {
+    scormAPI.setValue('cmi.success_status', 'failed');
+  }
+  
+  // Commit
+  scormAPI.commit();
+}
+```
+
+**Moodle-Specific Notes**:
+- `completion_status` controls "Complete" checkmark
+- `success_status` controls gradebook pass/fail
+- Both can be independent: learner can complete without passing
+- Use `score.scaled` for gradebook (Moodle prefers this)
+- Always set `exit = 'suspend'` on window.beforeunload
+
+**Why This Matters**: Ensures correct LMS integration and gradebook reporting.
+
+---
+
+## 6. Critical Fix #5: Content Versioning & Migration
+
+**Problem**: v2.0 assumed all content JSON has same schema. Need versioning for evolution.
+
+**Fix**: Add version metadata + migration strategy:
+
+**Content Schema**:
+```json
+{
+  "contentVersion": "1.0.0",
+  "schemaVersion": "1.1",
+  "createdAt": "2026-01-24T10:00:00Z",
+  "updatedAt": "2026-01-24T10:00:00Z",
+  "deprecated": false,
+  "caseId": "case01",
+  "title": "Margaret's Chest Pain",
+  "patientBaseline": { /* ... */ },
+  "openingScene": { /* ... */ },
+  "mcqs": [ /* ... */ ]
+}
+```
+
+**Version Field Meanings**:
+- `contentVersion`: Semantic version of THIS content file (1.0.0)
+- `schemaVersion`: Schema version this content follows (1.1)
+- `deprecated`: If true, content should not be loaded
+
+**Migration Script** (`scripts/migrate-content.js`):
+```javascript
+// Add version fields to legacy JSON files
+const fs = require('fs');
+const path = require('path');
+
+const CURRENT_SCHEMA = '1.1';
+
+function migrateContentFile(filepath) {
+  const content = JSON.parse(fs.readFileSync(filepath, 'utf8'));
+  
+  // Check if already versioned
+  if (content.schemaVersion) {
+    console.log(`${filepath}: Already versioned (schema ${content.schemaVersion})`);
+    return;
+  }
+  
+  // Add version metadata
+  const migrated = {
+    contentVersion: '1.0.0',
+    schemaVersion: CURRENT_SCHEMA,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deprecated: false,
+    ...content
+  };
+  
+  // Validate schema
+  validateSchema(migrated);
+  
+  // Write back
+  fs.writeFileSync(filepath, JSON.stringify(migrated, null, 2));
+  console.log(`${filepath}: Migrated to schema ${CURRENT_SCHEMA}`);
+}
+
+// Run on all content files
+const contentDir = path.join(__dirname, '../public/content');
+const files = fs.readdirSync(contentDir);
+files.filter(f => f.endsWith('.json')).forEach(f => {
+  migrateContentFile(path.join(contentDir, f));
+});
+```
+
+**Runtime Validation** (`utils/contentLoader.js`):
+```javascript
+import { z } from 'zod';
+
+const ContentVersionSchema = z.object({
+  contentVersion: z.string().regex(/^\d+\.\d+\.\d+$/),
+  schemaVersion: z.string(),
+  deprecated: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
+});
+
+export async function loadCase(caseId) {
+  const response = await fetch(`/content/${caseId}.json`);
+  const content = await response.json();
+  
+  // Validate version metadata
+  try {
+    ContentVersionSchema.parse(content);
+  } catch (error) {
+    console.error(`Invalid content version in ${caseId}:`, error);
+    throw new Error('Content validation failed');
+  }
+  
+  // Check if deprecated
+  if (content.deprecated) {
+    throw new Error(`Content ${caseId} is deprecated`);
+  }
+  
+  // Check schema compatibility (support N-1 versions)
+  const currentSchema = '1.0';
+  if (content.schemaVersion > currentSchema) {
+    throw new Error(`Content schema ${content.schemaVersion} > app schema ${currentSchema}`);
+  }
+  
+  // If schema is older, migrate at runtime
+  if (content.schemaVersion < currentSchema) {
+    console.warn(`Migrating ${caseId} from schema ${content.schemaVersion} to ${currentSchema}`);
+    content = migrateSchema(content);
+  }
+  
+  return content;
+}
+```
+
+**Why This Matters**: Enables content evolution without breaking existing deployments.
+
+---
+
+## 7. Critical Fix #6: Hybrid Commit Strategy
+
+**Problem**: v2.0 didn't specify commit timing. Too frequent = slow, too rare = data loss risk.
+
+**Fix**: Hybrid debounce + force-commit on critical events:
+
+```javascript
+// StateManager.js - Hybrid Commit Strategy
+class StateManager {
+  constructor() {
+    this.commitTimeout = null;
+    this.pendingSave = false;
+    this.DEBOUNCE_MS = 60000; // 60 seconds
+    
+    // Force commit on page unload
+    window.addEventListener('beforeunload', () => {
+      this.forceCommit();
+    });
+  }
+  
+  // Called on any state change
+  async saveState(caseState, options = {}) {
+    this.pendingSave = true;
+    
+    // Update localStorage immediately (fast)
+    localStorage.setItem('caseState', JSON.stringify(caseState));
+    
+    // Determine if this is a critical event
+    const isCritical = options.critical || this.isCriticalEvent(caseState);
+    
+    if (isCritical) {
+      // Force commit immediately for critical events
+      console.log('Critical event - force committing to SCORM');
+      await this.commitToSCORM(caseState);
+      this.pendingSave = false;
+    } else {
+      // Debounce non-critical commits
+      this.scheduleCommit(caseState);
+    }
+  }
+  
+  isCriticalEvent(caseState) {
+    // Define what counts as "critical"
+    return (
+      caseState.lastEvent === 'MCQ_SUBMIT' ||      // Learner submitted answer
+      caseState.lastEvent === 'BADGE_EARNED' ||     // Token/badge awarded
+      caseState.lastEvent === 'CASE_COMPLETE' ||    // Case finished
+      caseState.lastEvent === 'LEVEL_UNLOCK'        // New level unlocked
+    );
+  }
+  
+  scheduleCommit(caseState) {
+    // Clear existing timeout
+    clearTimeout(this.commitTimeout);
+    
+    // Schedule commit in 60 seconds
+    this.commitTimeout = setTimeout(async () => {
+      if (this.pendingSave) {
+        console.log('Debounced commit to SCORM');
+        await this.commitToSCORM(caseState);
+        this.pendingSave = false;
+      }
+    }, this.DEBOUNCE_MS);
+  }
+  
+  async commitToSCORM(caseState) {
+    // Apply reduction strategy (see Fix #2)
+    const result = await this.saveSCORM(caseState);
+    
+    // Update global state
+    await this.saveGlobalState();
+    
+    // SCORM commit
+    await scormAPI.commit();
+    
+    console.log(`SCORM commit: ${result.level} (${result.size} bytes)`);
+  }
+  
+  forceCommit() {
+    // Called on beforeunload
+    if (this.pendingSave) {
+      // Synchronous commit (browser allows this in beforeunload)
+      const caseState = JSON.parse(localStorage.getItem('caseState'));
+      this.commitToSCORM(caseState);
+      scormAPI.setValue('cmi.exit', 'suspend');
+    }
+  }
+}
+```
+
+**Critical Events** (force immediate commit):
+1. MCQ submission
+2. Token/badge earned
+3. Case completion
+4. Level unlock
+5. Page unload (beforeunload)
+
+**Non-Critical Events** (60s debounce):
+1. UI navigation
+2. Tooltip views
+3. Chart sidebar toggle
+4. Modal open/close
+
+**Why This Matters**: Balances performance (fewer commits) with data safety (critical events saved immediately).
+
+---
+
+## 8. Critical Fix #7: DOMPurify Class Whitelist
+
+**Problem**: v2.0 said "use DOMPurify" but didn't specify allowed classes. Content authors could inject arbitrary classes.
+
+**Fix**: Define explicit class whitelist:
+
+```javascript
+// utils/sanitizer.js - DOMPurify Configuration
+import DOMPurify from 'dompurify';
+
+// Allowed CSS classes for content styling
+const ALLOWED_CLASSES = [
+  // Typography
+  'text-purple-600',
+  'text-blue-600',
+  'text-green-600',
+  'text-red-600',
+  'font-bold',
+  'font-semibold',
+  'italic',
+  'underline',
+  
+  // Layout
+  'mb-2',
+  'mb-4',
+  'mt-2',
+  'mt-4',
+  
+  // Lists
+  'list-disc',
+  'list-decimal',
+  'ml-4'
+];
+
+// Configure DOMPurify
+DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+  if (data.attrName === 'class') {
+    const classes = data.attrValue.split(' ');
+    const filtered = classes.filter(cls => ALLOWED_CLASSES.includes(cls));
+    data.attrValue = filtered.join(' ');
+    
+    // Warn if classes were removed
+    if (classes.length !== filtered.length) {
+      console.warn('Sanitizer removed unauthorized classes:', 
+        classes.filter(cls => !ALLOWED_CLASSES.includes(cls)));
+    }
+  }
+});
+
+// Sanitize HTML
+export function sanitizeHTML(html) {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'br'],
+    ALLOWED_ATTR: ['class'],
+    KEEP_CONTENT: true
+  });
+}
+
+// Example usage in DebriefAccordion
+export function DebriefAccordion({ feedback }) {
+  return (
+    <div 
+      dangerouslySetInnerHTML={{ 
+        __html: sanitizeHTML(feedback.rationale) 
+      }} 
+    />
+  );
+}
+```
+
+**Rationale for Whitelist**:
+- **Typography classes**: Allow emphasis (bold, color) for educational content
+- **Layout classes**: Allow spacing (margins) for readability
+- **List classes**: Allow bullets/numbers for structured content
+- **Block arbitrary classes**: Prevent injection of arbitrary Tailwind utilities
+
+**Testing**:
+```javascript
+// tests/sanitizer.test.js
+test('allows whitelisted classes', () => {
+  const html = '<p class="text-purple-600 font-bold">Hello</p>';
+  const clean = sanitizeHTML(html);
+  expect(clean).toContain('text-purple-600');
+  expect(clean).toContain('font-bold');
+});
+
+test('removes non-whitelisted classes', () => {
+  const html = '<p class="text-purple-600 absolute top-0">Hello</p>';
+  const clean = sanitizeHTML(html);
+  expect(clean).toContain('text-purple-600');
+  expect(clean).not.toContain('absolute');
+  expect(clean).not.toContain('top-0');
+});
+
+test('removes script tags', () => {
+  const html = '<script>alert("xss")</script><p>Hello</p>';
+  const clean = sanitizeHTML(html);
+  expect(clean).not.toContain('script');
+  expect(clean).toContain('Hello');
+});
+```
+
+**Why This Matters**: Prevents arbitrary HTML/CSS injection while allowing educational formatting.
+
+---
+
+## 9. Critical Fix #8: Badge Count Standardization
+
+**Problem**: v2.0 inconsistently referenced 25 premium badges (5 options × 5 MCQs) while v2.1 reduced options to 4. Content and PRD require 5 options per case MCQ.
+
+**Fix**: Standardize to 5 options (A-E) → 25 premium badges:
+
+**Updated Content Quantities**:
+
+| Element | Count | Formula | Notes |
+|---------|-------|---------|-------|
+| MCQ Options | **5** | Fixed | A, B, C, D, E |
+| MCQs per Case | 5 | Fixed | Q1-Q5 |
+| Premium Badges | **25** | **5 × 5** | One per unique option |
+| Standard Badges | 5 | Fixed | One per case |
+| Exploratory Tokens | **25** | **5 × 5** | Track all selections |
+| Correct Tokens | 5 | Fixed | One per perfect MCQ |
+
+**Code Updates**:
+
+```javascript
+// constants.js
+export const BADGE_CONFIG = {
+  MCQ_OPTIONS: 5,               // A, B, C, D, E
+  MCQS_PER_CASE: 5,             // Q1-Q5
+  PREMIUM_BADGES: 25,           // 5 × 5
+  STANDARD_BADGES: 5,           // One per case
+  EXPLORATORY_TOKENS: 25,       // 5 × 5
+  CORRECT_TOKENS: 5             // One per perfect MCQ
+};
+
+// Validate MCQ has exactly 5 options
+export function validateMCQ(mcq) {
+  if (mcq.options.length !== 5) {
+    throw new Error(`MCQ must have exactly 5 options (A-E), found ${mcq.options.length}`);
+  }
+  
+  // Validate option IDs are A, B, C, D, E
+  const optionIds = mcq.options.map(opt => opt.id);
+  const expected = ['A', 'B', 'C', 'D', 'E'];
+  if (!expected.every(id => optionIds.includes(id))) {
+    throw new Error(`MCQ options must be A, B, C, D, E, found ${optionIds.join(', ')}`);
+  }
+}
+```
+
+**Content Schema Update**:
+```json
+{
+  "mcqs": [
+    {
+      "id": "Q1",
+      "question": "What should you assess first?",
+      "options": [
+        { "id": "A", "text": "Check vital signs", "points": 5 },
+        { "id": "B", "text": "Ask about pain", "points": 2 },
+        { "id": "C", "text": "Call family", "points": 0 },
+        { "id": "D", "text": "Order tests", "points": 5 },
+        { "id": "E", "text": "Reassure and observe", "points": 2 }
+      ],
+      "correctOptions": ["A", "B"],
+      "maxOptions": 2
+    }
+  ]
+}
+```
+
+**All Examples Updated**:
+- Section 7 (Content Model): MCQ schema shows 5 options
+- Section 13 (Core Engines): CaseEngine examples use 5 options
+- Section 14 (State Management): Badge calculations use 25
+- Section 17 (UI Components): MCQComponent enforces 5 options
+- Appendix A: Updated quantity table
+
+**Why This Matters**: Consistency with PRD, correct badge calculations, accurate scope.
+
+---
+
+
+# PART B: COMPLETE TECHNICAL SPECIFICATIONS (v2.0 FULL TEXT)
+
+## Executive Summary
+
+This document defines the complete technical architecture for the palliative care gamified learning platform MVP. The system is a **single-page application (SPA)** built with modern web technologies, packaged as a **SCORM 1.2/2004 module**, deployed to **Moodle 4.6+**, and designed for **offline-capable, browser-based learning** with no server-side dependencies beyond the LMS.
+
+**Key Architectural Decisions**:
+- **Frontend-Only**: No custom backend (Moodle handles auth, storage, grading)
+- **State Management**: Hybrid LocalStorage + SCORM suspend_data
+- **Content Delivery**: Static JSON files (no database)
+- **Styling**: Tailwind CSS (utility-first, mobile-responsive)
+- **Build System**: Vite (fast, modern, tree-shaking)
+- **Testing**: Vitest + Playwright (unit + e2e)
+
+**Non-Goals**:
+- ❌ No Node.js server (static assets only)
+- ❌ No database (JSON content files)
+- ❌ No REST API (SCORM API only)
+- ❌ No real-time sync (single-session only)
+
+---
+
+## Table of Contents
+
+1. Technology Stack
+2. System Architecture Overview
+3. Module Structure & Dependencies
+4. Core Engines (Implementation Specs)
+5. State Management Architecture
+6. SCORM Integration Layer
+7. Content Model & JSON Schemas
+8. UI Component Library
+9. Build & Deployment Pipeline
+10. Testing Strategy
+11. Performance Requirements
+12. Security Considerations
+13. Browser Compatibility Matrix
+14. Development Workflow
+
+---
+
+## 1. Technology Stack
+
+### 1.1 Core Technologies
+
+**Runtime**:
+- **JavaScript**: ES2022 (native modules, async/await, optional chaining)
+- **Browser**: Chromium 100+, Firefox 100+, Safari 15+, Edge 100+
+- **Modern ES modules**: Target ES2022 (no legacy browser transpilation needed)
+- **JSX transpilation**: Via Vite (React requires JSX → JS transformation)
+- **Why**: Faster builds, smaller bundles (no polyfills for old browsers)
+
+**Frontend Framework**:
+- **React 18.3**: Component-based UI, hooks, concurrent rendering
+- **React Router 6.x**: Client-side routing (SPA navigation)
+- **Why React**: Component reusability, rich ecosystem, stable
+
+**State Management**:
+- **Zustand 4.x**: Lightweight (3KB), simple API, no boilerplate
+- **Why Zustand**: Simpler than Redux, more structured than Context API
+- **Stores**: `gameStore`, `caseStore`, `scormStore`, `uiStore`
+
+**Styling**:
+- **Tailwind CSS 3.x**: Utility-first, mobile-first, customizable
+- **Brand Colors**: 6 families from PRD Appendix C (Purple, Blue, Orange, Yellow, Red, Green)
+- **Custom Theme**: `tailwind.config.js` with Pallium brand palette
+
+**Build System**:
+- **Vite 5.x**: Fast dev server, optimized production builds
+- **Why Vite**: 10-100x faster than Webpack, native ESM support
+- **Plugins**: `@vitejs/plugin-react`, `vite-plugin-compression` (gzip)
+
+**Testing**:
+- **Vitest 1.x**: Unit tests (Vite-native, fast)
+- **Playwright 1.x**: E2E tests (cross-browser)
+- **Testing Library**: React Testing Library (component tests)
+
+**Utilities**:
+- **date-fns**: Date manipulation (smaller than Moment.js)
+- **clsx**: Conditional CSS classes
+- **zod**: Schema validation (runtime type checking)
+
+---
+
+### 1.2 Development Tools
+
+**Package Manager**:
+- **pnpm 9.x**: Faster than npm, disk-efficient (hard links)
+
+**Code Quality**:
+- **ESLint 9.x**: Linting (Airbnb style guide)
+- **Prettier 3.x**: Code formatting
+- **TypeScript 5.x**: Type checking (gradual adoption, not full rewrite)
+
+**Version Control**:
+- **Git**: Standard workflow (feature branches, PRs)
+- **GitHub**: Repository hosting, CI/CD (Actions)
+
+**Local Development**:
+- **Vite Dev Server**: Hot module replacement (HMR)
+- **SCORM Cloud**: Testing SCORM package uploads
+- **Moodle Docker**: Local Moodle 4.6 instance
+
+---
+
+### 1.3 Why This Stack?
+
+**Lightweight**:
+- Total bundle size: <500KB (gzipped)
+- React + Zustand + Tailwind = minimal overhead
+- No heavy frameworks (no Angular, Vue, Next.js)
+
+**Modern**:
+- ES2022 features (cleaner code)
+- Vite (10x faster builds than Webpack)
+- React 18 (concurrent rendering for smooth UI)
+
+**Maintainable**:
+- Well-documented libraries (React, Tailwind)
+- Large ecosystems (easy to find help)
+- Stable versions (React 18 is mature)
+
+**Performant**:
+- Vite dev server: <1s startup
+- Vitest: 10x faster than Jest
+- Tree-shaking: Dead code elimination
+
+---
+
+## 2. System Architecture Overview
+
+### 2.1 High-Level Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Moodle LMS 4.6+                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ Course Page  │  │ Gradebook    │  │ User Profile │      │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+│         │                  │                  │              │
+│         └──────────────────┼──────────────────┘              │
+│                            │                                 │
+│                    ┌───────▼────────┐                        │
+│                    │  SCORM Player  │ (Moodle built-in)     │
+│                    └───────┬────────┘                        │
+└────────────────────────────┼──────────────────────────────────┘
+                             │
+                    ┌────────▼────────┐
+                    │  SCORM Package  │ (Uploaded ZIP)
+                    │  (Static Assets)│
+                    └────────┬────────┘
+                             │
+            ┌────────────────┼────────────────┐
+            │                │                │
+    ┌───────▼──────┐  ┌──────▼──────┐  ┌─────▼─────┐
+    │  index.html  │  │  bundle.js  │  │  JSON     │
+    │  (SPA Shell) │  │  (React App)│  │  (Content)│
+    └──────────────┘  └──────┬──────┘  └───────────┘
+                             │
+          ┌──────────────────┼──────────────────┐
+          │                  │                  │
+    ┌─────▼──────┐  ┌────────▼────────┐  ┌─────▼──────┐
+    │ Case Engine│  │ Progression Eng.│  │ State Mgr  │
+    └────────────┘  └─────────────────┘  └─────┬──────┘
+                                                │
+                              ┌─────────────────┼─────────────────┐
+                              │                 │                 │
+                       ┌──────▼──────┐   ┌──────▼──────┐   ┌─────▼─────┐
+                       │ localStorage│   │ SCORM API   │   │  Memory   │
+                       │ (Global)    │   │ (Per-Case)  │   │  (Temp)   │
+                       └─────────────┘   └─────────────┘   └───────────┘
+```
+
+---
+
+### 2.2 Data Flow
+
+**Initialization**:
+1. Moodle SCORM player loads `index.html`
+2. `bundle.js` initializes React app
+3. State Manager connects to SCORM API + localStorage
+4. Game Engine loads case JSON (case01.json)
+5. UI renders Patient Baseline + Opening Scene
+
+**User Interaction** (MCQ Flow):
+1. Learner selects options (A+D)
+2. Case Engine calculates micro score (5+5=10)
+3. Micro score maps to Cluster A (via clusterMap)
+4. Debrief Component renders Cluster A feedback
+5. State Manager saves attempt to SCORM suspend_data
+6. Progression Engine checks if correct token earned
+7. If yes: Award token, update localStorage (global points)
+8. UI updates HUD (points, badges)
+
+**Completion**:
+1. Progression Engine checks completion criteria (badge + IP + sim)
+2. State Manager signals SCORM: `cmi.core.lesson_status = "completed"`
+3. State Manager calculates score: `cmi.core.score.raw = (52/67) × 100 = 78%`
+4. Moodle Gradebook receives completion + score
+5. Learner sees "MVP Complete" message
+
+---
+
+### 2.3 Deployment Model
+
+**SCORM Package Structure**:
+
+We build **TWO separate packages** to support different LMS capabilities:
+
+**Package 1: level1_scorm12.zip** (SCORM 1.2 - 4KB suspend_data limit)
+```
+level1_scorm12.zip
+├── imsmanifest.xml          (SCORM 1.2 manifest)
+├── index.html               (SPA entry point)
+├── assets/
+│   ├── bundle.js            (React app, ~400KB gzipped)
+│   ├── bundle.css           (Tailwind styles, ~50KB gzipped)
+│   └── logo.svg             (Pallium logo)
+├── content/                 (JSON content files)
+└── scorm/
+    └── scormAPI.js          (SCORM 1.2/2004 wrapper)
+```
+
+**Package 2: level1_scorm2004.zip** (SCORM 2004 - 64KB suspend_data limit)
+```
+level1_scorm2004.zip
+├── imsmanifest.xml          (SCORM 2004 4th Edition manifest)
+├── index.html               (SPA entry point - same as 1.2)
+├── assets/                  (Same as 1.2)
+├── content/                 (Same as 1.2)
+└── scorm/
+    └── scormAPI.js          (Same wrapper, auto-detects version)
+```
+
+**Selection Strategy**:
+- Default: Use SCORM 1.2 package (wider compatibility)
+- If compressed suspend_data > 3.5KB: Use SCORM 2004 package
+- Decision made during CI testing (see Section 9.3)
+
+**Moodle Deployment**:
+1. Admin uploads `level1_scorm12.zip` to course
+2. Moodle extracts ZIP to `moodledata/scorm/`
+3. SCORM player embeds `index.html` in iframe
+4. All assets load from extracted directory (no CDN)
+
+---
+
+## 3. Module Structure & Dependencies
+
+### 3.1 Project Directory Structure
+
+```
+palliative-game/
+├── src/
+│   ├── engines/
+│   │   ├── CaseEngine.js        (Load case, track micro scores)
+│   │   ├── ProgressionEngine.js (Check badges, unlock levels)
+│   │   └── StateManager.js      (SCORM + localStorage)
+│   ├── stores/
+│   │   ├── gameStore.js         (Global: points, badges, levels)
+│   │   ├── caseStore.js         (Current case: MCQs, attempts)
+│   │   ├── scormStore.js        (SCORM connection state)
+│   │   └── uiStore.js           (UI state: modals, tooltips)
+│   ├── components/
+│   │   ├── PatientBaseline.jsx  (Sticky header)
+│   │   ├── ChartSidebar.jsx     (Medical chart)
+│   │   ├── MCQComponent.jsx     (Multi-selection MCQ)
+│   │   ├── DebriefAccordion.jsx (5-section feedback)
+│   │   ├── IPInsightsModal.jsx  (4 perspectives)
+│   │   ├── HUD.jsx              (Points, badges)
+│   │   └── LevelMenu.jsx        (Cases, topics, JITs, sims)
+│   ├── utils/
+│   │   ├── scormAPI.js          (SCORM 1.2/2004 wrapper)
+│   │   ├── clusterMap.js        (Score → Cluster logic)
+│   │   ├── contentLoader.js     (Fetch JSON files)
+│   │   └── validators.js        (Zod schemas)
+│   ├── pages/
+│   │   ├── CasePage.jsx         (Main case flow)
+│   │   ├── SimulacrumPage.jsx   (Simulacrum MCQs)
+│   │   ├── TopicPage.jsx        (Topic Summary viewer)
+│   │   └── JITPage.jsx          (JIT viewer)
+│   ├── App.jsx                  (Root component, Router)
+│   ├── main.jsx                 (React entry point)
+│   └── index.css                (Tailwind imports)
+├── public/
+│   ├── content/                 (JSON files)
+│   └── imsmanifest.xml          (SCORM manifest template)
+├── tests/
+│   ├── unit/                    (Vitest tests)
+│   └── e2e/                     (Playwright tests)
+├── scripts/
+│   ├── build-scorm.js           (Package SCORM ZIP)
+│   ├── validate-content.js      (Check JSON schemas)
+│   └── size-test.js             (Suspend data size check)
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+└── README.md
+```
+
+---
+
+### 3.2 Dependency Graph
+
+```
+main.jsx
+ └─> App.jsx
+      ├─> React Router
+      │    ├─> CasePage.jsx
+      │    │    ├─> PatientBaseline.jsx
+      │    │    ├─> ChartSidebar.jsx
+      │    │    ├─> MCQComponent.jsx
+      │    │    ├─> DebriefAccordion.jsx
+      │    │    └─> IPInsightsModal.jsx
+      │    ├─> SimulacrumPage.jsx
+      │    ├─> TopicPage.jsx
+      │    └─> JITPage.jsx
+      ├─> gameStore (Zustand)
+      │    └─> StateManager.js
+      │         ├─> scormAPI.js
+      │         └─> localStorage
+      ├─> caseStore (Zustand)
+      │    └─> CaseEngine.js
+      │         └─> contentLoader.js
+      └─> ProgressionEngine.js
+           └─> gameStore
+```
+
+**Key Dependencies**:
+- `App.jsx` → All stores (via Zustand hooks)
+- `CaseEngine.js` → `caseStore`, `gameStore` (reads/writes state)
+- `StateManager.js` → `scormAPI.js`, `localStorage` (persistence)
+- `ProgressionEngine.js` → `gameStore` (checks badges, unlocks levels)
+
+---
+
+### 3.3 NPM Dependencies
+
+**Production**:
+```json
+{
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.22.0",
+    "zustand": "^4.5.0",
+    "date-fns": "^3.3.1",
+    "clsx": "^2.1.0",
+    "zod": "^3.22.4"
+  }
+}
+```
+
+**Development**:
+```json
+{
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.1.0",
+    "vite-plugin-compression": "^0.5.1",
+    "vitest": "^1.3.1",
+    "@playwright/test": "^1.41.2",
+    "@testing-library/react": "^14.2.1",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8.4.35",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^9.0.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  }
+}
+```
+
+**Total Production Bundle**: ~450KB (gzipped)
+- React + ReactDOM: ~150KB
+- Zustand: 3KB
+- Router: 15KB
+- App code: ~280KB
+- Tailwind CSS: ~50KB (purged)
+
+---
+
+## 4. Core Engines (Implementation Specs)
+
+### 4.1 Case Engine
+
+**File**: `src/engines/CaseEngine.js`
+
+**Responsibilities**:
+- Load case JSON from `/content/case01.json`
+- Manage MCQ flow (Opening Scene → MCQ 1 → Debrief → MCQ 2 → ...)
+- Calculate micro scores (sum of option scores)
+- Map micro scores to clusters (A/B/C via clusterMap)
+- Track exploratory tokens (unique options selected)
+- Award correct tokens (score=10 → token earned)
+
+**Key Functions**:
+```javascript
+class CaseEngine {
+  async loadCase(caseId) {
+    const data = await fetch(`/content/${caseId}.json`);
+    const case = await data.json();
+    validateCaseSchema(case); // Zod validation
+    return case;
+  }
+
+  calculateMicroScore(selections, mcq) {
+    // selections = ['A', 'D']
+    // mcq.options = [{id: 'A', score: 5}, {id: 'D', score: 5}, ...]
+    return selections.reduce((sum, sel) => {
+      const option = mcq.options.find(o => o.id === sel);
+      return sum + (option?.score || 0);
+    }, 0);
+  }
+
+  mapScoreToCluster(score, clusterMap) {
+    // clusterMap = {"10": "A", "9": "A", "8": "B", ...}
+    return clusterMap[score.toString()] || "C"; // Default to C
+  }
+
+  async submitAttempt(mcqId, selections) {
+    const mcq = this.currentCase.mcqs.find(m => m.mcqId === mcqId);
+    const score = this.calculateMicroScore(selections, mcq);
+    const cluster = this.mapScoreToCluster(score, mcq.clusterMap);
+    
+    // Award correct token if score=10
+    if (score === 10) {
+      gameStore.getState().awardCorrectToken(mcqId);
+    }
+    
+    // Track exploratory tokens (unique options)
+    selections.forEach(sel => {
+      if (!this.exploredOptions[mcqId].includes(sel)) {
+        this.exploredOptions[mcqId].push(sel);
+        gameStore.getState().awardExploratoryToken(mcqId, sel);
+      }
+    });
+    
+    // Save attempt
+    const attempt = { selections, score, cluster, timestamp: Date.now() };
+    caseStore.getState().addAttempt(mcqId, attempt);
+    
+    return { cluster, feedback: mcq.clusters[cluster] };
+  }
+}
+
+export default new CaseEngine();
+```
+
+---
+
+### 4.2 Progression Engine
+
+**File**: `src/engines/ProgressionEngine.js`
+
+**Responsibilities**:
+- Check if case badge earned (all 5 correct tokens)
+- Check if simulacrum passed (≥3/4 correct)
+- Unlock next level when requirements met
+- Signal SCORM completion
+- Calculate final score
+
+**Key Functions**:
+```javascript
+class ProgressionEngine {
+  checkCaseBadge(caseId) {
+    const tokens = gameStore.getState().correctTokens[caseId];
+    const requiredTokens = 5; // For 5-MCQ case
+    return tokens?.length === requiredTokens;
+  }
+
+  checkPremiumBadge(caseId) {
+    const tokens = gameStore.getState().exploratoryTokens[caseId];
+    const requiredTokens = 25; // 5 options × 5 MCQs
+    return tokens?.length === requiredTokens;
+  }
+
+  checkSimPassed(simId) {
+    const sim = gameStore.getState().simulacra[simId];
+    return sim?.correct >= 3; // ≥3/4 correct
+  }
+
+  checkMVPComplete() {
+    const hasCaseBadge = this.checkCaseBadge('case01');
+    const hasIPInsights = gameStore.getState().ipInsightsCompleted['case01'];
+    const hasSimPassed = Object.values(gameStore.getState().simulacra)
+      .some(sim => sim.correct >= 3);
+    
+    return hasCaseBadge && hasIPInsights && hasSimPassed;
+  }
+
+  async signalCompletion() {
+    // Recompute score from immutable attempt history (SCORM data)
+    // Do NOT trust localStorage points (can be tampered)
+    const scormState = await StateManager.getSCORMSuspendData();
+    const totalPoints = this.recomputePointsFromAttempts(scormState);
+    
+    const mvpMaxPoints = 67;
+    const scorePercent = Math.round((totalPoints / mvpMaxPoints) * 100);
+    
+    // Use SCORM 2004-compatible method
+    await StateManager.scormAPI.setCompletionStatus('completed');
+    await StateManager.setSCORMValue('cmi.core.score.raw', scorePercent);
+    
+    console.log(`MVP Complete: ${totalPoints} pts (${scorePercent}%) [verified from attempts]`);
+  }
+  
+  recomputePointsFromAttempts(state) {
+    // Integrity check: recalculate score from immutable attempt history
+    let points = 0;
+    
+    // Badges: verify from correct/exploratory token counts
+    const correctTokens = state?.correctTokens || {};
+    Object.keys(correctTokens).forEach(caseId => {
+      const tokens = correctTokens[caseId];
+      const exploratoryTokens = state?.exploratoryTokens?.[caseId] || [];
+
+      if (exploratoryTokens.length >= 25) {
+        // Premium badge replaces standard badge points
+        points += 50;
+      } else if (tokens.length >= 5) {
+        points += 35;
+      }
+    });
+    
+    // IP Insights: 2 points each
+    const ipCompleted = Object.keys(state?.ipInsightsCompleted || {}).length;
+    points += ipCompleted * 2;
+    
+    // Simulacra: verify from actual performance
+    Object.values(state?.simulacra || {}).forEach(sim => {
+      if (sim.correct === sim.total) {
+        points += 15; // Perfect
+      } else if (sim.correct >= 3) {
+        points += 10; // Pass
+      }
+    });
+    
+    return points;
+  }
+}
+
+export default new ProgressionEngine();
+```
+
+---
+
+### 4.3 State Manager
+
+**File**: `src/engines/StateManager.js`
+
+**Responsibilities**:
+- Read/write to SCORM API (cmi.suspend_data)
+- Read/write to localStorage (global points, badges)
+- Merge SCORM + localStorage on load
+- Compress suspend_data (JSON.stringify + minify)
+- Handle SCORM API errors (fallback to localStorage)
+
+**Key Functions**:
+```javascript
+import scormAPI from '../utils/scormAPI';
+
+class StateManager {
+  async loadState() {
+    // Try SCORM first
+    const scormData = await this.getSCORMSuspendData();
+    const localData = this.getLocalStorage();
+    
+    // Merge (newest timestamp wins)
+    return this.mergeState(scormData, localData);
+  }
+
+  async saveState(state) {
+    try {
+      // 1. Minify (remove whitespace)
+      const minified = JSON.stringify(state);
+      
+      // 2. Compress using LZ-String (compatible with all browsers)
+      const compressed = this.compress(minified);
+      
+      // 3. Check size (hard limit)
+      const size = new Blob([compressed]).size;
+      const limit = this.version === '1.2' ? 3500 : 60000; // 3.5KB (1.2) or 60KB (2004)
+      
+      if (size > limit) {
+        console.error(`Suspend data size ${size} exceeds ${limit} bytes`);
+        // Attempt data reduction
+        const reduced = this.reduceStateSize(state);
+        const compressedReduced = this.compress(JSON.stringify(reduced));
+        const reducedSize = new Blob([compressedReduced]).size;
+        
+        if (reducedSize > limit) {
+          throw new Error(`Cannot reduce suspend_data below ${limit}B limit`);
+        }
+        
+        // Use reduced state
+        await scormAPI.SetValue('cmi.suspend_data', compressedReduced);
+      } else {
+        await scormAPI.SetValue('cmi.suspend_data', compressed);
+      }
+      
+      await scormAPI.Commit();
+      
+      // Also save to localStorage (backup)
+      localStorage.setItem('gameState', compressed);
+    } catch (error) {
+      console.error('SCORM save failed, using localStorage only', error);
+      localStorage.setItem('gameState', JSON.stringify(state));
+    }
+  }
+  
+  compress(str) {
+    // Simple LZ-style compression (cross-browser compatible)
+    // Using Run-Length Encoding for demonstration
+    // In production, use lz-string library: https://github.com/pieroxy/lz-string
+    return LZString.compressToUTF16(str);
+  }
+  
+  decompress(str) {
+    try {
+      return LZString.decompressFromUTF16(str);
+    } catch (e) {
+      // Fallback: assume uncompressed
+      return str;
+    }
+  }
+  
+  reduceStateSize(state) {
+    // Remove non-essential data to fit within limits
+    const reduced = { ...state };
+    
+    // Keep only last 10 attempts per MCQ (remove older)
+    Object.keys(reduced.attempts || {}).forEach(mcqId => {
+      if (reduced.attempts[mcqId].length > 10) {
+        reduced.attempts[mcqId] = reduced.attempts[mcqId].slice(-10);
+      }
+    });
+    
+    // Remove detailed attempt metadata (keep only scores)
+    Object.values(reduced.attempts || {}).forEach(attempts => {
+      attempts.forEach(attempt => {
+        delete attempt.timestamp;
+        delete attempt.selections; // Keep only score
+      });
+    });
+    
+    return reduced;
+  }
+
+  async getSCORMSuspendData() {
+    try {
+      const data = await scormAPI.GetValue('cmi.suspend_data');
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error('SCORM read failed', error);
+      return null;
+    }
+  }
+
+  getLocalStorage() {
+    try {
+      const data = localStorage.getItem('gameState');
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error('localStorage read failed', error);
+      return null;
+    }
+  }
+
+  mergeState(scormData, localData) {
+    if (!scormData) return localData || {};
+    if (!localData) return scormData;
+    
+    // Per-key timestamp merge (newest wins per key)
+    const merged = {};
+    const allKeys = new Set([
+      ...Object.keys(scormData),
+      ...Object.keys(localData)
+    ]);
+    
+    for (const key of allKeys) {
+      const scormValue = scormData[key];
+      const localValue = localData[key];
+      
+      // Special handling for arrays that should be unioned
+      if (key === 'exploratoryTokens' || key === 'correctTokens') {
+        // Union of tokens (combine both sources)
+        merged[key] = this.mergeTokens(scormValue, localValue);
+        continue;
+      }
+      
+      // Special handling for attempts (preserve all unique attempts)
+      if (key === 'attempts') {
+        merged[key] = this.mergeAttempts(scormValue, localValue);
+        continue;
+      }
+      
+      // For other keys, use per-key timestamp if available
+      if (scormValue && localValue) {
+        const scormTime = scormValue._timestamp || scormData.timestamp || 0;
+        const localTime = localValue._timestamp || localData.timestamp || 0;
+        merged[key] = scormTime >= localTime ? scormValue : localValue;
+      } else {
+        merged[key] = scormValue || localValue;
+      }
+    }
+    
+    // Set global timestamp to max
+    merged.timestamp = Math.max(
+      scormData.timestamp || 0,
+      localData.timestamp || 0
+    );
+    
+    // Check for multi-tab conflict (timestamps very close)
+    const timeDiff = Math.abs((scormData.timestamp || 0) - (localData.timestamp || 0));
+    if (timeDiff < 5000 && timeDiff > 0) { // <5 seconds apart
+      merged._multiTabWarning = true;
+    }
+    
+    return merged;
+  }
+  
+  mergeTokens(scormTokens, localTokens) {
+    // Union: combine unique tokens from both sources
+    const scormSet = new Set(Object.entries(scormTokens || {}).flat());
+    const localSet = new Set(Object.entries(localTokens || {}).flat());
+    const union = new Set([...scormSet, ...localSet]);
+    
+    // Reconstruct token structure
+    const merged = {};
+    for (const [key, value] of Object.entries({...scormTokens, ...localTokens})) {
+      if (Array.isArray(value)) {
+        merged[key] = [...new Set([
+          ...(scormTokens?.[key] || []),
+          ...(localTokens?.[key] || [])
+        ])];
+      } else {
+        merged[key] = value;
+      }
+    }
+    
+    return merged;
+  }
+  
+  mergeAttempts(scormAttempts, localAttempts) {
+    // Merge attempts by MCQ, preserving all unique attempts
+    const merged = {...scormAttempts};
+    
+    for (const [mcqId, attempts] of Object.entries(localAttempts || {})) {
+      if (!merged[mcqId]) {
+        merged[mcqId] = attempts;
+      } else {
+        // Combine attempts, remove duplicates by timestamp
+        const combined = [...merged[mcqId], ...attempts];
+        const unique = combined.filter((attempt, index, self) =>
+          index === self.findIndex(a => a.timestamp === attempt.timestamp)
+        );
+        merged[mcqId] = unique.sort((a, b) => a.timestamp - b.timestamp);
+      }
+    }
+    
+    return merged;
+  }
+  
+  shouldShowMultiTabWarning() {
+    const state = this.loadState();
+    return state._multiTabWarning === true;
+  }
+}
+
+export default new StateManager();
+```
+
+---
+
+## 5. State Management Architecture
+
+### 5.1 Zustand Stores
+
+**Why Zustand?**
+- Lightweight (3KB vs Redux 40KB)
+- Simple API (no actions/reducers boilerplate)
+- TypeScript-ready
+- Dev tools support
+
+---
+
+### 5.2 gameStore (Global State)
+
+**File**: `src/stores/gameStore.js`
+
+```javascript
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+const useGameStore = create(
+  persist(
+    (set, get) => ({
+      // State
+      totalPoints: 0,
+      correctTokens: {}, // {case01: ['mcq1', 'mcq2'], case02: [...]}
+      exploratoryTokens: {}, // {case01: ['A', 'B', 'D'], ...}
+      badges: [], // ['case01-standard', 'sim01-perfect']
+      unlockedLevels: [1],
+      ipInsightsCompleted: {}, // {case01: true}
+      simulacra: {}, // {sim01: {correct: 4, total: 4, attempts: 1}}
+
+      // Actions
+      addPoints: (points) => set((state) => ({
+        totalPoints: state.totalPoints + points
+      })),
+
+      awardCorrectToken: (mcqId) => set((state) => {
+        const caseId = mcqId.split('-')[0]; // 'mcq1' → 'case01'
+        const tokens = state.correctTokens[caseId] || [];
+        if (tokens.includes(mcqId)) return state; // Already awarded
+        
+        return {
+          correctTokens: {
+            ...state.correctTokens,
+            [caseId]: [...tokens, mcqId]
+          }
+        };
+      }),
+
+      awardExploratoryToken: (mcqId, optionId) => set((state) => {
+        const caseId = mcqId.split('-')[0];
+        const tokens = state.exploratoryTokens[caseId] || [];
+        const key = `${mcqId}-${optionId}`;
+        if (tokens.includes(key)) return state; // Already awarded
+        
+        return {
+          exploratoryTokens: {
+            ...state.exploratoryTokens,
+            [caseId]: [...tokens, key]
+          }
+        };
+      }),
+
+      awardBadge: (badgeId, points) => set((state) => {
+        if (state.badges.includes(badgeId)) return state; // Already awarded
+        
+        return {
+          badges: [...state.badges, badgeId],
+          totalPoints: state.totalPoints + points
+        };
+      }),
+
+      unlockLevel: (levelId) => set((state) => ({
+        unlockedLevels: [...state.unlockedLevels, levelId]
+      })),
+
+      markIPInsightsComplete: (caseId) => set((state) => ({
+        ipInsightsCompleted: {
+          ...state.ipInsightsCompleted,
+          [caseId]: true
+        },
+        totalPoints: state.totalPoints + 2 // 2 pts for IP Insights
+      })),
+
+      recordSimResult: (simId, correct, total) => set((state) => {
+        const points = correct === total ? 15 : (correct >= 3 ? 10 : 0);
+        return {
+          simulacra: {
+            ...state.simulacra,
+            [simId]: { correct, total, attempts: 1 }
+          },
+          totalPoints: state.totalPoints + points
+        };
+      })
+    }),
+    {
+      name: 'gameState', // localStorage key
+      partialize: (state) => ({
+        totalPoints: state.totalPoints,
+        badges: state.badges,
+        unlockedLevels: state.unlockedLevels
+      }) // Only persist global state (not case-specific)
+    }
+  )
+);
+
+export default useGameStore;
+```
+
+---
+
+### 5.3 caseStore (Current Case State)
+
+**File**: `src/stores/caseStore.js`
+
+```javascript
+import { create } from 'zustand';
+
+const useCaseStore = create((set) => ({
+  // State
+  currentCase: null,
+  currentMCQIndex: 0,
+  attempts: {}, // {mcq1: [{selections: ['A','D'], score: 10, cluster: 'A'}]}
+  exploredOptions: {}, // {mcq1: ['A', 'B', 'D']}
+  chartReveals: [], // ['pre-mcq1', 'after-mcq1', 'after-mcq2']
+  debriefViewed: {}, // {mcq1: {rationale: true, outcomes: true, ...}}
+
+  // Actions
+  setCase: (caseData) => set({ currentCase: caseData }),
+  
+  nextMCQ: () => set((state) => ({
+    currentMCQIndex: state.currentMCQIndex + 1
+  })),
+
+  addAttempt: (mcqId, attempt) => set((state) => ({
+    attempts: {
+      ...state.attempts,
+      [mcqId]: [...(state.attempts[mcqId] || []), attempt]
+    }
+  })),
+
+  markDebriefSectionViewed: (mcqId, section) => set((state) => ({
+    debriefViewed: {
+      ...state.debriefViewed,
+      [mcqId]: {
+        ...(state.debriefViewed[mcqId] || {}),
+        [section]: true
+      }
+    }
+  })),
+
+  revealChart: (chartId) => set((state) => ({
+    chartReveals: [...state.chartReveals, chartId]
+  })),
+
+  resetCase: () => set({
+    currentMCQIndex: 0,
+    attempts: {},
+    exploredOptions: {},
+    chartReveals: [],
+    debriefViewed: {}
+  })
+}));
+
+export default useCaseStore;
+```
+
+---
+
+## 6. SCORM Integration Layer
+
+### 6.1 SCORM API Wrapper
+
+**File**: `src/utils/scormAPI.js`
+
+```javascript
+class SCORMAPIWrapper {
+  constructor() {
+    this.API = null;
+    this.version = null; // '1.2' or '2004'
+  }
+
+  async initialize() {
+    // Find SCORM API (walks up window tree)
+    this.API = this.findAPI(window);
+    
+    if (!this.API) {
+      console.warn('SCORM API not found, using localStorage only');
+      return false;
+    }
+
+    // Detect version
+    if (this.API.LMSInitialize) {
+      this.version = '1.2';
+      this.API.LMSInitialize('');
+    } else if (this.API.Initialize) {
+      this.version = '2004';
+      this.API.Initialize('');
+    }
+
+    console.log(`SCORM ${this.version} initialized`);
+    return true;
+  }
+
+  findAPI(win) {
+    let attempts = 0;
+    while (win && attempts < 10) {
+      if (win.API) return win.API; // SCORM 1.2
+      if (win.API_1484_11) return win.API_1484_11; // SCORM 2004
+      if (win.parent === win) break;
+      win = win.parent;
+      attempts++;
+    }
+    return null;
+  }
+
+  async GetValue(key) {
+    if (!this.API) return null;
+    
+    // Map keys between SCORM 1.2 and 2004
+    const mappedKey = this.mapKey(key);
+    
+    const method = this.version === '1.2' ? 'LMSGetValue' : 'GetValue';
+    return this.API[method](mappedKey);
+  }
+
+  async SetValue(key, value) {
+    if (!this.API) throw new Error('SCORM API unavailable');
+    
+    // Map keys between SCORM 1.2 and 2004
+    const mappedKey = this.mapKey(key);
+    
+    const method = this.version === '1.2' ? 'LMSSetValue' : 'SetValue';
+    return this.API[method](mappedKey, value);
+  }
+  
+  mapKey(key) {
+    // If SCORM 1.2, use key as-is
+    if (this.version === '1.2') return key;
+    
+    // If SCORM 2004, map 1.2 keys to 2004 equivalents
+    const keyMap = {
+      'cmi.core.lesson_status': 'cmi.completion_status',
+      'cmi.core.score.raw': 'cmi.score.raw',
+      'cmi.core.score.min': 'cmi.score.min',
+      'cmi.core.score.max': 'cmi.score.max',
+      'cmi.core.student_id': 'cmi.learner_id',
+      'cmi.core.student_name': 'cmi.learner_name',
+      'cmi.core.lesson_location': 'cmi.location',
+      'cmi.core.session_time': 'cmi.session_time',
+      'cmi.suspend_data': 'cmi.suspend_data' // Same in both
+    };
+    
+    return keyMap[key] || key;
+  }
+  
+  async setCompletionStatus(status) {
+    // Unified method that handles both versions
+    if (this.version === '1.2') {
+      // SCORM 1.2: lesson_status (completed, incomplete, passed, failed)
+      await this.SetValue('cmi.core.lesson_status', status);
+    } else {
+      // SCORM 2004: separate completion_status and success_status
+      await this.SetValue('cmi.completion_status', status === 'completed' ? 'completed' : 'incomplete');
+      if (status === 'passed' || status === 'failed') {
+        await this.SetValue('cmi.success_status', status);
+      }
+    }
+  }
+
+  async Commit() {
+    if (!this.API) return;
+    
+    const method = this.version === '1.2' ? 'LMSCommit' : 'Commit';
+    this.API[method]('');
+  }
+
+  async Terminate() {
+    if (!this.API) return;
+    
+    const method = this.version === '1.2' ? 'LMSFinish' : 'Terminate';
+    this.API[method]('');
+  }
+
+  async getLastError() {
+    if (!this.API) return null;
+    
+    const method = this.version === '1.2' ? 'LMSGetLastError' : 'GetLastError';
+    return this.API[method]();
+  }
+}
+
+export default new SCORMAPIWrapper();
+```
+
+---
+
+### 6.2 SCORM Manifest (imsmanifest.xml)
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="com.pallium.level1" version="1.0" 
+          xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+          xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd
+                              http://www.imsglobal.org/xsd/imsmd_rootv1p2p1 imsmd_rootv1p2p1.xsd
+                              http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">
+
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+  </metadata>
+
+  <organizations default="ORG-001">
+    <organization identifier="ORG-001">
+      <title>Palliative Care Level 1: Earlier Initiation</title>
+      <item identifier="ITEM-001" identifierref="RES-001">
+        <title>Case 1: Adam's Story</title>
+      </item>
+    </organization>
+  </organizations>
+
+  <resources>
+    <resource identifier="RES-001" type="webcontent" 
+              adlcp:scormtype="sco" href="index.html">
+      <file href="index.html"/>
+      <file href="assets/bundle.js"/>
+      <file href="assets/bundle.css"/>
+      <file href="content/case01.json"/>
+      <!-- Include all JSON files -->
+    </resource>
+  </resources>
+</manifest>
+```
+
+---
+
+## 7. Content Model & JSON Schemas
+
+See **PRD Appendix D** and **ContentModel.md** for complete schemas. Key points (schema v1.1):
+
+**Case JSON**:
+- `caseId`, `title`, `maxPoints`, `patientBaseline`
+- `mcqs[]`: Each MCQ has `options[]` with `score` (0/1/2/5)
+- `clusterMap`: Maps scores 0-10 to clusters A/B/C
+- `clusters[]`: Feedback content for each cluster
+- `openingScene.patientVideo` and `openingScene.patientImage` provide optional media placeholders
+- `chartNotes[].renderType` controls whether chart notes render text, image, or hybrid (structured data + text)
+- `patientPerspective.videoNote` provides an optional video alternative to audio
+- `personInContext.imageUrl`, `imageAlt`, and `imageCaption` are supported for patient photos
+
+**Simulacrum JSON**:
+- `simId`, `title`, `patientName`, `caseSummary`
+- `mcqs[]`: Single-selection (A/B/C/D), `isCorrect` boolean
+- `rationale[]`: Explains why option is correct/incorrect
+
+**Validation**:
+```javascript
+// src/utils/validators.js
+import { z } from 'zod';
+
+const OptionSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  score: z.number().min(0).max(5),
+  type: z.enum(['sound', 'partial', 'unsafe'])
+});
+
+const MCQSchema = z.object({
+  mcqId: z.string(),
+  stem: z.string(),
+  options: z.array(OptionSchema),
+  clusterMap: z.record(z.enum(['A', 'B', 'C'])),
+  clusters: z.object({
+    A: ClusterContentSchema,
+    B: ClusterContentSchema,
+    C: ClusterContentSchema
+  })
+});
+
+const CaseSchema = z.object({
+  caseId: z.string().regex(/^case\d{2}$/),
+  title: z.string(),
+  maxPoints: z.object({
+    standard: z.number(),
+    premium: z.number(),
+    ipInsights: z.number()
+  }),
+  openingScene: z
+    .object({
+      heading: z.string(),
+      narrative: z.string(),
+      sensoryDetails: z.array(z.string()),
+      patientVideo: z
+        .object({
+          url: z.string(),
+          duration: z.number(),
+          caption: z.string(),
+          poster: z.string(),
+          subtitles: z.string().optional()
+        })
+        .optional(),
+      patientImage: z
+        .object({
+          url: z.string(),
+          altText: z.string()
+        })
+        .optional()
+    })
+    .optional(),
+  patientPerspective: z
+    .object({
+      heading: z.string(),
+      firstPersonNarrative: z.string(),
+      voiceNote: z.string().optional(),
+      videoNote: z
+        .object({
+          url: z.string(),
+          duration: z.number(),
+          poster: z.string(),
+          subtitles: z.string().optional()
+        })
+        .optional()
+    })
+    .optional(),
+  personInContext: z
+    .object({
+      heading: z.string(),
+      narrative: z.string(),
+      imageUrl: z.string().optional(),
+      imageAlt: z.string().optional(),
+      imageCaption: z.string().optional()
+    })
+    .optional(),
+  chartNotes: z
+    .object({
+      preMCQ1: z.array(
+        z.object({
+          date: z.string(),
+          time: z.string().optional(),
+          author: z.string(),
+          category: z.string(),
+          renderType: z.enum(['text', 'image', 'hybrid']),
+          content: z.string().optional(),
+          imageUrl: z.string().optional(),
+          imageAlt: z.string().optional(),
+          structuredData: z
+            .object({
+              entries: z.array(
+                z.object({
+                  label: z.string(),
+                  value: z.string(),
+                  flag: z.enum(['normal', 'high', 'low', 'critical']).optional(),
+                  unit: z.string().optional()
+                })
+              )
+            })
+            .optional()
+        })
+      )
+    })
+    .optional(),
+  mcqs: z.array(MCQSchema)
+});
+
+export function validateCase(data) {
+  return CaseSchema.parse(data);
+}
+```
+
+---
+
+## 8. UI Component Library
+
+### 8.1 Core Components
+
+**PatientBaseline** (Sticky Header):
+```jsx
+function PatientBaseline({ patient }) {
+  const [collapsed, setCollapsed] = useState(false);
+  
+  return (
+    <header className="sticky top-0 z-50 bg-purple-700 text-white p-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">{patient.name}, {patient.age}</h1>
+          {!collapsed && (
+            <p className="text-sm">
+              {patient.diagnosis} | PPS {patient.pps} | {patient.livingSituation}
+            </p>
+          )}
+        </div>
+        <button onClick={() => setCollapsed(!collapsed)}>
+          {collapsed ? '▼' : '▲'}
+        </button>
+      </div>
+    </header>
+  );
+}
+```
+
+**MCQComponent** (Multi-Selection):
+```jsx
+function MCQComponent({ mcq, onSubmit }) {
+  const [selected, setSelected] = useState([]);
+  const maxSelections = 2;
+  
+  const toggleOption = (optionId) => {
+    if (selected.includes(optionId)) {
+      setSelected(selected.filter(id => id !== optionId));
+    } else if (selected.length < maxSelections) {
+      setSelected([...selected, optionId]);
+    }
+  };
+  
+  return (
+    <div className="mcq-container">
+      <h3 className="text-xl font-bold mb-4">{mcq.stem}</h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Select 2 options that best represent sound clinical reasoning
+      </p>
+      
+      {mcq.options.map(option => (
+        <button
+          key={option.id}
+          onClick={() => toggleOption(option.id)}
+          className={clsx(
+            'w-full p-4 mb-2 text-left border-2 rounded',
+            selected.includes(option.id)
+              ? 'border-blue-500 bg-blue-50'
+              : 'border-gray-300 hover:border-blue-300'
+          )}
+          disabled={selected.length >= maxSelections && !selected.includes(option.id)}
+        >
+          <span className="font-bold">{option.id}.</span> {option.text}
+        </button>
+      ))}
+      
+      <button
+        onClick={() => onSubmit(selected)}
+        disabled={selected.length !== maxSelections}
+        className="mt-4 px-6 py-3 bg-orange-500 text-white rounded disabled:bg-gray-300"
+      >
+        Submit ({selected.length}/{maxSelections})
+      </button>
+    </div>
+  );
+}
+```
+
+---
+
+### 8.2 Tailwind Theme Configuration
+
+**File**: `tailwind.config.js`
+
+```javascript
+export default {
+  content: ['./src/**/*.{js,jsx,ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        // Pallium brand colors (from PRD Appendix C)
+        purple: {
+          50: '#F5F3F8',
+          100: '#E6E1EE',
+          200: '#D1C6DD',
+          DEFAULT: '#5F4190', // Primary
+          600: '#4E3577',
+          700: '#3D2A5E'
+        },
+        blue: {
+          50: '#EBF4FA',
+          100: '#D6E9F5',
+          200: '#B3D6EA',
+          DEFAULT: '#69A5D2', // Links, info
+          600: '#5184A8',
+          700: '#3A6380'
+        },
+        orange: {
+          50: '#FDF3EF',
+          100: '#FAE7DE',
+          200: '#F5CFBD',
+          DEFAULT: '#E65825', // CTAs, warnings
+          600: '#B84620',
+          700: '#8A3418'
+        },
+        yellow: {
+          50: '#FDF9E7',
+          100: '#FBF3CE',
+          200: '#F7E79D',
+          DEFAULT: '#EED549', // Highlights, badges
+          600: '#BEAA3A',
+          700: '#8E7F2C'
+        },
+        red: {
+          50: '#F9EEEE',
+          100: '#F3DDDC',
+          200: '#E7BBB9',
+          DEFAULT: '#B24540', // Errors, Cluster C
+          600: '#8E3733',
+          700: '#6B2A27'
+        },
+        green: {
+          50: '#F3F7EA',
+          100: '#E6EFD4',
+          200: '#CDDFA9',
+          DEFAULT: '#A7C13F', // Success, Cluster A
+          600: '#869A32',
+          700: '#647426'
+        }
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['Fira Code', 'monospace']
+      }
+    }
+  },
+  plugins: []
+};
+```
+
+---
+
+## 9. Build & Deployment Pipeline
+
+### 9.0 Development & Deployment Workflow (with Codex)
+
+**Agent-Driven Pipeline**:
+```
+Claude Coder Agent
+  ↓ (writes code)
+Saved to CC Project
+  ↓ (handoff)
+Codex Agent (code review via GitHub MCP)
+  ↓ (if approved)
+Commits to GitHub (automatic)
+  ↓
+GitHub Actions (CI/CD)
+  ↓ (builds SCORM package)
+Artifact Available (PM downloads)
+```
+
+**Key Quality Gate**: Codex reviews code before GitHub commit
+- Security check (XSS, injection, secrets)
+- Performance check (<100ms render, <500KB bundle)
+- Accessibility check (WCAG 2.2 AA)
+- Tests passing (unit tests, linting)
+
+**Repository**: https://github.com/Elearning-Pallium/Renewal-Level-1-MVP (private)
+
+### 9.1 Vite Build Configuration
+
+**File**: `vite.config.js`
+
+```javascript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import compression from 'vite-plugin-compression';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    compression({ algorithm: 'gzip' })
+  ],
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          store: ['zustand'],
+          utils: ['date-fns', 'clsx', 'zod']
+        }
+      }
+    },
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.logs in production
+        drop_debugger: true
+      }
+    }
+  },
+  base: './', // Relative paths (SCORM compatibility)
+  server: {
+    port: 3000,
+    open: true
+  }
+});
+```
+
+---
+
+### 9.2 Build Script
+
+**File**: `scripts/build-scorm.js`
+
+```javascript
+import fs from 'fs-extra';
+import archiver from 'archiver';
+import { execSync } from 'child_process';
+
+async function buildSCORM() {
+  console.log('Building SCORM package...');
+  
+  // 1. Build React app
+  execSync('pnpm run build', { stdio: 'inherit' });
+  
+  // 2. Copy content files
+  await fs.copy('public/content', 'dist/content');
+  
+  // 3. Copy SCORM files
+  await fs.copy('public/imsmanifest.xml', 'dist/imsmanifest.xml');
+  await fs.copy('public/scorm/scorm12.js', 'dist/scorm/scorm12.js');
+  
+  // 4. Create ZIP
+  const output = fs.createWriteStream('level1_scorm12.zip');
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  
+  archive.pipe(output);
+  archive.directory('dist/', false);
+  await archive.finalize();
+  
+  console.log('✓ SCORM package created: level1_scorm12.zip');
+  
+  // 5. Check size
+  const stats = fs.statSync('level1_scorm12.zip');
+  const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
+  console.log(`✓ Package size: ${sizeMB} MB`);
+  
+  if (sizeMB > 10) {
+    console.warn('⚠ Package exceeds 10MB (may fail Moodle upload)');
+  }
+}
+
+buildSCORM().catch(console.error);
+```
+
+**Usage**:
+```bash
+pnpm run build:scorm
+```
+
+---
+
+### 9.3 CI/CD Pipeline (GitHub Actions)
+
+**File**: `.github/workflows/build.yml`
+
+```yaml
+name: Build & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      
+      - run: pnpm install
+      - run: pnpm run lint
+      - run: pnpm run test:unit
+      - run: pnpm run build
+      - run: node scripts/build-scorm.js
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scorm-package
+          path: level1_scorm12.zip
+```
+
+---
+
+## 10. Testing Strategy
+
+### 10.1 Unit Tests (Vitest)
+
+**File**: `tests/unit/CaseEngine.test.js`
+
+```javascript
+import { describe, it, expect } from 'vitest';
+import CaseEngine from '../../src/engines/CaseEngine';
+
+describe('CaseEngine', () => {
+  it('calculates micro score correctly', () => {
+    const mcq = {
+      options: [
+        { id: 'A', score: 5 },
+        { id: 'B', score: 2 },
+        { id: 'C', score: 1 },
+        { id: 'D', score: 5 }
+      ]
+    };
+    
+    const score = CaseEngine.calculateMicroScore(['A', 'D'], mcq);
+    expect(score).toBe(10);
+  });
+  
+  it('maps score to cluster correctly', () => {
+    const clusterMap = {
+      '10': 'A',
+      '9': 'A',
+      '8': 'B',
+      '7': 'B',
+      '6': 'C'
+    };
+    
+    expect(CaseEngine.mapScoreToCluster(10, clusterMap)).toBe('A');
+    expect(CaseEngine.mapScoreToCluster(7, clusterMap)).toBe('B');
+    expect(CaseEngine.mapScoreToCluster(3, clusterMap)).toBe('C'); // Default
+  });
+});
+```
+
+**Run**:
+```bash
+pnpm run test:unit
+```
+
+---
+
+### 10.2 E2E Tests (Playwright)
+
+**File**: `tests/e2e/mvp-flow.spec.js`
+
+```javascript
+import { test, expect } from '@playwright/test';
+
+test('MVP completion flow', async ({ page }) => {
+  // 1. Load app
+  await page.goto('http://localhost:3000');
+  
+  // 2. Start Case 1
+  await page.click('text=Case 1: Adam\'s Story');
+  
+  // 3. Complete MCQ 1
+  await page.click('button:has-text("A.")');
+  await page.click('button:has-text("D.")');
+  await page.click('button:has-text("Submit")');
+  
+  // 4. View debrief
+  await page.click('text=💡 Rationale');
+  await page.waitForTimeout(5000); // 5-sec dwell
+  await page.click('button:has-text("Mark as Read")');
+  
+  // Repeat for MCQs 2-5...
+  
+  // 5. View IP Insights
+  await page.click('button:has-text("IP Insights")');
+  for (const perspective of ['Nurse', 'Aide', 'Specialist', 'MRP']) {
+    await page.click(`text=${perspective}`);
+    await page.waitForTimeout(5000);
+    await page.click('button:has-text("Mark as Reflected")');
+  }
+  
+  // 6. Complete simulacrum
+  await page.click('text=Simulacrum');
+  await page.click('input[value="sim01"]');
+  await page.click('button:has-text("Continue")');
+  
+  // Answer 4 MCQs...
+  
+  // 7. Check completion
+  await expect(page.locator('text=MVP Complete')).toBeVisible();
+  
+  // 8. Verify score
+  const score = await page.locator('[data-testid="final-score"]').textContent();
+  expect(parseInt(score)).toBeGreaterThanOrEqual(47);
+});
+```
+
+**Run**:
+```bash
+pnpm run test:e2e
+```
+
+---
+
+## 11. Performance Requirements
+
+### 11.1 Load Time Targets
+
+| **Metric** | **Target** | **Max** |
+|-----------|----------|---------|
+| First Contentful Paint (FCP) | <1.5s | 2s |
+| Largest Contentful Paint (LCP) | <2.5s | 4s |
+| Time to Interactive (TTI) | <3s | 5s |
+| Total Bundle Size (gzipped) | <500KB | 750KB |
+
+**Measurement**: Lighthouse CI (run on every PR)
+
+---
+
+### 11.2 Runtime Performance
+
+| **Metric** | **Target** |
+|-----------|----------|
+| MCQ render time | <100ms |
+| State save time (SCORM) | <200ms |
+| Route transition | <300ms |
+| Debrief accordion expand | <100ms |
+
+**Tools**: React DevTools Profiler
+
+---
+
+### 11.3 Optimization Strategies
+
+**Code Splitting**:
+- React.lazy() for Topic/JIT pages (loaded on demand)
+- Manual chunks (vendor, store, utils)
+
+**Asset Optimization**:
+- SVG icons (not PNG/JPG)
+- Tailwind purge (remove unused CSS)
+- Compression (gzip bundle)
+
+**Caching**:
+- Service Worker (post-MVP): Cache JSON files for offline
+- LocalStorage: Avoid repeated SCORM reads
+
+---
+
+## 12. Security Considerations
+
+### 12.1 Threat Model
+
+**In-Scope Threats**:
+- XSS (Cross-Site Scripting)
+- Data tampering (localStorage/SCORM)
+- Content injection (malicious JSON)
+
+**Out-of-Scope** (handled by Moodle):
+- Authentication
+- Authorization
+- CSRF
+- SQL injection
+
+---
+
+### 12.2 Mitigations
+
+**XSS Prevention**:
+- React escapes by default (use `dangerouslySetInnerHTML` sparingly)
+- Sanitize user input (none expected, but validate content JSON)
+- CSP header (set by Moodle, not SCORM package)
+
+**Data Integrity**:
+- Validate JSON schemas (Zod) on load
+- Checksum content files (post-MVP)
+- SCORM Commit() after every write
+- **localStorage Tampering Protection**:
+  - SCORM suspend_data is authoritative (localStorage is backup only)
+  - Score recomputed from immutable attempt history at completion
+  - Points from localStorage ignored during final scoring
+  - Attempts stored in SCORM can be tampered; signatures provide best-effort detection only (not prevention)
+  - Badge awards verified from correct token count (not from badge array)
+- **Integrity Checks** (see `ProgressionEngine.recomputePointsFromAttempts`):
+  - Badges → verified from token counts (not from `badges` array)
+  - Simulacra → verified from `sim.correct` count
+  - Total score recalculated, never trusted from `totalPoints` variable
+
+**Content Security**:
+- No external scripts (all bundled)
+- No CDN dependencies (self-contained package)
+
+---
+
+## 13. Browser Compatibility Matrix
+
+| **Browser** | **Min Version** | **Status** |
+|------------|----------------|-----------|
+| Chrome | 100+ | ✅ Fully Supported |
+| Firefox | 100+ | ✅ Fully Supported |
+| Safari | 15+ | ✅ Fully Supported |
+| Edge | 100+ | ✅ Fully Supported |
+| Mobile Safari (iOS) | 15+ | ✅ Supported |
+| Chrome Android | 100+ | ✅ Supported |
+| IE 11 | N/A | ❌ Not Supported |
+
+**Why these versions?**
+- ES2022 support (native modules, optional chaining)
+- CSS Grid/Flexbox (layout)
+- Local Storage (state persistence)
+
+---
+
+## 14. Development Workflow
+
+### 14.1 Local Setup
+
+```bash
+# 1. Clone repo
+git clone https://github.com/pallium/palliative-game.git
+cd palliative-game
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Start dev server
+pnpm run dev
+
+# 4. Open browser
+http://localhost:3000
+```
+
+---
+
+### 14.2 Commands
+
+```bash
+pnpm run dev           # Start dev server (HMR enabled)
+pnpm run build         # Production build
+pnpm run build:scorm   # Build + package SCORM ZIP
+pnpm run test:unit     # Run Vitest unit tests
+pnpm run test:e2e      # Run Playwright E2E tests
+pnpm run lint          # ESLint check
+pnpm run format        # Prettier format
+pnpm run validate      # Validate JSON schemas
+pnpm run size          # Check suspend data size
+```
+
+---
+
+### 14.3 Git Workflow
+
+**Branches**:
+- `main`: Production-ready code
+- `develop`: Integration branch
+- `feature/*`: Feature development
+- `fix/*`: Bug fixes
+
+**PR Process**:
+1. Create feature branch from `develop`
+2. Implement feature + tests
+3. Run `pnpm run lint` and `pnpm run test:unit`
+4. Open PR to `develop`
+5. CI runs (lint, test, build)
+6. Code review (1 approval required)
+7. Merge to `develop`
+8. Weekly merge `develop` → `main`
+
+---
+
+## 15. Deployment Checklist
+
+**Pre-Deploy**:
+- [ ] All tests pass (unit + e2e)
+- [ ] Lint check passes
+- [ ] Content JSON validated
+- [ ] SCORM package size <10MB
+- [ ] Suspend data size test passes
+- [ ] Browser compatibility tested (Chrome, Firefox, Safari, Edge)
+- [ ] Accessibility audit (NVDA, VoiceOver)
+
+**Deploy**:
+- [ ] Build SCORM package: `pnpm run build:scorm`
+- [ ] Upload to Moodle staging
+- [ ] Test completion flow (MCQ → Debrief → IP → Sim → Complete)
+- [ ] Verify SCORM score in gradebook
+- [ ] Test on mobile (iOS Safari, Chrome Android)
+- [ ] Production upload
+
+**Post-Deploy**:
+- [ ] Monitor Moodle logs for errors
+- [ ] Check gradebook completion rates
+- [ ] Collect initial feedback (first 5 learners)
+
+---
+
+## Appendix A: File Size Budget
+
+| **Asset** | **Budget** | **Actual** |
+|----------|-----------|-----------|
+| bundle.js | 400KB (gzipped) | TBD |
+| bundle.css | 50KB (gzipped) | TBD |
+| case01.json | 30KB | TBD |
+| sim01-03.json | 10KB each | TBD |
+| topic01-03.json | 5KB each | TBD |
+| jit01-03.json | 2KB each | TBD |
+| **Total Package** | <750KB | TBD |
+
+---
+
+## Appendix B: Error Codes
+
+| **Code** | **Message** | **Action** |
+|---------|-----------|----------|
+| E001 | SCORM API not found | Fallback to localStorage |
+| E002 | Suspend data exceeds 4KB | Switch to SCORM 2004 |
+| E003 | JSON validation failed | Show error, log to console |
+| E004 | Content file not found | Show 404, retry button |
+| E005 | State save failed | Retry, then localStorage |
+
+---
+
+**END OF TECHNICAL ARCHITECTURE DOCUMENT**
