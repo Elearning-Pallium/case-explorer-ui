@@ -42,6 +42,14 @@ export const OpeningSceneSchema = z.object({
   mediaCaption: z.string().optional(),
 });
 
+// Patient perspective (first-person voice-over)
+export const PatientPerspectiveSchema = z.object({
+  narrative: z.string(),
+  imageUrl: z.string().optional(),
+  imageAlt: z.string().optional(),
+  caption: z.string().optional(),
+});
+
 // MCQ option with scoring
 export const MCQOptionSchema = z.object({
   id: z.string(),
@@ -120,6 +128,7 @@ export const CaseSchema = z.object({
   patientBaseline: PatientBaselineSchema,
   personInContext: PersonInContextSchema,
   openingScene: OpeningSceneSchema,
+  patientPerspective: PatientPerspectiveSchema.optional(),
   chartEntries: z.array(ChartEntrySchema),
   questions: z.array(MCQQuestionSchema),
   ipInsights: z.array(IPPerspectiveSchema).length(4),
@@ -160,6 +169,7 @@ export type ChartEntry = z.infer<typeof ChartEntrySchema>;
 export type PersonInContext = z.infer<typeof PersonInContextSchema>;
 export type PatientBaseline = z.infer<typeof PatientBaselineSchema>;
 export type OpeningScene = z.infer<typeof OpeningSceneSchema>;
+export type PatientPerspective = z.infer<typeof PatientPerspectiveSchema>;
 export type MCQOption = z.infer<typeof MCQOptionSchema>;
 export type ClusterAFeedback = z.infer<typeof ClusterAFeedbackSchema>;
 export type ClusterBFeedback = z.infer<typeof ClusterBFeedbackSchema>;

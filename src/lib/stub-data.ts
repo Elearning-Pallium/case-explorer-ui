@@ -21,14 +21,20 @@ export const stubCase: Case = {
   },
   personInContext: {
     title: "About Adam",
-    narrative: "Adam is a 68-year-old man living at home with his family. He has been diagnosed with recurrent squamous cell carcinoma of the jaw and is receiving ongoing disease-focused care through the oncology service. His Palliative Performance Scale (PPS) is 40%, indicating significant functional decline. He has expressed a preference to remain at home and avoid hospital admission if possible.",
+    narrative: "Adam lives at home with his family. He's a quiet man who doesn't take up much space. When things feel tense, he goes still and looks away, as if waiting for the moment to pass. His son stays close, watching carefully. His daughter-in-law fills silences with quick apologies, trying to keep the room steady.\n\nHome is both familiar and crowded, with attention always pulled toward small changes and what they might mean. The family wants to do the right thing, but they don't always agree on what \"right\" looks like.\n\nThis is where your involvement in his care begins.",
     imageUrl: "/placeholder.svg",
     imageAlt: "Portrait of Adam, a 68-year-old man",
     caption: "Adam at home with his family",
   },
   openingScene: {
-    narrative: "You are called to assess Adam at home. The family has been noting a chronic wound under his jaw with intermittent low-volume bleeding over the past few weeks. They have been repeatedly checking the wound dressing saturation during visits. Despite ongoing dressing changes, there continues to be oozing, though no acute hemorrhage has been recorded. There is no palliative care consultation documented to date.",
+    narrative: "You're on call when the nurse phones mid-afternoon. Her voice is tight. \"They're worried again.\" You drive over and let yourself in, hearing movement before you reach the room.\n\nAdam is upright in his chair, a towel tucked under his jaw. His son stands close, eyes fixed on the fabric. His daughter-in-law keeps apologizing, as if she's taking up too much space. Adam is quiet. He meets your eyes briefly, then looks away.\n\nThe family shifts as you come closer. The towel darkens in one area, then again. No one says much. Their attention stays on the same spot, watching for any change.\n\nYou take a breath, wash your hands, and step in beside the chair.",
     mediaType: "none",
+  },
+  patientPerspective: {
+    narrative: "I've always been a watcher. I notice small changes, the way people move around me, the looks they exchange when they think I'm not paying attention. I spend a lot of my day sitting quietly, listening to the house, watching my son and daughter-in-law go about their routines. It matters to me that we stay here together, in our own space, where things still feel familiar.\n\nWhat's hard is seeing how tense they get. I can feel it when they hover a little closer or keep checking the same thing over and over. They try not to show it, but I know they're scared. I don't always know what to say to make that easier, and sometimes I worry that speaking up will make it worse instead of better.\n\nThere are moments when I'm not sure what's coming next or how quickly things might change. I don't need everything explained or settled all at once. I just want to know that we're paying attention together, and that we're not letting fear take over the room.\n\nI want us to keep facing things as they are, one moment at a time.",
+    imageUrl: "/placeholder.svg",
+    imageAlt: "Adam reflecting quietly",
+    caption: "In Adam's words",
   },
   chartEntries: [
     // MCQ 1 Chart Entries (3 entries)
