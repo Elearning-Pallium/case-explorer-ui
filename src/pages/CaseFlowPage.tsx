@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { HUD } from "@/components/HUD";
 import { PatientHeader } from "@/components/PatientHeader";
@@ -9,13 +9,23 @@ import { ClusterFeedbackPanel } from "@/components/ClusterFeedbackPanel";
 import { IPInsightsPanel } from "@/components/IPInsightsPanel";
 import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { LivedExperienceSection } from "@/components/LivedExperienceSection";
+import { JITPanel } from "@/components/JITPanel";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
 import { loadCase } from "@/lib/content-loader";
-import type { Case } from "@/lib/content-schema";
+import type { Case, JITResource } from "@/lib/content-schema";
 import { stubCase } from "@/lib/stub-data";
 
 type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
+
+// Map phases to JIT placements
+const PHASE_TO_PLACEMENT: Record<CaseFlowPhase, string[]> = {
+  "intro": ["intro"],
+  "mcq": ["mid-case"],
+  "feedback": ["post-feedback"],
+  "lived-experience": ["pre-lived-experience"],
+  "complete": ["post-case"],
+};
 
 export default function CaseFlowPage() {
   const { caseId } = useParams<{ caseId: string }>();
@@ -36,6 +46,7 @@ export default function CaseFlowPage() {
 
   // Modal state
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
+  const [showJITPanel, setShowJITPanel] = useState(false);
 
   // Load case content
   useEffect(() => {
@@ -53,7 +64,38 @@ export default function CaseFlowPage() {
   }, [caseId]);
 
   const currentQuestion = caseData.questions[currentQuestionIndex];
-  const maxPoints = caseData.questions.length * 10 + 2; // +2 for IP Insights
+  
+  // Calculate max points including JIT resources
+  const jitTotalPoints = caseData.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
+  const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints; // +2 for IP Insights + JIT points
+
+  // Get active JIT for current phase
+  const activeJIT = useMemo((): JITResource | null => {
+    if (!caseData.jitResources) return null;
+    const validPlacements = PHASE_TO_PLACEMENT[phase] || [];
+    return caseData.jitResources.find(jit => 
+      validPlacements.includes(jit.placement)
+    ) || null;
+  }, [caseData.jitResources, phase]);
+
+  // Check if active JIT is completed
+  const isJITCompleted = useMemo(() => {
+    if (!activeJIT || !caseId) return false;
+    const caseJits = state.jitResourcesRead[caseId] || [];
+    return caseJits.includes(activeJIT.id);
+  }, [activeJIT, caseId, state.jitResourcesRead]);
+
+  // Handle JIT completion
+  const handleJITComplete = () => {
+    if (activeJIT && !isJITCompleted && caseId) {
+      dispatch({
+        type: "COMPLETE_JIT_RESOURCE",
+        caseId: caseId,
+        jitId: activeJIT.id,
+        points: activeJIT.points,
+      });
+    }
+  };
 
   // Handle MCQ submission
   const handleMCQSubmit = (selectedOptions: string[], score: number) => {
@@ -136,7 +178,10 @@ export default function CaseFlowPage() {
       {/* HUD */}
       <HUD 
         maxPoints={maxPoints} 
-        showBadgeGallery={() => setShowBadgeGallery(true)} 
+        showBadgeGallery={() => setShowBadgeGallery(true)}
+        activeJIT={activeJIT}
+        isJITCompleted={isJITCompleted}
+        onJITClick={() => setShowJITPanel(true)}
       />
 
       {/* Patient Header */}
@@ -231,6 +276,17 @@ export default function CaseFlowPage() {
         <BadgeGalleryModal
           earnedBadges={state.badges}
           onClose={() => setShowBadgeGallery(false)}
+        />
+      )}
+
+      {/* JIT Panel */}
+      {activeJIT && (
+        <JITPanel
+          resource={activeJIT}
+          isOpen={showJITPanel}
+          isCompleted={isJITCompleted}
+          onComplete={handleJITComplete}
+          onClose={() => setShowJITPanel(false)}
         />
       )}
     </div>
