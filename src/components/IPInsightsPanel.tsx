@@ -8,34 +8,49 @@ interface IPInsightsPanelProps {
   perspectives: IPPerspective[];
 }
 
+const getImagePosition = (role: string) => {
+  switch (role) {
+    case "care_aide":
+    case "wound_specialist":
+      return "object-center";
+    default:
+      return "object-top";
+  }
+};
+
 export function IPInsightsPanel({ perspectives }: IPInsightsPanelProps) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
-    <div
+    <aside
       className={cn(
-        "flex flex-col border-l bg-card transition-all duration-300",
+        "relative flex flex-col border-l bg-card transition-all duration-300",
         isCollapsed ? "w-12" : "w-80"
       )}
     >
-      {/* Header with toggle */}
+      {/* Toggle Button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="flex h-12 items-center gap-2 border-b px-3 hover:bg-muted/50 transition-colors"
+        className="absolute -left-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border bg-card shadow-sm hover:bg-secondary transition-colors"
+        aria-label={isCollapsed ? "Expand IP insights" : "Collapse IP insights"}
       >
         {isCollapsed ? (
           <ChevronLeft className="h-4 w-4" />
         ) : (
           <ChevronRight className="h-4 w-4" />
         )}
-        {!isCollapsed && (
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-accent" />
-            <span className="font-medium text-sm">Interprofessional Insights</span>
-          </div>
-        )}
-        {isCollapsed && <Users className="h-4 w-4 text-accent" />}
       </button>
+
+      {/* Header */}
+      <div className={cn(
+        "flex items-center gap-2 border-b p-3",
+        isCollapsed && "justify-center"
+      )}>
+        <Users className="h-5 w-5 text-primary" />
+        {!isCollapsed && (
+          <h3 className="font-semibold text-primary">Interprofessional Insights</h3>
+        )}
+      </div>
 
       {/* Content area */}
       {!isCollapsed && (
@@ -53,7 +68,7 @@ export function IPInsightsPanel({ perspectives }: IPInsightsPanelProps) {
                       <img
                         src={perspective.imageUrl}
                         alt={perspective.title}
-                        className="h-full w-full object-cover object-top"
+                        className={cn("h-full w-full object-cover", getImagePosition(perspective.role))}
                       />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center text-muted-foreground">
@@ -63,9 +78,11 @@ export function IPInsightsPanel({ perspectives }: IPInsightsPanelProps) {
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm">{perspective.title}</h4>
-                    <span className="text-xs text-muted-foreground capitalize">
-                      {perspective.role.replace("_", " ")}
-                    </span>
+                    {perspective.role === "mrp" && (
+                      <span className="text-xs text-muted-foreground">
+                        (e.g., physician or nurse practitioner)
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -94,6 +111,6 @@ export function IPInsightsPanel({ perspectives }: IPInsightsPanelProps) {
           </span>
         </div>
       )}
-    </div>
+    </aside>
   );
 }
