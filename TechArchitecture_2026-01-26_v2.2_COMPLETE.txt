@@ -1416,7 +1416,8 @@ class ProgressionEngine {
     const scormState = await StateManager.getSCORMSuspendData();
     const totalPoints = this.recomputePointsFromAttempts(scormState);
     
-    const mvpMaxPoints = 67;
+    const mvpMaxPoints = 67; // Base MVP (case + IP Insights + simulacrum)
+    // If JIT/podcast points are enabled, include them in totalPoints and adjust max points accordingly.
     const scorePercent = Math.round((totalPoints / mvpMaxPoints) * 100);
     
     // Use SCORM 2004-compatible method
@@ -1447,6 +1448,14 @@ class ProgressionEngine {
     // IP Insights: 2 points each
     const ipCompleted = Object.keys(state?.ipInsightsCompleted || {}).length;
     points += ipCompleted * 2;
+
+    // JIT Resources: 2 points each (read/viewed)
+    const jitReadCount = Object.keys(state?.jitResourcesRead || {}).length;
+    points += jitReadCount * 2;
+
+    // Podcasts: 1 point each (completed)
+    const podcastCompletedCount = Object.keys(state?.podcastsCompleted || {}).length;
+    points += podcastCompletedCount * 1;
     
     // Simulacra: verify from actual performance
     Object.values(state?.simulacra || {}).forEach(sim => {
@@ -1724,6 +1733,8 @@ const useGameStore = create(
       badges: [], // ['case01-standard', 'sim01-perfect']
       unlockedLevels: [1],
       ipInsightsCompleted: {}, // {case01: true}
+      jitResourcesRead: {}, // {case01: ['jit-01', 'jit-02']}
+      podcastsCompleted: {}, // {case01: ['podcast-01', 'podcast-02']}
       simulacra: {}, // {sim01: {correct: 4, total: 4, attempts: 1}}
 
       // Actions
@@ -1778,6 +1789,32 @@ const useGameStore = create(
         },
         totalPoints: state.totalPoints + 2 // 2 pts for IP Insights
       })),
+
+      markJITRead: (caseId, jitId) => set((state) => {
+        const existing = state.jitResourcesRead[caseId] || [];
+        if (existing.includes(jitId)) return state;
+
+        return {
+          jitResourcesRead: {
+            ...state.jitResourcesRead,
+            [caseId]: [...existing, jitId]
+          },
+          totalPoints: state.totalPoints + 2 // 2 pts per JIT read
+        };
+      }),
+
+      markPodcastCompleted: (caseId, podcastId) => set((state) => {
+        const existing = state.podcastsCompleted[caseId] || [];
+        if (existing.includes(podcastId)) return state;
+
+        return {
+          podcastsCompleted: {
+            ...state.podcastsCompleted,
+            [caseId]: [...existing, podcastId]
+          },
+          totalPoints: state.totalPoints + 1 // 1 pt per podcast completed
+        };
+      }),
 
       recordSimResult: (simId, correct, total) => set((state) => {
         const points = correct === total ? 15 : (correct >= 3 ? 10 : 0);
