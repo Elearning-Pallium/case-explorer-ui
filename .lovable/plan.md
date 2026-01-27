@@ -1,176 +1,151 @@
 
 
-## Palliative Care Gamified Learning Platform — Implementation Plan
+## Implementation Plan: Content Integration & UI Fixes
 
-### Project Overview
-A web-based gamified learning application for healthcare professionals to develop palliative care clinical judgment through case-based scenarios. The platform uses a dual-scoring system (formative micro-feedback + summative macro-points) to assess reasoning patterns while maintaining learner engagement through badges, progression unlocking, and exploration incentives.
-
----
-
-### 🎨 Design System
-
-**Color Palette:**
-- **Primary (Dark Purple):** #311460 — Headers, navigation, sidebar, primary buttons
-- **Accent (Orange):** #E65825 — CTAs, highlights, gamification elements (points, badges, progress)
-- **Light Purple (Background):** #FBFAFD — Main content backgrounds
-- **Medium Purple:** #DBD2EB — Cards, secondary backgrounds, dividers
-- **Light Orange:** #FBE9E6 — Subtle highlights, hover states, notifications
-
-**Visual Style:** Warm & Approachable
-- Friendly, rounded UI elements to reduce learner anxiety
-- Encouraging micro-copy and supportive feedback language
-- Generous white space for readability
-- Soft shadows and gentle transitions
-
-**Theme Support:** Light mode by default with user-toggleable dark mode
+### Overview
+This plan addresses three key areas: (1) fixing the Interprofessional Insights modal UX, (2) correcting the case/level labeling throughout the UI, and (3) updating the scoring logic to match the authoritative rules you provided.
 
 ---
 
-### 📱 Screen-by-Screen Breakdown
+### Part 1: Interprofessional Insights Modal Fixes
 
-#### 1. Landing / Case Select Screen
-- Welcome message with learner-friendly introduction
-- Case 1 card with patient overview (Adam, 72, recurrent cancer)
-- Prominent "Start Case" button in orange accent
-- HUD preview showing points/badges placeholders
-- Visual preview of the case journey ahead
+**File: `src/components/IPInsightsModal.tsx`**
 
-#### 2. Case Flow Shell (Main Learning Interface)
-**Layout:** Header + Sidebar + Main Content Area
+**Changes:**
+1. **Rename all "IP Insights" text to "Interprofessional Insights"**
+   - Header title: "IP Insights" → "Interprofessional Insights"
+   - Button labels throughout the app
 
-**A. Sticky Patient Baseline Header**
-- Always visible: Patient name, age, diagnosis, living situation, PPS
-- Collapsible to show only name/age when minimized
-- Dark purple background with white text
+2. **Add Back/Close button in modal header**
+   - Add an X button in the top-right corner of the header
+   - Clicking it calls the existing `onClose` prop
 
-**B. Chart Notes Sidebar (Left)**
-- Collapsible sidebar with medical chart aesthetic
-- Progressive reveal — new entries appear as learner advances
-- Timestamp-based entries with clinical formatting
-- Scroll support for growing content
+3. **Add visual countdown for dwell time**
+   - Display a circular progress indicator or countdown timer (5...4...3...2...1)
+   - Show "Reading..." state during countdown
+   - Transition to "Ready to reflect" when complete
+   - This makes the 5-second requirement feel intentional rather than broken
 
-**C. Main Content Area**
-- **Person in Context Section** — "About Adam" with image, caption, and narrative
-- **Opening Scene** — Immersive narrative text with optional patient video/image
-- **MCQ Component** — Decision stem + 5 options (A-E), select exactly 2
-  - Selection counter: "Selected: 1/2"
-  - Submit button (disabled until 2 selected)
-  - Clear visual feedback on selection state
-
-#### 3. Cluster Feedback / Debrief Panel
-After MCQ submission, display an accordion with 5 sections:
-- 💡 **Rationale** — Why this reasoning matters
-- 🎯 **Known Outcomes** — What research shows
-- 🧠 **Thinking Pattern** — Cognitive approach identified
-- 🔍 **Reasoning Trace** — Step-by-step logic analysis
-- 📚 **Evidence Anchors** — Links to supporting research
-
-**Features:**
-- Progress counter: "2/5 sections viewed"
-- Checkmarks when section is read (5+ seconds dwell time)
-- "Retry MCQ" and "Continue" buttons (disabled until all sections viewed)
-- Exploratory token display: "●●●○○ (3/5)"
-
-#### 4. IP Insights Modal (Mandatory)
-Triggered by prominent "🔍 IP Insights" button in header
-
-**4 Perspectives (Tabs/Cards):**
-1. **Nurse** perspective
-2. **Care Aide** perspective
-3. **Wound Care Specialist** perspective
-4. **MRP (Most Responsible Practitioner)** perspective
-
-**Engagement Tracking:**
-- Each perspective requires: Open → 5+ seconds dwell → "Mark as Reflected" button
-- Progress indicator: "Viewed: 2/4 perspectives"
-- "Complete Case" button disabled until all 4 viewed
-- Awards 2 points when complete
-
-#### 5. HUD (Heads-Up Display)
-Persistent top bar showing:
-- Current Level & Case indicator
-- Points earned: "52/67 pts (78%)"
-- Badge progress: ⭐⭐☆☆☆
-- Correct tokens & exploratory tokens
-- Click badges → opens Badge Gallery modal
-
-**Gamification Elements:**
-- Orange accent for active progress
-- Subtle animations on point/token gains
-- Celebratory effects when badges unlock
-
-#### 6. Simulacrum Screen (Between Levels)
-**Choice Screen:**
-- 3 topic cards with title, focus, patient name, duration
-- Radio selection (choose 1 of 3)
-- "Continue" button when selected
-
-**Quiz Flow:**
-- 4 single-selection MCQs (A/B/C/D format)
-- Immediate correct/incorrect feedback per question
-- Score summary: Pass (3/4) = 10 pts, Perfect (4/4) = 15 pts
-- Retry or switch topic option if failed
-
-#### 7. Case Completion Summary
-- Celebratory badge display with animations
-- Points breakdown (Case + IP Insights + Simulacrum)
-- Standard vs Premium badge status
-- Exploratory tokens collected
-- Attempt history visualization
-- "Next Steps" guidance with Level 2 preview (stub for MVP)
-
-#### 8. Badge Gallery Modal
-- Grid layout of all badges (earned + locked)
-- Locked badges shown grayed out with unlock conditions
-- Full-screen celebration when new badge earned
-- Categories: Case badges, Premium badges, Simulacrum badges
+**Visual Concept:**
+```text
+Before:                          After:
+[Read for 5 seconds...]          [Reading... 3s remaining]
+[Mark as Reflected] (greyed)     [━━━━━━━━░░] 60%
+                                 [Mark as Reflected] (greyed)
+```
 
 ---
 
-### 🔧 Technical Implementation
+### Part 2: Case/Level Labeling Corrections
 
-#### Content Pipeline (Schema v1.1)
-- Zod-based schema validation for case JSON
-- Content loader fetching from `/content/{caseId}.json`
-- Runtime error messaging for invalid/missing content
-- Stub data fallbacks so UI renders without JSON files
-- Support for: openingScene media, chartEntry renderType, patientPerspective videoNote, personInContext imageAlt/caption
+**Files to update:**
 
-#### State Management
-- React Context for global state (points, badges, unlocks)
-- Local storage persistence with SCORM fallback ready
-- MCQ attempt history tracking
-- Token accumulation (correct + exploratory)
-- Multi-tab conflict detection (warning message)
+1. **`src/components/HUD.tsx`**
+   - Change: `Level {state.currentLevel}` 
+   - To: `Case 1 of 5 • Level 1` (dynamic based on state)
 
-#### Scoring Engine
-- MCQ: 2 selections from 5 options, scores of 0/1/2/5 per option
-- Cluster mapping: Score 10=A, 7/4=B, ≤6=C
-- Correct token: Only when score=10
-- Exploratory tokens: 1 per unique option viewed
-- Badge thresholds: 5Q case = 35 pts (standard), 50 pts (premium)
+2. **`src/pages/LandingPage.tsx`**
+   - Change the active card badge from "Level 1" → "Case 1 • Level 1"
+   - Change the locked card from "Level 2" → "Case 2 • Level 1"
+   - Update description: "Complete Level 1 to unlock" → "Complete Case 1 to unlock"
+
+3. **`src/pages/CaseFlowPage.tsx`**
+   - Update any references to pass correct case numbering to HUD
+   - Button text: "IP Insights" → "Interprofessional Insights"
 
 ---
 
-### 🚀 MVP Scope
-- Level 1, Case 1 (5 MCQs)
-- 3 Simulacra options (learner chooses 1)
-- All core UI components functional with stub data
-- Theme toggle (light/dark)
-- Responsive design (desktop-first, tablet-friendly)
+### Part 3: Scoring Logic Verification
+
+**File: `src/contexts/GameContext.tsx`**
+
+The current `calculateCluster` function needs adjustment:
+
+**Current logic:**
+```typescript
+if (score === 10) return "A";
+if (score === 7 || score === 4) return "B";
+return "C";
+```
+
+**Verified against your scoring table:**
+- Score 10 (5+5) → Cluster A ✓
+- Score 7 (5+2) → Cluster B ✓
+- Score 4 (2+2) → Cluster B ✓
+- Score 6 (5+1) → Cluster C ✓
+- Score 3 (2+1) → Cluster C ✓
+- Score 2 (1+1) → Cluster C ✓
+
+The current logic is correct! No changes needed.
+
+**Token logic update:**
+- Correct tokens: Only awarded for score 10 ✓ (already correct)
+- Exploratory tokens: Currently awarded per option selected; should be per unique option viewed
 
 ---
 
-### 📋 Deliverables Summary
-1. Design system with purple/orange palette implemented in Tailwind
-2. Landing page with case selection
-3. Full case flow UI (baseline header, chart sidebar, MCQ component)
-4. Debrief accordion with tracking
-5. IP Insights modal with 4 perspectives
-6. HUD with gamification display
-7. Simulacrum selection and quiz flow
-8. Completion summary with badge gallery
-9. Content schema validation (Zod)
-10. State management foundation
-11. Light/Dark theme toggle
+### Part 4: Chart Reveal Logic Update
+
+**File: `src/pages/CaseFlowPage.tsx`**
+
+Update the `revealedChartEntries` logic to match the schema:
+
+```text
+Chart Reveal Mapping:
+- Initial (Case Start): Show entries 1-2
+- After MCQ 1: Show entries 1-4
+- After MCQ 2: Show entries 1-6
+- After MCQ 3: Show entries 1-8
+```
+
+**Current logic** reveals one entry per MCQ. **New logic** should reveal 2 entries per MCQ, starting with 2 entries at case start.
+
+---
+
+### Part 5: Real Content Integration Preparation
+
+**File: `src/lib/stub-data.ts`**
+
+From your MCQ document, I'll update with the real content for Case 01:
+
+**MCQ 1 - Wound Assessment:**
+- Decision Stem: "What two chart entries would best support clinical decision-making at this point?"
+- Options A-E with weights (5/5 = correct combination)
+- Three cluster feedbacks (A/B/C) with full sections
+
+**Chart Entries (from your schema):**
+```text
+1. Chart Summary: "Diagnosis: recurrent squamous cell carcinoma of jaw. Living at home with family."
+2. Care Context: "Ongoing disease-focused care through oncology service."
+3. Functional Status: "PPS 40%."
+4. Symptom History: "Chronic wound under jaw with intermittent low-volume bleeding noted over weeks."
+5. Family Observation: "Family repeatedly checking wound dressing saturation during visits."
+6. Patient Statement: "Patient stated preference to remain at home and avoid hospital admission if possible."
+7. Symptom Update: "Ongoing oozing despite dressing changes; no acute hemorrhage recorded."
+8. Interprofessional Note: "No palliative care consultation documented to date."
+```
+
+---
+
+### Technical Implementation Summary
+
+| File | Changes |
+|------|---------|
+| `src/components/IPInsightsModal.tsx` | Rename to "Interprofessional", add close button, add countdown timer |
+| `src/components/HUD.tsx` | Update case/level display format |
+| `src/pages/LandingPage.tsx` | Fix case/level labels, rename IP references |
+| `src/pages/CaseFlowPage.tsx` | Rename IP button, update chart reveal logic |
+| `src/lib/stub-data.ts` | Replace with real Case 01 content from documents |
+
+---
+
+### Deliverables
+
+1. Modal now has clear close button (top-right X)
+2. 5-second countdown is visible and communicates progress
+3. All "IP Insights" renamed to "Interprofessional Insights"
+4. HUD shows "Case 1 of 5 • Level 1" format
+5. Landing page shows "Case 2" as locked (not "Level 2")
+6. Chart entries reveal sequentially: 2 at start, then 2 more per MCQ
+7. Real content from your MCQ document integrated
 
