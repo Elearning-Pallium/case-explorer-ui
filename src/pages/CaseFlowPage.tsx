@@ -8,13 +8,14 @@ import { MCQComponent } from "@/components/MCQComponent";
 import { ClusterFeedbackPanel } from "@/components/ClusterFeedbackPanel";
 import { IPInsightsPanel } from "@/components/IPInsightsPanel";
 import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
+import { LivedExperienceSection } from "@/components/LivedExperienceSection";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
 import { loadCase } from "@/lib/content-loader";
 import type { Case } from "@/lib/content-schema";
 import { stubCase } from "@/lib/stub-data";
 
-type CaseFlowPhase = "intro" | "mcq" | "feedback" | "complete";
+type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
 
 export default function CaseFlowPage() {
   const { caseId } = useParams<{ caseId: string }>();
@@ -104,8 +105,8 @@ export default function CaseFlowPage() {
       setCurrentQuestionIndex((prev) => prev + 1);
       setPhase("mcq");
     } else {
-      // All questions done - navigate to completion
-      navigate(`/completion/${caseId}`);
+      // All questions done - show lived experience before completion
+      setPhase("lived-experience");
     }
   };
 
@@ -209,6 +210,13 @@ export default function CaseFlowPage() {
                 onAllSectionsViewed={handleFeedbackComplete}
                 onRetry={handleRetry}
                 onContinue={handleContinue}
+              />
+            )}
+
+            {/* Lived Experience Phase */}
+            {phase === "lived-experience" && (
+              <LivedExperienceSection
+                onContinue={() => navigate(`/completion/${caseId}`)}
               />
             )}
           </div>
