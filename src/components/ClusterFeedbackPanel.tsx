@@ -197,8 +197,8 @@ export function ClusterFeedbackPanel({
       {/* Action Buttons */}
       <div className="mt-6 flex items-center justify-end gap-3">
         {onRetry && (
-          <Button variant="outline" onClick={onRetry} disabled={!allSectionsViewed}>
-            Retry Question
+        <Button variant="outline" onClick={onRetry} disabled={!allSectionsViewed}>
+            Retry/Explore Question
           </Button>
         )}
         {onContinue && (
