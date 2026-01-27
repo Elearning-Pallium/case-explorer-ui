@@ -1,100 +1,204 @@
 
 
-## Implementation Plan: Rename to "Additional Resources" and Improve Visibility
+## Implementation Plan: Add Learner Reflection Section
 
 ### Overview
 
-Transform the small JIT icon in the HUD into a more visible button labeled "Additional Resources", and update all user-facing text from "Just-in-Time Resource" to "Additional Resources".
+Add a "Learner Reflection" section directly below the Lived Experience content on the same screen. This section includes two reflection questions with text inputs. Each submitted reflection awards 1 point (one-time per question).
 
 ---
 
-### Visual Changes
+### What the User Will See
 
-**Before (current):**
 ```text
-| ... Points ... |  📖  ⭐⭐⭐⭐⭐  🌙 |
-                    ↑
-              Small icon, easy to miss
-```
-
-**After (proposed):**
-```text
-| ... Points ... |  [Additional Resources +2]  ⭐⭐⭐⭐⭐  🌙 |
-                    ↑
-              Larger button with contrasting background
++--------------------------------------------------+
+|              Lived Experience                     |
+|  +------------------+  +----------------------+   |
+|  |   Family Image   |  | Narrative text...    |   |
+|  |                  |  | We didn't know...    |   |
+|  +------------------+  +----------------------+   |
++--------------------------------------------------+
+|              Learner Reflection                   |
+|                                                   |
+|  Question 1:                                      |
+|  How do you notice when waiting for clearer...   |
+|  +---------------------------------------------+ |
+|  |  [Text input field]                         | |
+|  +---------------------------------------------+ |
+|  [Submit Reflection +1 pt]  or  ✓ Submitted      |
+|                                                   |
+|  Question 2 (optional):                           |
+|  When uncertainty is shared across roles...      |
+|  +---------------------------------------------+ |
+|  |  [Text input field]                         | |
+|  +---------------------------------------------+ |
+|  [Submit Reflection +1 pt]  or  ✓ Submitted      |
+|                                                   |
++--------------------------------------------------+
+|                  [Continue]                       |
++--------------------------------------------------+
 ```
 
 ---
 
-### Button States
+### Implementation Details
 
-| State | Appearance |
-|-------|------------|
-| **Disabled** | Muted text, reduced opacity, not clickable |
-| **Active** | Orange/accent background, white text, subtle pulse animation, "+2 pts" badge |
-| **Completed** | Green/success background, checkmark icon, "Completed" label |
+#### 1. Update GameContext State
+
+**File: `src/contexts/GameContext.tsx`**
+
+Add state to track submitted reflections:
+
+**Add to GameState interface (after line 55):**
+```typescript
+// Learner Reflections tracking
+learnerReflections: Record<string, Record<string, string>>; 
+// Structure: { [caseId]: { [questionId]: "reflection text" } }
+```
+
+**Add to initial state (after line 102):**
+```typescript
+learnerReflections: {},
+```
+
+**Add new action type (after line 75):**
+```typescript
+| { type: "SUBMIT_REFLECTION"; caseId: string; questionId: string; text: string; points: number }
+```
+
+**Add reducer case (after COMPLETE_JIT_RESOURCE case, around line 193):**
+```typescript
+case "SUBMIT_REFLECTION": {
+  const existingCase = state.learnerReflections[action.caseId] || {};
+  // Only award points if this question hasn't been answered before
+  const alreadySubmitted = !!existingCase[action.questionId];
+  const pointsToAdd = alreadySubmitted ? 0 : action.points;
+  
+  return {
+    ...state,
+    totalPoints: state.totalPoints + pointsToAdd,
+    casePoints: state.casePoints + pointsToAdd,
+    learnerReflections: {
+      ...state.learnerReflections,
+      [action.caseId]: {
+        ...existingCase,
+        [action.questionId]: action.text,
+      },
+    },
+  };
+}
+```
+
+**Update localStorage loading (around line 273):**
+```typescript
+learnerReflections: parsed.learnerReflections || {},
+```
+
+**Update localStorage saving (around line 294):**
+```typescript
+learnerReflections: state.learnerReflections,
+```
 
 ---
 
-### Changes Required
+#### 2. Create LearnerReflectionSection Component
 
-#### 1. HUD Component (`src/components/HUD.tsx`)
+**New File: `src/components/LearnerReflectionSection.tsx`**
 
-**Lines 69-90** - Replace the icon-based button with a styled button:
+A component that displays reflection questions with text inputs:
 
-```tsx
-{/* Additional Resources Button */}
-<button
-  onClick={onJITClick}
-  disabled={!activeJIT}
-  className={cn(
-    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
-    !activeJIT && "opacity-40 cursor-not-allowed bg-primary-foreground/10 text-primary-foreground/60",
-    activeJIT && !isJITCompleted && "bg-accent text-accent-foreground animate-pulse hover:bg-accent/90",
-    activeJIT && isJITCompleted && "bg-success text-success-foreground hover:bg-success/90"
-  )}
-  title={activeJIT ? activeJIT.title : "No additional resources available"}
-  aria-label={activeJIT ? `Additional Resources: ${activeJIT.title}` : "No resources available"}
->
-  {isJITCompleted ? (
-    <>
-      <CheckCircle className="h-4 w-4" />
-      <span>Completed</span>
-    </>
-  ) : (
-    <>
-      <BookOpen className="h-4 w-4" />
-      <span>Additional Resources</span>
-      {activeJIT && (
-        <span className="ml-1 text-xs opacity-90">+{activeJIT.points}</span>
-      )}
-    </>
-  )}
-</button>
+```typescript
+interface ReflectionQuestion {
+  id: string;
+  label: string;
+  text: string;
+  optional?: boolean;
+}
+
+interface LearnerReflectionSectionProps {
+  caseId: string;
+  submittedReflections: Record<string, string>;
+  onSubmitReflection: (questionId: string, text: string) => void;
+}
 ```
 
-**Line 79** - Update tooltip text from "Just-in-Time resource" to "additional resources"
+**Features:**
+- Card layout with "Learner Reflection" header
+- Two reflection questions with descriptive prompts
+- Textarea for each question (min-height for comfortable writing)
+- Submit button per question showing "+1 pt" (disabled until text is entered)
+- Shows "Submitted" state with checkmark after completion
+- Previously submitted text remains visible but editing triggers re-save (no duplicate points)
 
-**Line 80** - Update aria-label from "Just-in-Time Resource" to "Additional Resources"
+**Question text (hardcoded in component):**
+- **Question 1**: "How do you notice when waiting for clearer signals begins to narrow your judgment, and what helps you decide when widening your frame earlier may better support the person and those around them?"
+- **Question 2 (optional)**: "When uncertainty is shared across roles and family, how do you decide what level of clarity is sufficient to move forward without over-relying on escalation as a default response?"
 
 ---
 
-#### 2. JIT Panel Component (`src/components/JITPanel.tsx`)
+#### 3. Update LivedExperienceSection Component
 
-**Lines 40-42** - Update the header label:
+**File: `src/components/LivedExperienceSection.tsx`**
 
-```tsx
-<span className="text-xs font-medium uppercase tracking-wider">
-  Additional Resource
-</span>
+Update props interface to accept reflection-related props:
+
+```typescript
+interface LivedExperienceSectionProps {
+  caseId: string;
+  onContinue: () => void;
+  submittedReflections: Record<string, string>;
+  onSubmitReflection: (questionId: string, text: string) => void;
+}
 ```
 
-**Line 46** - Update the screen reader description:
+**Restructure the component layout:**
+1. Keep the Lived Experience card content (image + narrative)
+2. Remove the Continue button from inside the card
+3. Add `<LearnerReflectionSection />` below the Lived Experience card
+4. Add the Continue button at the bottom (outside both cards)
 
-```tsx
-<SheetDescription className="sr-only">
-  Additional resource about {resource.title}
-</SheetDescription>
+This creates a clean vertical flow: Lived Experience → Learner Reflection → Continue
+
+---
+
+#### 4. Update CaseFlowPage Integration
+
+**File: `src/pages/CaseFlowPage.tsx`**
+
+**Get submitted reflections for current case:**
+```typescript
+const submittedReflections = state.learnerReflections[caseId || ""] || {};
+```
+
+**Add reflection submission handler:**
+```typescript
+const handleSubmitReflection = (questionId: string, text: string) => {
+  if (caseId) {
+    dispatch({
+      type: "SUBMIT_REFLECTION",
+      caseId,
+      questionId,
+      text,
+      points: 1,
+    });
+  }
+};
+```
+
+**Update maxPoints calculation (line 70):**
+```typescript
+const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2; 
+// +2 for IP Insights + JIT points + 2 for reflections (1 pt each)
+```
+
+**Update LivedExperienceSection usage (lines 262-266):**
+```typescript
+<LivedExperienceSection
+  caseId={caseId || ""}
+  onContinue={() => navigate(`/completion/${caseId}`)}
+  submittedReflections={submittedReflections}
+  onSubmitReflection={handleSubmitReflection}
+/>
 ```
 
 ---
@@ -103,15 +207,28 @@ Transform the small JIT icon in the HUD into a more visible button labeled "Addi
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/HUD.tsx` | Modify | Replace icon with button, add contrasting background, update text labels |
-| `src/components/JITPanel.tsx` | Modify | Update header from "Just-in-Time Resource" to "Additional Resource" |
+| `src/contexts/GameContext.tsx` | Modify | Add learnerReflections state and SUBMIT_REFLECTION action |
+| `src/components/LearnerReflectionSection.tsx` | Create | New component with reflection questions and text inputs |
+| `src/components/LivedExperienceSection.tsx` | Modify | Accept new props and render LearnerReflectionSection below content |
+| `src/pages/CaseFlowPage.tsx` | Modify | Pass reflection state/handlers and update maxPoints |
 
 ---
 
-### Technical Notes
+### Reflection Questions Reference
 
-- Uses existing Tailwind classes (`bg-accent`, `text-accent-foreground`) for consistent theming
-- Maintains the three-state pattern (disabled/active/completed)
-- Keeps the pulse animation for active state to draw attention
-- The button is larger and more prominent but still fits within the HUD height
+| Question | Label | Points |
+|----------|-------|--------|
+| 1 | "How do you notice when waiting for clearer signals begins to narrow your judgment, and what helps you decide when widening your frame earlier may better support the person and those around them?" | 1 pt |
+| 2 (optional) | "When uncertainty is shared across roles and family, how do you decide what level of clarity is sufficient to move forward without over-relying on escalation as a default response?" | 1 pt |
+
+---
+
+### User Experience Notes
+
+- Reflections are optional but incentivized with points
+- Question 2 is explicitly marked as "(optional)" in the UI
+- Points only awarded once per question (no duplicate points on re-submission)
+- Previously submitted reflections are shown in the textarea (persisted)
+- The Continue button remains available regardless of reflection completion
+- Clean visual separation between Lived Experience content and Reflection section
 
