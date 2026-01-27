@@ -1,13 +1,14 @@
 import { z } from "zod";
 
-// Schema v1.1 - Palliative Care Case Content Schema
+// Schema v1.2 - Palliative Care Case Content Schema with Phased MCQ Reveal
 
-// Chart entry types
+// Chart entry with metadata about source
 export const ChartEntrySchema = z.object({
   id: z.string(),
-  timestamp: z.string(),
   title: z.string(),
   content: z.string(),
+  source: z.string().optional(), // e.g., "Nurse (home care)", "Wound care specialist"
+  timing: z.string().optional(), // e.g., "Documented prior to initial visit"
   renderType: z.enum(["text", "hybrid", "image"]).default("text"),
   imageUrl: z.string().optional(),
   imageAlt: z.string().optional(),
@@ -46,30 +47,56 @@ export const MCQOptionSchema = z.object({
   id: z.string(),
   label: z.string(), // A, B, C, D, E
   text: z.string(),
-  score: z.number().min(0).max(5), // 0, 1, 2, or 5
-  feedbackIfSelected: z.string().optional(),
+  score: z.number().min(0).max(5), // 1, 2, or 5
 });
 
-// Cluster feedback sections
-export const ClusterFeedbackSchema = z.object({
+// Cluster A feedback (Correct Reasoning) - 4 sections
+export const ClusterAFeedbackSchema = z.object({
+  type: z.literal("A"),
   rationale: z.string(),
   knownOutcomes: z.string(),
-  thinkingPattern: z.string(),
+  thinkingPatternInsight: z.string(),
   reasoningTrace: z.string(),
-  evidenceAnchors: z.array(z.object({
-    title: z.string(),
-    url: z.string().optional(),
-    citation: z.string().optional(),
-  })),
 });
 
-// MCQ question with cluster mapping
+// Cluster B feedback (Partial-Credit Reasoning) - 4 sections
+export const ClusterBFeedbackSchema = z.object({
+  type: z.literal("B"),
+  rationale: z.string(),
+  likelyConsequences: z.string(),
+  thinkingPatternInsight: z.string(),
+  reasoningTrace: z.string(),
+});
+
+// Cluster C feedback (Misconception) - 5 sections
+export const ClusterCFeedbackSchema = z.object({
+  type: z.literal("C"),
+  boundaryExplanation: z.string(),
+  likelyDetrimentalOutcomes: z.string(),
+  thinkingPatternInsight: z.string(),
+  reasoningTrace: z.string(),
+  safetyReframe: z.string(),
+});
+
+// Union of all cluster feedback types
+export const ClusterFeedbackSchema = z.union([
+  ClusterAFeedbackSchema,
+  ClusterBFeedbackSchema,
+  ClusterCFeedbackSchema,
+]);
+
+// MCQ question with phased reveal support
 export const MCQQuestionSchema = z.object({
   id: z.string(),
   questionNumber: z.number(),
-  stem: z.string(),
+  stem: z.string(), // Decision stem shown first
+  chartEntryIds: z.array(z.string()), // IDs of chart entries revealed for this question
   options: z.array(MCQOptionSchema).length(5),
-  clusterFeedback: z.record(ClusterFeedbackSchema), // A, B, C cluster feedback
+  clusterFeedback: z.object({
+    A: ClusterAFeedbackSchema,
+    B: ClusterBFeedbackSchema,
+    C: ClusterCFeedbackSchema,
+  }),
   correctCombination: z.array(z.string()).length(2), // IDs of correct options
 });
 
@@ -85,7 +112,7 @@ export const IPPerspectiveSchema = z.object({
 
 // Complete case schema
 export const CaseSchema = z.object({
-  schemaVersion: z.literal("1.1"),
+  schemaVersion: z.literal("1.2"),
   contentType: z.literal("case"),
   caseId: z.string(),
   level: z.number(),
@@ -122,7 +149,7 @@ export const SimulacrumOptionSchema = z.object({
 });
 
 export const SimulacrumSchema = z.object({
-  schemaVersion: z.literal("1.1"),
+  schemaVersion: z.literal("1.2"),
   contentType: z.literal("simulacrum"),
   levelId: z.string(),
   options: z.array(SimulacrumOptionSchema).length(3),
@@ -134,6 +161,9 @@ export type PersonInContext = z.infer<typeof PersonInContextSchema>;
 export type PatientBaseline = z.infer<typeof PatientBaselineSchema>;
 export type OpeningScene = z.infer<typeof OpeningSceneSchema>;
 export type MCQOption = z.infer<typeof MCQOptionSchema>;
+export type ClusterAFeedback = z.infer<typeof ClusterAFeedbackSchema>;
+export type ClusterBFeedback = z.infer<typeof ClusterBFeedbackSchema>;
+export type ClusterCFeedback = z.infer<typeof ClusterCFeedbackSchema>;
 export type ClusterFeedback = z.infer<typeof ClusterFeedbackSchema>;
 export type MCQQuestion = z.infer<typeof MCQQuestionSchema>;
 export type IPPerspective = z.infer<typeof IPPerspectiveSchema>;
