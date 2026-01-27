@@ -54,6 +54,9 @@ export interface GameState {
   // JIT Resources tracking
   jitResourcesRead: Record<string, string[]>; // { [caseId]: [jitId, ...] }
   
+  // Learner Reflections tracking
+  learnerReflections: Record<string, Record<string, string>>; // { [caseId]: { [questionId]: "reflection text" } }
+  
   // Theme
   theme: "light" | "dark";
   
@@ -73,6 +76,7 @@ type GameAction =
   | { type: "REFLECT_PERSPECTIVE"; perspectiveId: string }
   | { type: "VIEW_FEEDBACK_SECTION"; sectionId: string }
   | { type: "COMPLETE_JIT_RESOURCE"; caseId: string; jitId: string; points: number }
+  | { type: "SUBMIT_REFLECTION"; caseId: string; questionId: string; text: string; points: number }
   | { type: "SET_THEME"; theme: "light" | "dark" }
   | { type: "COMPLETE_CASE" }
   | { type: "START_SIMULACRUM" }
@@ -100,6 +104,7 @@ const initialState: GameState = {
   reflectedPerspectives: new Set(),
   viewedFeedbackSections: new Set(),
   jitResourcesRead: {},
+  learnerReflections: {},
   theme: "light",
   showMultiTabWarning: false,
 };
@@ -192,6 +197,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case "SUBMIT_REFLECTION": {
+      const existingCase = state.learnerReflections[action.caseId] || {};
+      // Only award points if this question hasn't been answered before
+      const alreadySubmitted = !!existingCase[action.questionId];
+      const pointsToAdd = alreadySubmitted ? 0 : action.points;
+      
+      return {
+        ...state,
+        totalPoints: state.totalPoints + pointsToAdd,
+        casePoints: state.casePoints + pointsToAdd,
+        learnerReflections: {
+          ...state.learnerReflections,
+          [action.caseId]: {
+            ...existingCase,
+            [action.questionId]: action.text,
+          },
+        },
+      };
+    }
+
     case "SET_THEME":
       return { ...state, theme: action.theme };
 
@@ -271,6 +296,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
             reflectedPerspectives: new Set(parsed.reflectedPerspectives || []),
             viewedFeedbackSections: new Set(parsed.viewedFeedbackSections || []),
             jitResourcesRead: parsed.jitResourcesRead || {},
+            learnerReflections: parsed.learnerReflections || {},
           },
         });
       }
@@ -292,6 +318,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         reflectedPerspectives: Array.from(state.reflectedPerspectives),
         viewedFeedbackSections: Array.from(state.viewedFeedbackSections),
         jitResourcesRead: state.jitResourcesRead,
+        learnerReflections: state.learnerReflections,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch (error) {

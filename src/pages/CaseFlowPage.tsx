@@ -65,9 +65,25 @@ export default function CaseFlowPage() {
 
   const currentQuestion = caseData.questions[currentQuestionIndex];
   
-  // Calculate max points including JIT resources
+  // Calculate max points including JIT resources and reflections
   const jitTotalPoints = caseData.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
-  const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints; // +2 for IP Insights + JIT points
+  const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2; // +2 for IP Insights + JIT points + 2 for reflections
+
+  // Get submitted reflections for current case
+  const submittedReflections = state.learnerReflections[caseId || ""] || {};
+
+  // Handle reflection submission
+  const handleSubmitReflection = (questionId: string, text: string) => {
+    if (caseId) {
+      dispatch({
+        type: "SUBMIT_REFLECTION",
+        caseId,
+        questionId,
+        text,
+        points: 1,
+      });
+    }
+  };
 
   // Get active JIT for current phase
   const activeJIT = useMemo((): JITResource | null => {
@@ -261,7 +277,10 @@ export default function CaseFlowPage() {
             {/* Lived Experience Phase */}
             {phase === "lived-experience" && (
               <LivedExperienceSection
+                caseId={caseId || ""}
                 onContinue={() => navigate(`/completion/${caseId}`)}
+                submittedReflections={submittedReflections}
+                onSubmitReflection={handleSubmitReflection}
               />
             )}
           </div>
