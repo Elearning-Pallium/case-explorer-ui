@@ -14,14 +14,12 @@ import { AllPodcastsModal } from "@/components/AllPodcastsModal";
 import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
+import { useCaseFlow, type CaseFlowPhase } from "@/hooks/use-case-flow";
 import { loadCase, loadSimulacrum, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
 import type { Case, JITResource, Simulacrum } from "@/lib/content-schema";
 import { stubCase, stubSimulacrum } from "@/lib/stub-data";
 import { buildBadgeRegistry } from "@/lib/badge-registry";
 import { calculateMaxCasePoints, ACTIVITY_POINTS } from "@/lib/scoring-constants";
-import { CHART_REVEAL } from "@/lib/ui-constants";
-
-type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
 
 // Map phases to JIT placements
 const PHASE_TO_PLACEMENT: Record<CaseFlowPhase, string[]> = {
@@ -35,7 +33,7 @@ const PHASE_TO_PLACEMENT: Record<CaseFlowPhase, string[]> = {
 export default function CaseFlowPage() {
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
-  const { state, dispatch, calculateCluster } = useGame();
+  const { state, dispatch } = useGame();
 
   // Content state
   const [caseData, setCaseData] = useState<Case | null>(stubCase);
@@ -44,17 +42,23 @@ export default function CaseFlowPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
-  // Flow state
-  const [phase, setPhase] = useState<CaseFlowPhase>("intro");
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [lastScore, setLastScore] = useState(0);
-  const [lastCluster, setLastCluster] = useState<"A" | "B" | "C">("C");
-  const [revealedChartEntries, setRevealedChartEntries] = useState<number>(CHART_REVEAL.INITIAL_ENTRIES);
-
   // Modal state
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [showJITPanel, setShowJITPanel] = useState(false);
   const [showPodcastsModal, setShowPodcastsModal] = useState(false);
+
+  // Phase flow - extracted to hook
+  const {
+    phase,
+    currentQuestion,
+    lastCluster,
+    revealedChartEntries,
+    startCase,
+    submitMCQ,
+    continueFeedback,
+    retryQuestion,
+    onFeedbackComplete,
+  } = useCaseFlow({ caseData, caseId: caseId || "" });
 
   // Load case and simulacrum content with environment-aware error handling
   useEffect(() => {
@@ -119,8 +123,6 @@ export default function CaseFlowPage() {
     return buildBadgeRegistry([caseData], [simulacrumData]);
   }, [caseData, simulacrumData]);
 
-  const currentQuestion = caseData?.questions[currentQuestionIndex] ?? null;
-  
   // Calculate max points using centralized helper
   const jitTotalPoints = caseData?.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
   const podcastTotalPoints = caseData?.podcasts?.reduce((sum, p) => sum + p.points, 0) || 0;
@@ -193,75 +195,6 @@ export default function CaseFlowPage() {
     dispatch({ type: "COMPLETE_PODCAST", caseId: podcastCaseId, podcastId, points });
   };
 
-  // Handle MCQ submission (currentQuestion check ensures this is safe)
-  const handleMCQSubmit = (selectedOptions: string[], score: number) => {
-    if (!currentQuestion || !caseData) return;
-    const cluster = calculateCluster(score);
-    setLastScore(score);
-    setLastCluster(cluster);
-
-    // Record attempt
-    dispatch({
-      type: "RECORD_MCQ_ATTEMPT",
-      attempt: {
-        questionId: currentQuestion.id,
-        selectedOptions,
-        score,
-        cluster,
-        timestamp: new Date(),
-      },
-    });
-
-    // Add points
-    dispatch({ type: "ADD_POINTS", points: score, category: "case" });
-
-    // Add correct token if perfect score
-    if (score === 10) {
-      dispatch({ type: "ADD_CORRECT_TOKEN" });
-    }
-
-    // Track exploratory tokens for selected options
-    selectedOptions.forEach((optId) => {
-      dispatch({ type: "ADD_EXPLORATORY_TOKEN", optionId: optId });
-    });
-
-    // Reveal chart entries per MCQ completion
-    if (caseData) {
-      setRevealedChartEntries((prev) => Math.min(prev + CHART_REVEAL.ENTRIES_PER_MCQ, caseData.chartEntries.length));
-    }
-
-    // Move to feedback phase
-    setPhase("feedback");
-  };
-
-  // Handle feedback completion
-  const handleFeedbackComplete = () => {
-    // All sections viewed - enable continue
-  };
-
-  // Handle continue after feedback
-  const handleContinueFeedback = () => {
-    if (!caseData) return;
-    if (currentQuestionIndex < caseData.questions.length - 1) {
-      // Next question
-      setCurrentQuestionIndex((prev) => prev + 1);
-      setPhase("mcq");
-    } else {
-      // All questions done - show lived experience before completion
-      setPhase("lived-experience");
-    }
-  };
-
-  // Handle retry from feedback
-  const handleRetryQuestion = () => {
-    setPhase("mcq");
-  };
-
-  // Start case from intro
-  const handleStartCase = () => {
-    setPhase("mcq");
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -270,8 +203,8 @@ export default function CaseFlowPage() {
           <p className="text-muted-foreground">Loading case...</p>
         </div>
       </div>
-      );
-    }
+    );
+  }
 
   // Production error state - show error boundary
   if (!isLoading && contentError && !caseData) {
@@ -339,7 +272,7 @@ export default function CaseFlowPage() {
                 />
                 <div className="flex justify-center pt-4">
                   <Button
-                    onClick={handleStartCase}
+                    onClick={startCase}
                     size="lg"
                     className="bg-accent hover:bg-accent/90 text-accent-foreground"
                   >
@@ -362,7 +295,7 @@ export default function CaseFlowPage() {
                 <MCQComponent
                   question={currentQuestion}
                   chartEntries={caseData.chartEntries}
-                  onSubmit={handleMCQSubmit}
+                  onSubmit={submitMCQ}
                 />
               </>
             )}
@@ -373,9 +306,9 @@ export default function CaseFlowPage() {
                 feedback={currentQuestion.clusterFeedback[lastCluster]}
                 cluster={lastCluster}
                 questionId={currentQuestion.id}
-                onAllSectionsViewed={handleFeedbackComplete}
-                onRetry={handleRetryQuestion}
-                onContinue={handleContinueFeedback}
+                onAllSectionsViewed={onFeedbackComplete}
+                onRetry={retryQuestion}
+                onContinue={continueFeedback}
               />
             )}
 
