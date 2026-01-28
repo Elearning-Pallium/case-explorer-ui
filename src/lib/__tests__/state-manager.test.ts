@@ -17,6 +17,16 @@ vi.mock('../scorm-api', () => ({
   },
 }));
 
+// Mock tabLockManager - always return lock holder in tests
+vi.mock('../tab-lock-manager', () => ({
+  tabLockManager: {
+    isLockHolder: vi.fn().mockReturnValue(true),
+    acquireLock: vi.fn().mockResolvedValue(true),
+    releaseLock: vi.fn(),
+    onLockChange: vi.fn().mockReturnValue(() => {}),
+  },
+}));
+
 // Helper to create a minimal valid state
 function createTestState(overrides: Partial<SerializedState> = {}): SerializedState {
   return {

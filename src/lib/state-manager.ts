@@ -24,6 +24,7 @@
 
 import LZString from 'lz-string';
 import { scormAPI } from './scorm-api';
+import { tabLockManager } from './tab-lock-manager';
 
 // State version for schema compatibility
 export const STATE_VERSION = 2;
@@ -134,6 +135,14 @@ export class StateManager {
     this.initialized = true;
     console.log('[StateManager] Initialized');
     return true;
+  }
+  
+  /**
+   * Check if writes are allowed (this tab holds the lock)
+   * Used by external modules to check write permission
+   */
+  canWrite(): boolean {
+    return tabLockManager.isLockHolder();
   }
   
   /**
@@ -312,11 +321,24 @@ export class StateManager {
   
   /**
    * Save state with optional critical flag for immediate SCORM commit
+   * Returns early if not lock holder (read-only mode)
    */
   async saveState(
     state: SerializedState,
     options: { critical?: boolean } = {}
   ): Promise<SaveResult> {
+    // Read-only mode: don't save if not lock holder
+    if (!this.canWrite()) {
+      console.warn('[StateManager] Write blocked - not lock holder (read-only mode)');
+      return {
+        success: false,
+        level: 'full',
+        size: 0,
+        source: 'localStorage',
+        error: 'Read-only mode - another tab holds the lock',
+      };
+    }
+    
     // Add metadata
     const stateToSave: SerializedState = {
       ...state,

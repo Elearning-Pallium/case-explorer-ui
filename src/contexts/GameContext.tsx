@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from "react";
 import { stateManager, SerializedState, STATE_VERSION } from "@/lib/state-manager";
+import { tabLockManager } from "@/lib/tab-lock-manager";
 
 // Types for game state
 export interface BadgeInfo {
@@ -67,6 +68,9 @@ export interface GameState {
   
   // Multi-tab warning
   showMultiTabWarning: boolean;
+  
+  // Read-only mode (another tab holds the lock)
+  isReadOnly: boolean;
 }
 
 // Action types
@@ -88,6 +92,7 @@ type GameAction =
   | { type: "COMPLETE_CASE" }
   | { type: "START_SIMULACRUM" }
   | { type: "SHOW_MULTI_TAB_WARNING"; show: boolean }
+  | { type: "SET_READ_ONLY"; isReadOnly: boolean }
   | { type: "RESET_GAME" }
   | { type: "LOAD_STATE"; state: Partial<GameState> };
 
@@ -116,6 +121,7 @@ const initialState: GameState = {
   podcastsInProgress: {},
   theme: "light",
   showMultiTabWarning: false,
+  isReadOnly: false,
 };
 
 // Reducer
@@ -268,6 +274,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "SHOW_MULTI_TAB_WARNING":
       return { ...state, showMultiTabWarning: action.show };
+    
+    case "SET_READ_ONLY":
+      return { ...state, isReadOnly: action.isReadOnly };
 
     case "RESET_GAME":
       return initialState;
@@ -390,10 +399,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const lastActionRef = useRef<GameAction["type"] | null>(null);
   const isInitializedRef = useRef(false);
 
-  // Initialize StateManager and load state on mount
+  // Initialize StateManager and TabLockManager on mount
   useEffect(() => {
     async function init() {
       await stateManager.initialize();
+      
+      // Acquire lock for this tab
+      const acquired = await tabLockManager.acquireLock();
+      dispatch({ type: "SET_READ_ONLY", isReadOnly: !acquired });
+      
+      if (!acquired) {
+        dispatch({ type: "SHOW_MULTI_TAB_WARNING", show: true });
+      }
       
       const { state: savedState, multiTabWarning } = await stateManager.loadState();
       
@@ -412,6 +429,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     
     init();
+    
+    // Listen for lock state changes
+    const unsubscribe = tabLockManager.onLockChange((isHolder) => {
+      dispatch({ type: "SET_READ_ONLY", isReadOnly: !isHolder });
+      
+      if (isHolder) {
+        // We got the lock - dismiss warning
+        dispatch({ type: "SHOW_MULTI_TAB_WARNING", show: false });
+      } else {
+        // We lost the lock - show warning
+        dispatch({ type: "SHOW_MULTI_TAB_WARNING", show: true });
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+      tabLockManager.releaseLock();
+    };
   }, []);
 
   // Save state on change via StateManager
@@ -439,20 +474,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", state.theme === "dark");
   }, [state.theme]);
 
-  // Multi-tab detection via BroadcastChannel
-  useEffect(() => {
-    const channel = new BroadcastChannel("palliative-care-game");
-    
-    channel.postMessage({ type: "TAB_OPEN" });
-    
-    channel.onmessage = (event) => {
-      if (event.data.type === "TAB_OPEN") {
-        dispatch({ type: "SHOW_MULTI_TAB_WARNING", show: true });
-      }
-    };
-
-    return () => channel.close();
-  }, []);
+  // Multi-tab detection is now handled by TabLockManager
+  // (removed legacy BroadcastChannel detection)
   
   // Wrapper dispatch that tracks action type for critical detection
   const wrappedDispatch = React.useCallback((action: GameAction) => {
