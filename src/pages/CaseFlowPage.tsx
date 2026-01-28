@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { HUD } from "@/components/HUD";
 import { PatientHeader } from "@/components/PatientHeader";
@@ -11,9 +11,10 @@ import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { LivedExperienceSection } from "@/components/LivedExperienceSection";
 import { JITPanel } from "@/components/JITPanel";
 import { AllPodcastsModal } from "@/components/AllPodcastsModal";
+import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
-import { loadCase, loadSimulacrum } from "@/lib/content-loader";
+import { loadCase, loadSimulacrum, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
 import type { Case, JITResource, Simulacrum } from "@/lib/content-schema";
 import { stubCase, stubSimulacrum } from "@/lib/stub-data";
 import { buildBadgeRegistry } from "@/lib/badge-registry";
@@ -37,10 +38,11 @@ export default function CaseFlowPage() {
   const { state, dispatch, calculateCluster } = useGame();
 
   // Content state
-  const [caseData, setCaseData] = useState<Case>(stubCase);
-  const [simulacrumData, setSimulacrumData] = useState<Simulacrum>(stubSimulacrum);
+  const [caseData, setCaseData] = useState<Case | null>(stubCase);
+  const [simulacrumData, setSimulacrumData] = useState<Simulacrum | null>(stubSimulacrum);
   const [contentError, setContentError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   // Flow state
   const [phase, setPhase] = useState<CaseFlowPhase>("intro");
@@ -54,41 +56,80 @@ export default function CaseFlowPage() {
   const [showJITPanel, setShowJITPanel] = useState(false);
   const [showPodcastsModal, setShowPodcastsModal] = useState(false);
 
-  // Load case and simulacrum content
+  // Load case and simulacrum content with environment-aware error handling
   useEffect(() => {
     async function load() {
       if (!caseId) return;
       setIsLoading(true);
+      setContentError(null);
+      
       const [caseResult, simResult] = await Promise.all([
         loadCase(caseId),
         loadSimulacrum("level-1"),
       ]);
-      setCaseData(caseResult.data);
-      setSimulacrumData(simResult.data);
-      if (!caseResult.success && 'error' in caseResult) {
-        setContentError(caseResult.error);
+      
+      // Handle case load result using type guards
+      if (isContentLoadError(caseResult)) {
+        if (hasStubFallback(caseResult)) {
+          // DEV mode: use stub with warning banner
+          setCaseData(caseResult.data);
+          setContentError(caseResult.error);
+        } else {
+          // PROD mode: show error UI, no fallback
+          setCaseData(null);
+          setContentError(caseResult.error);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        setCaseData(caseResult.data);
+        // Log schema warning if present
+        if (caseResult.schemaWarning) {
+          console.warn(`[Schema Warning] ${caseResult.schemaWarning}`);
+        }
       }
+      
+      // Handle simulacrum load result using type guards
+      if (isContentLoadError(simResult)) {
+        if (hasStubFallback(simResult)) {
+          setSimulacrumData(simResult.data);
+        } else {
+          setSimulacrumData(null);
+        }
+      } else {
+        setSimulacrumData(simResult.data);
+        if (simResult.schemaWarning) {
+          console.warn(`[Schema Warning] ${simResult.schemaWarning}`);
+        }
+      }
+      
       setIsLoading(false);
     }
     load();
-  }, [caseId]);
+  }, [caseId, loadAttempt]);
 
-  // Build available badges for gallery
+  // Retry handler for error boundary
+  const handleRetry = useCallback(() => {
+    setLoadAttempt((prev) => prev + 1);
+  }, []);
+
+  // Build available badges for gallery (only when data is loaded)
   const availableBadges = useMemo(() => {
+    if (!caseData || !simulacrumData) return [];
     return buildBadgeRegistry([caseData], [simulacrumData]);
   }, [caseData, simulacrumData]);
 
-  const currentQuestion = caseData.questions[currentQuestionIndex];
+  const currentQuestion = caseData?.questions[currentQuestionIndex] ?? null;
   
   // Calculate max points using centralized helper
-  const jitTotalPoints = caseData.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
-  const podcastTotalPoints = caseData.podcasts?.reduce((sum, p) => sum + p.points, 0) || 0;
-  const maxPoints = calculateMaxCasePoints(
+  const jitTotalPoints = caseData?.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
+  const podcastTotalPoints = caseData?.podcasts?.reduce((sum, p) => sum + p.points, 0) || 0;
+  const maxPoints = caseData ? calculateMaxCasePoints(
     caseData.questions.length,
     jitTotalPoints,
     podcastTotalPoints,
     2 // reflection questions
-  );
+  ) : 0;
 
   // Get submitted reflections for current case (safe access for existing localStorage data)
   const submittedReflections = state.learnerReflections?.[caseId || ""] || {};
@@ -108,12 +149,12 @@ export default function CaseFlowPage() {
 
   // Get active JIT for current phase
   const activeJIT = useMemo((): JITResource | null => {
-    if (!caseData.jitResources) return null;
+    if (!caseData?.jitResources) return null;
     const validPlacements = PHASE_TO_PLACEMENT[phase] || [];
     return caseData.jitResources.find(jit => 
       validPlacements.includes(jit.placement)
     ) || null;
-  }, [caseData.jitResources, phase]);
+  }, [caseData?.jitResources, phase]);
 
   // Check if active JIT is completed
   const isJITCompleted = useMemo(() => {
@@ -136,9 +177,9 @@ export default function CaseFlowPage() {
 
   // Podcast computed values
   const allPodcasts = useMemo(() => {
-    if (!caseData.podcasts) return [];
+    if (!caseData?.podcasts) return [];
     return caseData.podcasts.map(p => ({ caseId: caseId || "", podcast: p }));
-  }, [caseData.podcasts, caseId]);
+  }, [caseData?.podcasts, caseId]);
 
   const totalPodcasts = allPodcasts.length;
   const completedPodcastCount = (state.podcastsCompleted?.[caseId || ""] || []).length;
@@ -152,8 +193,9 @@ export default function CaseFlowPage() {
     dispatch({ type: "COMPLETE_PODCAST", caseId: podcastCaseId, podcastId, points });
   };
 
-  // Handle MCQ submission
+  // Handle MCQ submission (currentQuestion check ensures this is safe)
   const handleMCQSubmit = (selectedOptions: string[], score: number) => {
+    if (!currentQuestion || !caseData) return;
     const cluster = calculateCluster(score);
     setLastScore(score);
     setLastCluster(cluster);
@@ -184,7 +226,9 @@ export default function CaseFlowPage() {
     });
 
     // Reveal chart entries per MCQ completion
-    setRevealedChartEntries((prev) => Math.min(prev + CHART_REVEAL.ENTRIES_PER_MCQ, caseData.chartEntries.length));
+    if (caseData) {
+      setRevealedChartEntries((prev) => Math.min(prev + CHART_REVEAL.ENTRIES_PER_MCQ, caseData.chartEntries.length));
+    }
 
     // Move to feedback phase
     setPhase("feedback");
@@ -196,7 +240,8 @@ export default function CaseFlowPage() {
   };
 
   // Handle continue after feedback
-  const handleContinue = () => {
+  const handleContinueFeedback = () => {
+    if (!caseData) return;
     if (currentQuestionIndex < caseData.questions.length - 1) {
       // Next question
       setCurrentQuestionIndex((prev) => prev + 1);
@@ -207,8 +252,8 @@ export default function CaseFlowPage() {
     }
   };
 
-  // Handle retry
-  const handleRetry = () => {
+  // Handle retry from feedback
+  const handleRetryQuestion = () => {
     setPhase("mcq");
   };
 
@@ -225,7 +270,24 @@ export default function CaseFlowPage() {
           <p className="text-muted-foreground">Loading case...</p>
         </div>
       </div>
+      );
+    }
+
+  // Production error state - show error boundary
+  if (!isLoading && contentError && !caseData) {
+    return (
+      <ContentErrorBoundary
+        error={contentError}
+        contentType="case"
+        contentId={caseId || "unknown"}
+        onRetry={handleRetry}
+      />
     );
+  }
+
+  // Guard: ensure caseData is loaded before rendering main content
+  if (!caseData) {
+    return null;
   }
 
   return (
@@ -312,8 +374,8 @@ export default function CaseFlowPage() {
                 cluster={lastCluster}
                 questionId={currentQuestion.id}
                 onAllSectionsViewed={handleFeedbackComplete}
-                onRetry={handleRetry}
-                onContinue={handleContinue}
+                onRetry={handleRetryQuestion}
+                onContinue={handleContinueFeedback}
               />
             )}
 

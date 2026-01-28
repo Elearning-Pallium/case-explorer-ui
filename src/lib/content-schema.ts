@@ -2,6 +2,12 @@ import { z } from "zod";
 
 // Schema v1.2 - Palliative Care Case Content Schema with Phased MCQ Reveal
 
+/**
+ * Current schema version - used for validation
+ * Update this when schema changes require content updates
+ */
+export const CURRENT_SCHEMA_VERSION = "1.2";
+
 // Chart entry with metadata about source
 export const ChartEntrySchema = z.object({
   id: z.string(),
