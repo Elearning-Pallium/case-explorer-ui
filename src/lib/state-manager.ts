@@ -1,8 +1,23 @@
 /**
- * StateManager
+ * StateManager (SCORM Engine)
  * 
- * Manages game state persistence with SCORM integration and localStorage fallback.
- * Implements 3-level data reduction strategy for SCORM suspend_data limits.
+ * Central persistence layer for game state with SCORM LMS integration.
+ * This module is the "engine" referenced in Tech Architecture v2.2.
+ * 
+ * Responsibilities:
+ * - SCORM suspend_data read/write with LZ-String compression
+ * - 3-level data reduction strategy for size limits
+ * - localStorage fallback for non-LMS environments
+ * - State merging between SCORM and localStorage sources
+ * - Debounced (60s) vs critical (immediate) commit strategy
+ * 
+ * Size Limits (dynamic via scormAPI.getSuspendDataLimit()):
+ * - SCORM 1.2: 3.2KB safe limit (4KB actual)
+ * - SCORM 2004: 60KB safe limit (64KB actual)
+ * 
+ * Related files:
+ * - src/lib/scorm-api.ts - Low-level SCORM API wrapper
+ * - src/contexts/GameContext.tsx - React integration
  * 
  * Per Tech Architecture v2.2
  */
@@ -16,14 +31,21 @@ export const STATE_VERSION = 2;
 // Storage key for localStorage
 const STORAGE_KEY = 'palliative-care-game-state';
 
-// Size limits (in bytes after compression)
-const SCORM_12_LIMIT = 3200;  // Safe limit for SCORM 1.2 (4KB actual)
-const SCORM_2004_LIMIT = 60000;  // Safe limit for SCORM 2004 (64KB actual)
-
 // Debounce timing for non-critical saves
 const DEBOUNCE_MS = 60000;  // 60 seconds
 
-// Serializable state structure (matches what we save)
+/**
+ * Serializable state structure for SCORM suspend_data and localStorage
+ * 
+ * VERSION HISTORY:
+ * - v1: Initial schema (implicit, pre-versioning)
+ * - v2: Added podcastsCompleted, podcastsInProgress fields
+ * 
+ * MIGRATION STRATEGY:
+ * - If _stateVersion < STATE_VERSION, data is discarded and reset to defaults
+ * - Both localStorage and SCORM use this identical schema
+ * - _reductionLevel indicates which reduction was applied during SCORM save
+ */
 export interface SerializedState {
   _stateVersion: number;
   _timestamp: number;
