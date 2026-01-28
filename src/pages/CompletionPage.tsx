@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Trophy, Star, Zap, Target, ArrowRight, Home, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,11 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { PodcastListSection } from "@/components/PodcastListSection";
 import { useGame } from "@/contexts/GameContext";
-import { loadCase } from "@/lib/content-loader";
-import { stubCase } from "@/lib/stub-data";
+import { loadCase, loadSimulacrum } from "@/lib/content-loader";
+import { stubCase, stubSimulacrum } from "@/lib/stub-data";
+import { generateCaseBadges, buildBadgeRegistry } from "@/lib/badge-registry";
 import { cn } from "@/lib/utils";
-import type { Case } from "@/lib/content-schema";
+import type { Case, Simulacrum } from "@/lib/content-schema";
 
 export default function CompletionPage() {
   const { caseId } = useParams<{ caseId: string }>();
@@ -20,43 +21,64 @@ export default function CompletionPage() {
   const { state, dispatch, canEarnStandardBadge, canEarnPremiumBadge } = useGame();
   
   const [caseData, setCaseData] = useState<Case>(stubCase);
+  const [simulacrumData, setSimulacrumData] = useState<Simulacrum>(stubSimulacrum);
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [showCelebration, setShowCelebration] = useState(true);
 
-  // Load case data
+  // Load case and simulacrum data
   useEffect(() => {
     async function load() {
       if (!caseId) return;
-      const result = await loadCase(caseId);
-      setCaseData(result.data);
+      const [caseResult, simResult] = await Promise.all([
+        loadCase(caseId),
+        loadSimulacrum("level-1"),
+      ]);
+      setCaseData(caseResult.data);
+      setSimulacrumData(simResult.data);
     }
     load();
   }, [caseId]);
   
-  // Award badges on mount
+  // Generate dynamic badges from case config
+  const caseBadges = useMemo(() => {
+    return generateCaseBadges(caseData);
+  }, [caseData]);
+
+  // Build available badges for gallery
+  const availableBadges = useMemo(() => {
+    return buildBadgeRegistry([caseData], [simulacrumData]);
+  }, [caseData, simulacrumData]);
+
+  // Award badges on mount using dynamic thresholds
   useEffect(() => {
-    if (canEarnPremiumBadge() && !state.badges.find((b) => b.id === `${caseId}-premium`)) {
+    if (!caseData) return;
+    
+    const [standardBadge, premiumBadge] = caseBadges;
+    const earnedPremium = canEarnPremiumBadge(caseData.badgeThresholds.premium);
+    const earnedStandard = canEarnStandardBadge(caseData.badgeThresholds.standard);
+
+    if (earnedPremium && !state.badges.find((b) => b.id === premiumBadge.id)) {
       dispatch({
         type: "EARN_BADGE",
         badge: {
-          id: `${caseId}-premium`,
-          name: "Case 1 Mastery",
-          description: "Achieved premium score in Case 1",
-          type: "premium",
+          id: premiumBadge.id,
+          name: premiumBadge.name,
+          description: premiumBadge.description,
+          type: premiumBadge.type,
         },
       });
-    } else if (canEarnStandardBadge() && !state.badges.find((b) => b.id === `${caseId}-standard`)) {
+    } else if (earnedStandard && !state.badges.find((b) => b.id === standardBadge.id)) {
       dispatch({
         type: "EARN_BADGE",
         badge: {
-          id: `${caseId}-standard`,
-          name: "Case 1 Complete",
-          description: "Completed Case 1 with 35+ points",
-          type: "case",
+          id: standardBadge.id,
+          name: standardBadge.name,
+          description: standardBadge.description,
+          type: standardBadge.type,
         },
       });
     }
-  }, [caseId, canEarnPremiumBadge, canEarnStandardBadge, state.badges, dispatch]);
+  }, [caseData, caseBadges, canEarnPremiumBadge, canEarnStandardBadge, state.badges, dispatch]);
 
   // Dismiss celebration after delay
   useEffect(() => {
@@ -81,13 +103,15 @@ export default function CompletionPage() {
     }
   };
 
-  const earnedBadge = canEarnPremiumBadge()
-    ? { name: "Case 1 Mastery", type: "premium" as const, icon: Sparkles }
-    : canEarnStandardBadge()
-    ? { name: "Case 1 Complete", type: "case" as const, icon: Trophy }
+  // Determine earned badge using dynamic thresholds
+  const [standardBadge, premiumBadge] = caseBadges;
+  const earnedBadge = canEarnPremiumBadge(caseData.badgeThresholds.premium)
+    ? { name: premiumBadge.name, type: "premium" as const, icon: Sparkles }
+    : canEarnStandardBadge(caseData.badgeThresholds.standard)
+    ? { name: standardBadge.name, type: "case" as const, icon: Trophy }
     : null;
 
-  const maxCasePoints = 50;
+  const maxCasePoints = caseData.badgeThresholds.premium;
   const casePercentage = Math.round((state.casePoints / maxCasePoints) * 100);
 
   return (
@@ -326,6 +350,7 @@ export default function CompletionPage() {
       {showBadgeGallery && (
         <BadgeGalleryModal
           earnedBadges={state.badges}
+          availableBadges={availableBadges}
           onClose={() => setShowBadgeGallery(false)}
         />
       )}

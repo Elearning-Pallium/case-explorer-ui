@@ -1,58 +1,15 @@
 import { Star, Lock, Trophy, Award, Sparkles } from "lucide-react";
 import type { BadgeInfo } from "@/contexts/GameContext";
+import type { BadgeDefinition } from "@/lib/badge-registry";
+import { groupBadgesByType } from "@/lib/badge-registry";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface BadgeGalleryModalProps {
   earnedBadges: BadgeInfo[];
+  availableBadges: BadgeDefinition[];
   onClose: () => void;
 }
-
-// All available badges in the system
-const allBadges: (Omit<BadgeInfo, "earnedAt"> & { unlockCondition: string })[] = [
-  {
-    id: "case-1-standard",
-    name: "Case 1 Complete",
-    description: "Completed Case 1 with 35+ points",
-    type: "case",
-    unlockCondition: "Score 35+ points in Case 1",
-  },
-  {
-    id: "case-1-premium",
-    name: "Case 1 Mastery",
-    description: "Achieved premium score in Case 1",
-    type: "premium",
-    unlockCondition: "Score 50+ points in Case 1",
-  },
-  {
-    id: "simulacrum-pain",
-    name: "Pain Expert",
-    description: "Mastered pain management simulacrum",
-    type: "simulacrum",
-    unlockCondition: "Score 4/4 on Pain Management quiz",
-  },
-  {
-    id: "simulacrum-nausea",
-    name: "Antiemetic Specialist",
-    description: "Mastered nausea management simulacrum",
-    type: "simulacrum",
-    unlockCondition: "Score 4/4 on Nausea & Vomiting quiz",
-  },
-  {
-    id: "simulacrum-goals",
-    name: "Communication Champion",
-    description: "Mastered goals of care simulacrum",
-    type: "simulacrum",
-    unlockCondition: "Score 4/4 on Goals of Care quiz",
-  },
-  {
-    id: "explorer",
-    name: "Curious Explorer",
-    description: "Explored all options in a case",
-    type: "premium",
-    unlockCondition: "View all MCQ options across a case",
-  },
-];
 
 const typeIcons: Record<BadgeInfo["type"], React.ComponentType<{ className?: string }>> = {
   case: Trophy,
@@ -66,14 +23,10 @@ const typeColors: Record<BadgeInfo["type"], string> = {
   simulacrum: "bg-success text-success-foreground",
 };
 
-export function BadgeGalleryModal({ earnedBadges, onClose }: BadgeGalleryModalProps) {
+export function BadgeGalleryModal({ earnedBadges, availableBadges, onClose }: BadgeGalleryModalProps) {
   const earnedIds = new Set(earnedBadges.map((b) => b.id));
 
-  const groupedBadges = {
-    case: allBadges.filter((b) => b.type === "case"),
-    premium: allBadges.filter((b) => b.type === "premium"),
-    simulacrum: allBadges.filter((b) => b.type === "simulacrum"),
-  };
+  const groupedBadges = groupBadgesByType(availableBadges);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
@@ -87,7 +40,7 @@ export function BadgeGalleryModal({ earnedBadges, onClose }: BadgeGalleryModalPr
             <div>
               <h2 className="text-xl font-semibold">Badge Gallery</h2>
               <p className="text-sm opacity-90">
-                {earnedBadges.length} of {allBadges.length} badges earned
+                {earnedBadges.length} of {availableBadges.length} badges earned
               </p>
             </div>
           </div>
@@ -95,7 +48,7 @@ export function BadgeGalleryModal({ earnedBadges, onClose }: BadgeGalleryModalPr
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[60vh] space-y-8">
-          {(Object.entries(groupedBadges) as [BadgeInfo["type"], typeof allBadges][]).map(
+          {(Object.entries(groupedBadges) as [BadgeInfo["type"], BadgeDefinition[]][]).map(
             ([type, badges]) => {
               const Icon = typeIcons[type];
               const colorClass = typeColors[type];
