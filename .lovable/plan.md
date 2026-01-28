@@ -1,345 +1,317 @@
 
 
-## Sprint 2-2 (Refined): Centralized Scoring Constants
+## Sprint 2-3: Content Loader Improvements
 
 ### Overview
 
-Extract all scoring constants into a centralized configuration with proper separation of concerns. This refined plan addresses three key improvements:
-
-1. **Separation of concerns**: Split into `scoring-constants.ts` (game logic) and `ui-constants.ts` (display settings)
-2. **HUD maxPoints handling**: Remove the hard-coded `67` default and require explicit passing from case data
-3. **Case threshold authority**: Ensure per-case `badgeThresholds` always override defaults
+Improve content loading error handling by:
+1. Differentiating behavior between dev (stub fallback allowed) and prod (explicit error UI)
+2. Adding schema version validation with warnings for mismatches
+3. Creating a dedicated error UI component for content load failures
 
 ---
 
-### Current Issues Found
+### Current State (Problems)
 
-| Issue | Location | Current Value | Problem |
-|-------|----------|---------------|---------|
-| Hardcoded HUD default | `HUD.tsx:22` | `maxPoints = 67` | Arbitrary placeholder, not derived from case data |
-| Hardcoded badge thresholds | `GameContext.tsx:487-488` | `35`, `50` | Should reference constants |
-| Hardcoded simulacrum points | `SimulacrumPage.tsx:79-82` | `15`, `10` | Magic numbers in logic |
-| Hardcoded max badges in HUD | `HUD.tsx:36` | `5` | Comment says "placeholder" |
-| MCQ cluster scores | `GameContext.tsx:306-309` | `10`, `7`, `4` | Inline magic numbers |
+| Issue | Impact |
+|-------|--------|
+| Silent stub fallback in production | LMS users see placeholder content without realizing real content failed to load |
+| No schema version check | Outdated content files could silently break features |
+| Simple warning banner | Not prominent enough for critical load failures |
+| Schema version discrepancy | SSOT says 1.1, code uses 1.2 (needs alignment) |
 
 ---
 
 ### Target Architecture
 
 ```text
-src/lib/
-├── scoring-constants.ts      ← Game logic constants (points, thresholds)
-│   ├── MCQ_SCORING
-│   ├── ACTIVITY_POINTS
-│   ├── SIMULACRUM_SCORING
-│   ├── BADGE_DEFAULTS
-│   ├── CLUSTER_SCORES
-│   └── Helper functions
-│
-└── ui-constants.ts           ← Display/presentation constants
-    ├── HUD_DISPLAY
-    └── CHART_REVEAL
+Content Load Flow:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         content-loader.ts                                   │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  1. Fetch content JSON                                                │  │
+│  │  2. Parse JSON                                                        │  │
+│  │  3. Check schemaVersion (warn on mismatch)                           │  │
+│  │  4. Validate with Zod schema                                         │  │
+│  │  5. Return result based on environment:                              │  │
+│  │     - DEV: Allow stub fallback with warning                          │  │
+│  │     - PROD: Return error state (no stub)                             │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ContentLoadResult                                   │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  success: true  → data: T                                             │  │
+│  │  success: false → error: string, useStub: boolean, data: T | null     │  │
+│  │                                                                        │  │
+│  │  In PROD: useStub = false, data = null → show ContentErrorBoundary    │  │
+│  │  In DEV:  useStub = true, data = stubData → show warning banner       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ### Implementation Details
 
-#### 1. Create Scoring Constants Module
+#### 1. Add Schema Version Constant
 
-**New File: `src/lib/scoring-constants.ts`**
+**File: `src/lib/content-schema.ts`**
+
+Add a constant for the current schema version:
 
 ```typescript
 /**
- * Centralized Scoring Constants
- * 
- * Single source of truth for all scoring-related values.
- * These are GAME LOGIC constants that affect point calculations.
- * 
- * For UI/display constants, see ui-constants.ts
+ * Current schema version - used for validation
+ * Update this when schema changes require content updates
  */
+export const CURRENT_SCHEMA_VERSION = "1.2";
+```
 
-/**
- * MCQ Scoring Configuration
- */
-export const MCQ_SCORING = {
-  /** Maximum points per MCQ question (5+5 for correct combination) */
-  MAX_POINTS_PER_QUESTION: 10,
-  /** Number of options per case MCQ question (A-E) */
-  OPTIONS_PER_CASE_QUESTION: 5,
-  /** Number of options per simulacrum MCQ question (A-D) */
-  OPTIONS_PER_SIMULACRUM_QUESTION: 4,
-} as const;
+#### 2. Update ContentLoadResult Type
 
-/**
- * Activity Points - Points awarded for non-MCQ activities
- */
-export const ACTIVITY_POINTS = {
-  /** Total points for viewing all IP Insights (awarded once per case) */
-  IP_INSIGHTS_TOTAL: 2,
-  /** Points per learner reflection question submitted */
-  REFLECTION_PER_QUESTION: 1,
-  /** Default points for completing a JIT resource (can be overridden in content) */
-  JIT_DEFAULT: 2,
-  /** Default points for completing a podcast (can be overridden in content) */
-  PODCAST_DEFAULT: 1,
-} as const;
+**File: `src/lib/content-loader.ts`**
 
-/**
- * Simulacrum Scoring
- */
-export const SIMULACRUM_SCORING = {
-  /** Points awarded for perfect score (4/4 correct) */
-  PERFECT_SCORE_POINTS: 15,
-  /** Points awarded for passing score (3/4 correct) */
-  PASS_SCORE_POINTS: 10,
-  /** Minimum correct answers for perfect score */
-  PERFECT_THRESHOLD: 4,
-  /** Minimum correct answers for passing score */
-  PASS_THRESHOLD: 3,
-} as const;
+Modify the result type to handle production vs dev scenarios:
 
-/**
- * Badge Threshold Defaults
- * 
- * IMPORTANT: Per-case thresholds in content JSON (case.badgeThresholds) 
- * ALWAYS override these defaults. These are fallbacks only.
- */
-export const BADGE_DEFAULTS = {
-  /** Default minimum points for standard badge (fallback only) */
-  STANDARD_THRESHOLD: 35,
-  /** Default minimum points for premium badge (fallback only) */
-  PREMIUM_THRESHOLD: 50,
-} as const;
+```typescript
+export type ContentLoadResult<T> = 
+  | { success: true; data: T; schemaWarning?: string }
+  | { success: false; error: string; useStub: true; data: T }  // DEV only
+  | { success: false; error: string; useStub: false; data: null };  // PROD
 
-/**
- * Cluster Mapping for MCQ Scores
- * Used to determine feedback cluster (A/B/C) based on score
- */
-export const CLUSTER_SCORES = {
-  /** Perfect score - Cluster A */
-  A: 10,
-  /** Partial credit scores - Cluster B */
-  B: [7, 4] as readonly number[],
-  /** Misconception scores - Cluster C */
-  C: [6, 3, 2] as readonly number[],
-} as const;
+export type ContentLoadError = {
+  type: "not_found" | "validation_error" | "parse_error" | "network_error";
+  message: string;
+  details?: string;
+};
+```
 
-// ============ Helper Functions ============
+#### 3. Add Schema Version Validation
 
-/**
- * Calculate max possible points for a case
- * 
- * Use this instead of hardcoding max points in components.
- * Pass the result to HUD's maxPoints prop.
- */
-export function calculateMaxCasePoints(
-  questionCount: number,
-  jitPoints: number = 0,
-  podcastPoints: number = 0,
-  reflectionQuestions: number = 2
-): number {
-  const mcqPoints = questionCount * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
-  const ipPoints = ACTIVITY_POINTS.IP_INSIGHTS_TOTAL;
-  const reflectionPoints = reflectionQuestions * ACTIVITY_POINTS.REFLECTION_PER_QUESTION;
+**File: `src/lib/content-loader.ts`**
+
+Add version checking before Zod validation:
+
+```typescript
+import { CURRENT_SCHEMA_VERSION } from "./content-schema";
+
+function validateSchemaVersion(
+  rawData: unknown,
+  contentId: string
+): string | null {
+  if (typeof rawData !== "object" || rawData === null) return null;
   
-  return mcqPoints + ipPoints + jitPoints + reflectionPoints + podcastPoints;
-}
-
-/**
- * Calculate cluster from MCQ score
- */
-export function calculateClusterFromScore(score: number): "A" | "B" | "C" {
-  if (score === CLUSTER_SCORES.A) return "A";
-  if (CLUSTER_SCORES.B.includes(score)) return "B";
-  return "C";
-}
-
-/**
- * Calculate simulacrum points based on correct answers
- */
-export function calculateSimulacrumPoints(correctCount: number): number {
-  if (correctCount >= SIMULACRUM_SCORING.PERFECT_THRESHOLD) {
-    return SIMULACRUM_SCORING.PERFECT_SCORE_POINTS;
+  const data = rawData as Record<string, unknown>;
+  const contentVersion = data.schemaVersion;
+  
+  if (!contentVersion) {
+    console.warn(`[Content Loader] Missing schemaVersion in ${contentId}`);
+    return `Missing schemaVersion in content`;
   }
-  if (correctCount >= SIMULACRUM_SCORING.PASS_THRESHOLD) {
-    return SIMULACRUM_SCORING.PASS_SCORE_POINTS;
+  
+  if (contentVersion !== CURRENT_SCHEMA_VERSION) {
+    console.warn(
+      `[Content Loader] Schema version mismatch in ${contentId}: ` +
+      `expected ${CURRENT_SCHEMA_VERSION}, found ${contentVersion}`
+    );
+    return `Schema version mismatch: expected ${CURRENT_SCHEMA_VERSION}, found ${contentVersion}`;
   }
-  return 0;
+  
+  return null; // No warning
 }
 ```
 
----
+#### 4. Update loadCase Function
 
-#### 2. Create UI Constants Module (Separate File)
+**File: `src/lib/content-loader.ts`**
 
-**New File: `src/lib/ui-constants.ts`**
+Differentiate behavior based on environment:
 
 ```typescript
-/**
- * UI Display Constants
- * 
- * Constants for visual presentation and UI behavior.
- * These do NOT affect game logic or scoring calculations.
- * 
- * For scoring/points constants, see scoring-constants.ts
- */
+export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>> {
+  const isDev = import.meta.env.DEV;
+  
+  try {
+    const response = await fetch(`/content/${caseId}.json`);
+    
+    if (!response.ok) {
+      const error = `Case file not found: ${caseId}`;
+      console.warn(`[Content Loader] ${error} - ${isDev ? "using stub data" : "no fallback in production"}`);
+      
+      if (isDev) {
+        return { success: false, error, useStub: true, data: stubCase };
+      }
+      return { success: false, error, useStub: false, data: null };
+    }
 
-/**
- * HUD Display Settings
- */
-export const HUD_DISPLAY = {
-  /** Maximum badge stars shown in HUD (visual limit, not game limit) */
-  MAX_BADGES_SHOWN: 5,
-} as const;
+    const rawData = await response.json();
+    
+    // Check schema version
+    const schemaWarning = validateSchemaVersion(rawData, caseId);
+    
+    const parseResult = CaseSchema.safeParse(rawData);
 
-/**
- * Chart Reveal Behavior
- */
-export const CHART_REVEAL = {
-  /** Number of chart entries visible at case start */
-  INITIAL_ENTRIES: 2,
-  /** Additional entries revealed after each MCQ completion */
-  ENTRIES_PER_MCQ: 2,
-} as const;
+    if (!parseResult.success) {
+      const errorMessages = parseResult.error.errors
+        .map((e) => `${e.path.join(".")}: ${e.message}`)
+        .join("; ");
+      
+      const error = `Invalid case data: ${errorMessages}`;
+      console.error(`[Content Loader] Schema validation failed for ${caseId}:`, errorMessages);
+      
+      if (isDev) {
+        return { success: false, error, useStub: true, data: stubCase };
+      }
+      return { success: false, error, useStub: false, data: null };
+    }
+
+    // Validate MCQ option counts (dev only)
+    parseResult.data.questions.forEach((question) => {
+      validateMCQOptionCount(question.id, question.options.length, 'case', question.questionNumber);
+    });
+
+    return { 
+      success: true, 
+      data: parseResult.data,
+      ...(schemaWarning && { schemaWarning })
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[Content Loader] Failed to load case ${caseId}:`, message);
+    
+    if (isDev) {
+      return { success: false, error: message, useStub: true, data: stubCase };
+    }
+    return { success: false, error: message, useStub: false, data: null };
+  }
+}
 ```
 
----
+#### 5. Create ContentErrorBoundary Component
 
-#### 3. Update HUD - Remove Hardcoded Default
+**New File: `src/components/ContentErrorBoundary.tsx`**
 
-**File: `src/components/HUD.tsx`**
-
-The HUD currently has `maxPoints = 67` as a default. This should be removed to enforce explicit passing from parent components:
+Dedicated error UI for content load failures:
 
 ```typescript
-import { HUD_DISPLAY } from "@/lib/ui-constants";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from "react-router-dom";
 
-interface HUDProps {
-  maxPoints: number;  // REMOVE default - make required
-  // ... rest unchanged
+interface ContentErrorBoundaryProps {
+  error: string;
+  contentType: "case" | "simulacrum";
+  contentId: string;
+  onRetry?: () => void;
 }
 
-export function HUD({ 
-  maxPoints,  // No default - must be passed from case data
-  showBadgeGallery,
-  // ...
-}: HUDProps) {
-  const maxBadges = HUD_DISPLAY.MAX_BADGES_SHOWN;  // Replace hardcoded 5
-  // ...
+export function ContentErrorBoundary({
+  error,
+  contentType,
+  contentId,
+  onRetry,
+}: ContentErrorBoundaryProps) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="max-w-md w-full space-y-6">
+        <Alert variant="destructive" className="border-2">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle className="text-lg">Content Load Error</AlertTitle>
+          <AlertDescription className="mt-2">
+            <p className="mb-2">
+              Unable to load {contentType} content: <strong>{contentId}</strong>
+            </p>
+            <p className="text-sm opacity-80">{error}</p>
+          </AlertDescription>
+        </Alert>
+
+        <div className="flex flex-col gap-3">
+          {onRetry && (
+            <Button onClick={onRetry} className="w-full">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry Loading
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => navigate("/")} className="w-full">
+            <Home className="mr-2 h-4 w-4" />
+            Return to Home
+          </Button>
+        </div>
+
+        <p className="text-xs text-muted-foreground text-center">
+          If this problem persists, please contact your administrator.
+        </p>
+      </div>
+    </div>
+  );
 }
 ```
 
-This forces `CaseFlowPage.tsx` (which already calculates `maxPoints` correctly) to always pass it.
-
----
-
-#### 4. Update GameContext
-
-**File: `src/contexts/GameContext.tsx`**
-
-Replace magic numbers with imported constants:
-
-```typescript
-import { 
-  BADGE_DEFAULTS,
-  MCQ_SCORING,
-  calculateClusterFromScore 
-} from "@/lib/scoring-constants";
-
-// Replace calculateCluster function
-function calculateCluster(score: number): "A" | "B" | "C" {
-  return calculateClusterFromScore(score);
-}
-
-// Replace getMaxPossiblePoints function
-function getMaxPossiblePoints(questionCount: number): number {
-  return questionCount * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
-}
-
-// Update threshold functions to use BADGE_DEFAULTS
-const canEarnStandardBadge = (threshold?: number) => 
-  state.casePoints >= (threshold ?? BADGE_DEFAULTS.STANDARD_THRESHOLD);
-const canEarnPremiumBadge = (threshold?: number) => 
-  state.casePoints >= (threshold ?? BADGE_DEFAULTS.PREMIUM_THRESHOLD);
-```
-
----
-
-#### 5. Update CaseFlowPage
+#### 6. Update CaseFlowPage to Use Error Boundary
 
 **File: `src/pages/CaseFlowPage.tsx`**
 
-```typescript
-import { calculateMaxCasePoints, ACTIVITY_POINTS } from "@/lib/scoring-constants";
-import { CHART_REVEAL } from "@/lib/ui-constants";
-
-// Update max points calculation (already done correctly, just import helper)
-const maxPoints = calculateMaxCasePoints(
-  caseData.questions.length,
-  jitTotalPoints,
-  podcastTotalPoints,
-  2
-);
-
-// Update reflection dispatch
-dispatch({
-  type: "SUBMIT_REFLECTION",
-  caseId,
-  questionId,
-  text,
-  points: ACTIVITY_POINTS.REFLECTION_PER_QUESTION,
-});
-
-// Update chart entries state
-const [revealedChartEntries, setRevealedChartEntries] = useState(CHART_REVEAL.INITIAL_ENTRIES);
-
-// In handleMCQSubmit
-setRevealedChartEntries((prev) => 
-  Math.min(prev + CHART_REVEAL.ENTRIES_PER_MCQ, caseData.chartEntries.length)
-);
-```
-
----
-
-#### 6. Update SimulacrumPage
-
-**File: `src/pages/SimulacrumPage.tsx`**
+Handle the new error states:
 
 ```typescript
-import { calculateSimulacrumPoints, SIMULACRUM_SCORING } from "@/lib/scoring-constants";
+import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
 
-// In handleNextQuestion, replace magic numbers:
-const finalCorrect = correctCount + (selectedOption?.isCorrect ? 1 : 0);
-const points = calculateSimulacrumPoints(finalCorrect);
+// In load effect:
+useEffect(() => {
+  async function load() {
+    if (!caseId) return;
+    setIsLoading(true);
+    setContentError(null);
+    
+    const [caseResult, simResult] = await Promise.all([
+      loadCase(caseId),
+      loadSimulacrum("level-1"),
+    ]);
+    
+    // Handle case load result
+    if (!caseResult.success) {
+      if (caseResult.useStub) {
+        // DEV mode: use stub with warning
+        setCaseData(caseResult.data);
+        setContentError(caseResult.error);
+      } else {
+        // PROD mode: show error UI
+        setContentError(caseResult.error);
+        setIsLoading(false);
+        return; // Don't continue loading
+      }
+    } else {
+      setCaseData(caseResult.data);
+      // Handle schema warning
+      if (caseResult.schemaWarning) {
+        console.warn(`[Schema Warning] ${caseResult.schemaWarning}`);
+      }
+    }
+    
+    // Handle simulacrum similarly...
+    setSimulacrumData(simResult.data);
+    setIsLoading(false);
+  }
+  load();
+}, [caseId]);
 
-if (points > 0) {
-  dispatch({ type: "ADD_POINTS", points, category: "simulacrum" });
+// In render:
+if (!isLoading && contentError && !caseData) {
+  return (
+    <ContentErrorBoundary
+      error={contentError}
+      contentType="case"
+      contentId={caseId || "unknown"}
+      onRetry={() => window.location.reload()}
+    />
+  );
 }
-
-// In result display, use constants:
-<p className="text-3xl font-bold text-accent">
-  {correctCount >= SIMULACRUM_SCORING.PERFECT_THRESHOLD 
-    ? `+${SIMULACRUM_SCORING.PERFECT_SCORE_POINTS}` 
-    : correctCount >= SIMULACRUM_SCORING.PASS_THRESHOLD 
-      ? `+${SIMULACRUM_SCORING.PASS_SCORE_POINTS}` 
-      : "+0"} pts
-</p>
-```
-
----
-
-#### 7. Update MCQ Validation
-
-**File: `src/lib/mcq-validation.ts`**
-
-```typescript
-import { MCQ_SCORING } from "./scoring-constants";
-
-export const MCQ_OPTION_COUNTS = {
-  case: MCQ_SCORING.OPTIONS_PER_CASE_QUESTION,
-  simulacrum: MCQ_SCORING.OPTIONS_PER_SIMULACRUM_QUESTION,
-} as const;
 ```
 
 ---
@@ -348,114 +320,56 @@ export const MCQ_OPTION_COUNTS = {
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/lib/scoring-constants.ts` | Create | Game logic constants and helpers |
-| `src/lib/ui-constants.ts` | Create | UI display constants (separate concern) |
-| `src/contexts/GameContext.tsx` | Modify | Import and use scoring constants |
-| `src/pages/CaseFlowPage.tsx` | Modify | Use calculateMaxCasePoints and constants |
-| `src/pages/SimulacrumPage.tsx` | Modify | Use calculateSimulacrumPoints |
-| `src/lib/mcq-validation.ts` | Modify | Import option counts from scoring constants |
-| `src/components/HUD.tsx` | Modify | Remove default maxPoints, use HUD_DISPLAY |
+| `src/lib/content-schema.ts` | Modify | Add `CURRENT_SCHEMA_VERSION` constant |
+| `src/lib/content-loader.ts` | Modify | Add schema version validation, env-based error handling |
+| `src/components/ContentErrorBoundary.tsx` | Create | Dedicated error UI component |
+| `src/pages/CaseFlowPage.tsx` | Modify | Use new error handling pattern |
+| `src/pages/CompletionPage.tsx` | Modify | Add similar error handling |
+| `src/lib/__tests__/content-loader.test.ts` | Create | Unit tests for version mismatch and error handling |
 
 ---
 
 ### Unit Tests
 
-**New File: `src/lib/__tests__/scoring-constants.test.ts`**
+**New File: `src/lib/__tests__/content-loader.test.ts`**
 
 ```typescript
-import { describe, it, expect } from "vitest";
-import {
-  MCQ_SCORING,
-  ACTIVITY_POINTS,
-  SIMULACRUM_SCORING,
-  BADGE_DEFAULTS,
-  CLUSTER_SCORES,
-  calculateMaxCasePoints,
-  calculateClusterFromScore,
-  calculateSimulacrumPoints,
-} from "../scoring-constants";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { CURRENT_SCHEMA_VERSION } from "../content-schema";
 
-describe("Scoring Constants", () => {
-  describe("MCQ_SCORING", () => {
-    it("has correct max points per question", () => {
-      expect(MCQ_SCORING.MAX_POINTS_PER_QUESTION).toBe(10);
+describe("Content Loader", () => {
+  describe("Schema Version Validation", () => {
+    it("warns when schemaVersion is missing", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      // Test validateSchemaVersion with missing version
+      // Expect warning to be logged
+      warnSpy.mockRestore();
     });
 
-    it("has correct options per case question", () => {
-      expect(MCQ_SCORING.OPTIONS_PER_CASE_QUESTION).toBe(5);
+    it("warns when schemaVersion mismatches current", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      // Test with { schemaVersion: "1.0" } vs CURRENT_SCHEMA_VERSION
+      // Expect warning with both versions mentioned
+      warnSpy.mockRestore();
     });
 
-    it("has correct options per simulacrum question", () => {
-      expect(MCQ_SCORING.OPTIONS_PER_SIMULACRUM_QUESTION).toBe(4);
+    it("returns no warning when schemaVersion matches", () => {
+      // Test with { schemaVersion: CURRENT_SCHEMA_VERSION }
+      // Expect null (no warning)
     });
   });
 
-  describe("calculateMaxCasePoints", () => {
-    it("calculates max for 4-question case (Adam: 48 pts)", () => {
-      // 4 MCQs × 10 + 2 IP + 2 JIT + 2 reflections + 2 podcasts = 48
-      const max = calculateMaxCasePoints(4, 2, 2, 2);
-      expect(max).toBe(48);
+  describe("Environment-Based Fallback", () => {
+    it("returns stub data in DEV mode on fetch error", async () => {
+      // Mock import.meta.env.DEV = true
+      // Mock fetch to return 404
+      // Expect { success: false, useStub: true, data: stubCase }
     });
 
-    it("calculates max with no optional activities", () => {
-      // 4 MCQs × 10 + 2 IP + 0 + 2 reflections + 0 = 44
-      const max = calculateMaxCasePoints(4, 0, 0, 2);
-      expect(max).toBe(44);
-    });
-
-    it("uses default reflection count of 2", () => {
-      const withDefault = calculateMaxCasePoints(4, 0, 0);
-      const withExplicit = calculateMaxCasePoints(4, 0, 0, 2);
-      expect(withDefault).toBe(withExplicit);
-    });
-  });
-
-  describe("calculateClusterFromScore", () => {
-    it("returns A for perfect score (10)", () => {
-      expect(calculateClusterFromScore(10)).toBe("A");
-    });
-
-    it("returns B for partial credit scores (7, 4)", () => {
-      expect(calculateClusterFromScore(7)).toBe("B");
-      expect(calculateClusterFromScore(4)).toBe("B");
-    });
-
-    it("returns C for misconception scores (6, 3, 2)", () => {
-      expect(calculateClusterFromScore(6)).toBe("C");
-      expect(calculateClusterFromScore(3)).toBe("C");
-      expect(calculateClusterFromScore(2)).toBe("C");
-    });
-
-    it("returns C for unexpected scores", () => {
-      expect(calculateClusterFromScore(0)).toBe("C");
-      expect(calculateClusterFromScore(1)).toBe("C");
-      expect(calculateClusterFromScore(5)).toBe("C");
-    });
-  });
-
-  describe("calculateSimulacrumPoints", () => {
-    it("returns 15 for perfect (4/4)", () => {
-      expect(calculateSimulacrumPoints(4)).toBe(15);
-    });
-
-    it("returns 10 for pass (3/4)", () => {
-      expect(calculateSimulacrumPoints(3)).toBe(10);
-    });
-
-    it("returns 0 for fail (< 3)", () => {
-      expect(calculateSimulacrumPoints(2)).toBe(0);
-      expect(calculateSimulacrumPoints(1)).toBe(0);
-      expect(calculateSimulacrumPoints(0)).toBe(0);
-    });
-  });
-
-  describe("BADGE_DEFAULTS", () => {
-    it("has standard threshold of 35", () => {
-      expect(BADGE_DEFAULTS.STANDARD_THRESHOLD).toBe(35);
-    });
-
-    it("has premium threshold of 50", () => {
-      expect(BADGE_DEFAULTS.PREMIUM_THRESHOLD).toBe(50);
+    it("returns null data in PROD mode on fetch error", async () => {
+      // Mock import.meta.env.DEV = false
+      // Mock fetch to return 404
+      // Expect { success: false, useStub: false, data: null }
     });
   });
 });
@@ -463,44 +377,46 @@ describe("Scoring Constants", () => {
 
 ---
 
-### Key Refinements Addressed
+### Error UI Examples
 
-| Refinement | Solution |
-|------------|----------|
-| Separate scoring from UI constants | Created two files: `scoring-constants.ts` and `ui-constants.ts` |
-| HUD maxPoints = 67 placeholder | Removed default; require explicit prop from CaseFlowPage |
-| Per-case thresholds override defaults | Added JSDoc noting case thresholds are authoritative; `??` fallback pattern preserved |
+**Production - Content Not Found:**
+```
+┌─────────────────────────────────────────────────────────┐
+│  ⚠️ Content Load Error                                  │
+│                                                         │
+│  Unable to load case content: case-1                   │
+│                                                         │
+│  Case file not found: case-1                           │
+│                                                         │
+│  [🔄 Retry Loading]                                     │
+│  [🏠 Return to Home]                                    │
+│                                                         │
+│  If this problem persists, please contact your admin.  │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Development - Stub Fallback (existing banner):**
+```
+┌─────────────────────────────────────────────────────────┐
+│  ⚡ Note: Using placeholder content - Case file not     │
+│     found: case-1                                       │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
-### Constants Quick Reference
+### Why This Approach
 
-**Scoring Constants (`scoring-constants.ts`)**
+1. **Environment-Aware**: Dev gets fast iteration with stubs; Prod gets explicit errors
+2. **Schema Safety**: Version mismatches are caught early with clear warnings
+3. **User-Friendly**: Production users see actionable error UI, not broken content
+4. **Debuggable**: Console logs include context (content ID, expected vs actual version)
+5. **Testable**: Pure functions for validation, mockable fetch for integration tests
+6. **LMS-Safe**: No silent failures that could corrupt completion tracking
 
-| Category | Constant | Value |
-|----------|----------|-------|
-| MCQ | MAX_POINTS_PER_QUESTION | 10 |
-| MCQ | OPTIONS_PER_CASE_QUESTION | 5 |
-| MCQ | OPTIONS_PER_SIMULACRUM_QUESTION | 4 |
-| Activity | IP_INSIGHTS_TOTAL | 2 |
-| Activity | REFLECTION_PER_QUESTION | 1 |
-| Activity | JIT_DEFAULT | 2 |
-| Activity | PODCAST_DEFAULT | 1 |
-| Simulacrum | PERFECT_SCORE_POINTS | 15 |
-| Simulacrum | PASS_SCORE_POINTS | 10 |
-| Simulacrum | PERFECT_THRESHOLD | 4 |
-| Simulacrum | PASS_THRESHOLD | 3 |
-| Badge | STANDARD_THRESHOLD | 35 (fallback) |
-| Badge | PREMIUM_THRESHOLD | 50 (fallback) |
-| Cluster | A | 10 |
-| Cluster | B | [7, 4] |
-| Cluster | C | [6, 3, 2] |
+---
 
-**UI Constants (`ui-constants.ts`)**
+### Note on Schema Version
 
-| Category | Constant | Value |
-|----------|----------|-------|
-| HUD | MAX_BADGES_SHOWN | 5 |
-| Chart | INITIAL_ENTRIES | 2 |
-| Chart | ENTRIES_PER_MCQ | 2 |
+The SSOT document references schemaVersion 1.1, but `content-schema.ts` uses 1.2. This plan uses the code's version (1.2) as authoritative. If alignment is needed, the SSOT should be updated to match the implemented schema.
 
