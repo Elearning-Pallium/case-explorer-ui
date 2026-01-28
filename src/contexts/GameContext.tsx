@@ -304,8 +304,9 @@ function getMaxPossiblePoints(questionCount: number): number {
   return questionCount * 10;
 }
 
-// Storage key
+// Storage config
 const STORAGE_KEY = "palliative-care-game-state";
+const STATE_VERSION = 2; // Increment when schema changes
 
 // Provider component
 export function GameProvider({ children }: { children: ReactNode }) {
@@ -317,27 +318,39 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Convert Sets back from arrays
+        
+        // Check schema version - reset if outdated or missing
+        if (!parsed._stateVersion || parsed._stateVersion < STATE_VERSION) {
+          console.warn(
+            `[GameContext] State schema outdated (v${parsed._stateVersion || 0} -> v${STATE_VERSION}). Resetting.`
+          );
+          localStorage.removeItem(STORAGE_KEY);
+          return;
+        }
+        
+        // Convert Sets back from arrays with safe defaults
         dispatch({
           type: "LOAD_STATE",
           state: {
             ...parsed,
             tokens: {
-              ...parsed.tokens,
+              correct: parsed.tokens?.correct ?? 0,
+              exploratory: parsed.tokens?.exploratory ?? 0,
               viewedOptions: new Set(parsed.tokens?.viewedOptions || []),
             },
             viewedPerspectives: new Set(parsed.viewedPerspectives || []),
             reflectedPerspectives: new Set(parsed.reflectedPerspectives || []),
             viewedFeedbackSections: new Set(parsed.viewedFeedbackSections || []),
-            jitResourcesRead: parsed.jitResourcesRead || {},
-            learnerReflections: parsed.learnerReflections || {},
-            podcastsCompleted: parsed.podcastsCompleted || {},
-            podcastsInProgress: parsed.podcastsInProgress || {},
+            jitResourcesRead: parsed.jitResourcesRead ?? {},
+            learnerReflections: parsed.learnerReflections ?? {},
+            podcastsCompleted: parsed.podcastsCompleted ?? {},
+            podcastsInProgress: parsed.podcastsInProgress ?? {},
           },
         });
       }
     } catch (error) {
       console.error("Failed to load game state:", error);
+      localStorage.removeItem(STORAGE_KEY); // Clear corrupted data
     }
   }, []);
 
@@ -345,6 +358,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const toSave = {
+        _stateVersion: STATE_VERSION,
         ...state,
         tokens: {
           ...state.tokens,

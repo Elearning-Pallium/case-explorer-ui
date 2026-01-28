@@ -100,7 +100,7 @@ export default function CaseFlowPage() {
   // Check if active JIT is completed
   const isJITCompleted = useMemo(() => {
     if (!activeJIT || !caseId) return false;
-    const caseJits = state.jitResourcesRead[caseId] || [];
+    const caseJits = state.jitResourcesRead?.[caseId] || [];
     return caseJits.includes(activeJIT.id);
   }, [activeJIT, caseId, state.jitResourcesRead]);
 
