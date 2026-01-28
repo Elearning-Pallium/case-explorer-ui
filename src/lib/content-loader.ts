@@ -1,5 +1,9 @@
 import { CaseSchema, SimulacrumSchema, type Case, type Simulacrum } from "./content-schema";
 import { stubCase, stubSimulacrum } from "./stub-data";
+import { 
+  validateMCQOptionCount, 
+  validateSimulacrumQuestionCount 
+} from "./mcq-validation";
 
 export type ContentLoadResult<T> = 
   | { success: true; data: T }
@@ -39,6 +43,16 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
         data: stubCase,
       };
     }
+
+    // Validate MCQ option counts (dev only, logs once per load)
+    parseResult.data.questions.forEach((question) => {
+      validateMCQOptionCount(
+        question.id,
+        question.options.length,
+        'case',
+        question.questionNumber
+      );
+    });
 
     return { success: true, data: parseResult.data };
   } catch (error) {
@@ -87,6 +101,17 @@ export async function loadSimulacrum(levelId: string): Promise<ContentLoadResult
         data: stubSimulacrum,
       };
     }
+
+    // Validate simulacrum structure (dev only, logs once per load)
+    parseResult.data.options.forEach((option) => {
+      // Validate question count per option
+      validateSimulacrumQuestionCount(option.id, option.questions.length);
+      
+      // Validate option count per question
+      option.questions.forEach((question) => {
+        validateMCQOptionCount(question.id, question.options.length, 'simulacrum');
+      });
+    });
 
     return { success: true, data: parseResult.data };
   } catch (error) {
