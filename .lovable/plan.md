@@ -1,204 +1,513 @@
 
 
-## Implementation Plan: Add Learner Reflection Section
+## Implementation Plan: Post-Case Podcast System with Global HUD Access
 
 ### Overview
 
-Add a "Learner Reflection" section directly below the Lived Experience content on the same screen. This section includes two reflection questions with text inputs. Each submitted reflection awards 1 point (one-time per question).
+Add a podcast system that appears on the Completion page after case completion and is also accessible globally via a new Podcasts button in the HUD. Learners can watch embedded Vimeo/YouTube videos or read PDF transcripts to earn points. Each completed podcast awards 1 point.
+
+---
+
+### User Flow
+
+```text
+Lived Experience → Learner Reflection → [Continue]
+                                              ↓
+                                    Completion Page
+                    ┌─────────────────────────────────────────┐
+                    │  Badge Earned, Points Summary, etc.     │
+                    ├─────────────────────────────────────────┤
+                    │         POST-CASE PODCASTS              │
+                    │  ┌───────────────────────────────────┐  │
+                    │  │ 🎧 Episode 1: From Caregiver...   │  │
+                    │  │    ~15 min  •  +1 pt              │  │
+                    │  │    [▶ Watch] [📄 Transcript]      │  │
+                    │  │    Status: ○ Not Started          │  │
+                    │  ├───────────────────────────────────┤  │
+                    │  │ 🎧 Episode 2: Everyday Resil...   │  │
+                    │  │    ~12 min  •  +1 pt              │  │
+                    │  │    [▶ Watch] [📄 Transcript]      │  │
+                    │  │    Status: ○ Not Started          │  │
+                    │  └───────────────────────────────────┘  │
+                    ├─────────────────────────────────────────┤
+                    │  [Complete Simulacrum Quiz] button      │
+                    └─────────────────────────────────────────┘
+```
 
 ---
 
 ### What the User Will See
 
+**HUD with Podcasts button (available on all screens):**
+
 ```text
-+--------------------------------------------------+
-|              Lived Experience                     |
-|  +------------------+  +----------------------+   |
-|  |   Family Image   |  | Narrative text...    |   |
-|  |                  |  | We didn't know...    |   |
-|  +------------------+  +----------------------+   |
-+--------------------------------------------------+
-|              Learner Reflection                   |
-|                                                   |
-|  Question 1:                                      |
-|  How do you notice when waiting for clearer...   |
-|  +---------------------------------------------+ |
-|  |  [Text input field]                         | |
-|  +---------------------------------------------+ |
-|  [Submit Reflection +1 pt]  or  ✓ Submitted      |
-|                                                   |
-|  Question 2 (optional):                           |
-|  When uncertainty is shared across roles...      |
-|  +---------------------------------------------+ |
-|  |  [Text input field]                         | |
-|  +---------------------------------------------+ |
-|  [Submit Reflection +1 pt]  or  ✓ Submitted      |
-|                                                   |
-+--------------------------------------------------+
-|                  [Continue]                       |
-+--------------------------------------------------+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  [Case 1 of 5] Level 1   |   🏆 25/69 pts   |   🎯 2  ⚡ 5                   │
+│                                                                             │
+│  [Additional Resources] [🎧 Podcasts ②] [⭐⭐⭐⭐⭐] [🌙]                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Podcasts button states:**
+- Default: Secondary styling with headphones icon
+- Has unwatched: Badge showing count of remaining podcasts
+- All completed: Green background with checkmark icon
+
+**Global Podcasts Modal (opened via HUD button):**
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ←  All Podcasts                                                       ✕   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  🎧 Episode 1: From Caregiver to Change-Maker                              │
+│     Duration: ~15 min  •  +1 pt                                            │
+│     [▶ Watch]  [📄 Transcript]               Status: ○ Not Started         │
+│                                                                             │
+│  ───────────────────────────────────────────────────────────────────        │
+│                                                                             │
+│  🎧 Episode 2: Everyday Resilience in Palliative Care                      │
+│     Duration: ~12 min  •  +1 pt                                            │
+│     [▶ Watch]  [📄 Transcript]               Status: ✓ Completed           │
+│                                                                             │
+│  ───────────────────────────────────────────────────────────────────        │
+│                                                                             │
+│  ℹ️ Complete podcasts to earn bonus points!                                │
+│     Progress: 1 of 2 completed                                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Podcast Player Modal (when clicking Watch):**
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ←  Episode 1: From Caregiver to Change-Maker                          ✕   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                                                                       │ │
+│  │                    Vimeo Video Embed                                  │ │
+│  │                  (16:9 aspect ratio)                                  │ │
+│  │                                                                       │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  Duration: ~15 min                                                          │
+│                                                                             │
+│  [📄 Read Transcript Instead]                                              │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ○ In Progress...                                                           │
+│  [Mark as Completed (+1 pt)]                                                │
+│                                                                             │
+│  OR (when completed):                                                       │
+│                                                                             │
+│  ✓ Completed!                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ### Implementation Details
 
-#### 1. Update GameContext State
+#### 1. Extend Content Schema
+
+**File: `src/lib/content-schema.ts`**
+
+Add a new PodcastSchema after JITResourceSchema (around line 130):
+
+```typescript
+// Podcast resource schema
+export const PodcastSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  provider: z.enum(["vimeo", "youtube"]).default("vimeo"),
+  embedUrl: z.string(),
+  duration: z.string(),
+  transcriptUrl: z.string().optional(),
+  points: z.number().default(1),
+});
+```
+
+Update CaseSchema to include podcasts array (after jitResources, around line 146):
+
+```typescript
+podcasts: z.array(PodcastSchema).optional(),
+```
+
+Add type export:
+
+```typescript
+export type Podcast = z.infer<typeof PodcastSchema>;
+```
+
+---
+
+#### 2. Add Podcast Tracking to Global State
 
 **File: `src/contexts/GameContext.tsx`**
 
-Add state to track submitted reflections:
+**Add to GameState interface (after learnerReflections, around line 58):**
 
-**Add to GameState interface (after line 55):**
 ```typescript
-// Learner Reflections tracking
-learnerReflections: Record<string, Record<string, string>>; 
-// Structure: { [caseId]: { [questionId]: "reflection text" } }
+// Podcast tracking
+podcastsCompleted: Record<string, string[]>; // { [caseId]: [podcastId, ...] }
+podcastsInProgress: Record<string, string[]>; // { [caseId]: [podcastId, ...] }
 ```
 
-**Add to initial state (after line 102):**
+**Add to initial state (around line 107):**
+
 ```typescript
-learnerReflections: {},
+podcastsCompleted: {},
+podcastsInProgress: {},
 ```
 
-**Add new action type (after line 75):**
+**Add new action types (around line 79):**
+
 ```typescript
-| { type: "SUBMIT_REFLECTION"; caseId: string; questionId: string; text: string; points: number }
+| { type: "START_PODCAST"; caseId: string; podcastId: string }
+| { type: "COMPLETE_PODCAST"; caseId: string; podcastId: string; points: number }
 ```
 
-**Add reducer case (after COMPLETE_JIT_RESOURCE case, around line 193):**
+**Add reducer cases (after SUBMIT_REFLECTION case):**
+
 ```typescript
-case "SUBMIT_REFLECTION": {
-  const existingCase = state.learnerReflections[action.caseId] || {};
-  // Only award points if this question hasn't been answered before
-  const alreadySubmitted = !!existingCase[action.questionId];
-  const pointsToAdd = alreadySubmitted ? 0 : action.points;
-  
+case "START_PODCAST": {
+  const existing = state.podcastsInProgress[action.caseId] || [];
+  if (existing.includes(action.podcastId)) return state;
   return {
     ...state,
-    totalPoints: state.totalPoints + pointsToAdd,
-    casePoints: state.casePoints + pointsToAdd,
-    learnerReflections: {
-      ...state.learnerReflections,
-      [action.caseId]: {
-        ...existingCase,
-        [action.questionId]: action.text,
-      },
+    podcastsInProgress: {
+      ...state.podcastsInProgress,
+      [action.caseId]: [...existing, action.podcastId],
+    },
+  };
+}
+
+case "COMPLETE_PODCAST": {
+  const existing = state.podcastsCompleted[action.caseId] || [];
+  if (existing.includes(action.podcastId)) return state;
+  return {
+    ...state,
+    totalPoints: state.totalPoints + action.points,
+    casePoints: state.casePoints + action.points,
+    podcastsCompleted: {
+      ...state.podcastsCompleted,
+      [action.caseId]: [...existing, action.podcastId],
     },
   };
 }
 ```
 
-**Update localStorage loading (around line 273):**
+**Update localStorage loading/saving to include new fields:**
+
+In LOAD_STATE (around line 299), add:
 ```typescript
-learnerReflections: parsed.learnerReflections || {},
+podcastsCompleted: parsed.podcastsCompleted || {},
+podcastsInProgress: parsed.podcastsInProgress || {},
 ```
 
-**Update localStorage saving (around line 294):**
+In save effect (around line 321), add:
 ```typescript
-learnerReflections: state.learnerReflections,
+podcastsCompleted: state.podcastsCompleted,
+podcastsInProgress: state.podcastsInProgress,
 ```
 
 ---
 
-#### 2. Create LearnerReflectionSection Component
+#### 3. Add Podcast Data to Stub Case
 
-**New File: `src/components/LearnerReflectionSection.tsx`**
+**File: `src/lib/stub-data.ts`**
 
-A component that displays reflection questions with text inputs:
+Add podcasts array after jitResources (around line 490):
 
 ```typescript
-interface ReflectionQuestion {
-  id: string;
-  label: string;
-  text: string;
-  optional?: boolean;
-}
-
-interface LearnerReflectionSectionProps {
-  caseId: string;
-  submittedReflections: Record<string, string>;
-  onSubmitReflection: (questionId: string, text: string) => void;
-}
+podcasts: [
+  {
+    id: "podcast-ep1",
+    title: "Episode 1: From Caregiver to Change-Maker",
+    provider: "vimeo",
+    embedUrl: "https://player.vimeo.com/video/1159004283?h=f63ff145ce&badge=0&autopause=0&player_id=0&app_id=58479",
+    duration: "~15 min",
+    transcriptUrl: "/transcripts/episode-1.pdf",
+    points: 1,
+  },
+  {
+    id: "podcast-ep2",
+    title: "Episode 2: Everyday Resilience in Palliative Care",
+    provider: "vimeo",
+    embedUrl: "https://player.vimeo.com/video/1159004255?h=b0e5e80f4d&badge=0&autopause=0&player_id=0&app_id=58479",
+    duration: "~12 min",
+    transcriptUrl: "/transcripts/episode-2.pdf",
+    points: 1,
+  },
+],
 ```
-
-**Features:**
-- Card layout with "Learner Reflection" header
-- Two reflection questions with descriptive prompts
-- Textarea for each question (min-height for comfortable writing)
-- Submit button per question showing "+1 pt" (disabled until text is entered)
-- Shows "Submitted" state with checkmark after completion
-- Previously submitted text remains visible but editing triggers re-save (no duplicate points)
-
-**Question text (hardcoded in component):**
-- **Question 1**: "How do you notice when waiting for clearer signals begins to narrow your judgment, and what helps you decide when widening your frame earlier may better support the person and those around them?"
-- **Question 2 (optional)**: "When uncertainty is shared across roles and family, how do you decide what level of clarity is sufficient to move forward without over-relying on escalation as a default response?"
 
 ---
 
-#### 3. Update LivedExperienceSection Component
+#### 4. Create PodcastPlayerModal Component
 
-**File: `src/components/LivedExperienceSection.tsx`**
+**New File: `src/components/PodcastPlayerModal.tsx`**
 
-Update props interface to accept reflection-related props:
+A dialog modal for watching a single podcast with embedded Vimeo player:
 
-```typescript
-interface LivedExperienceSectionProps {
-  caseId: string;
-  onContinue: () => void;
-  submittedReflections: Record<string, string>;
-  onSubmitReflection: (questionId: string, text: string) => void;
-}
+- Uses Dialog component for modal presentation
+- Embeds Vimeo iframe with 16:9 aspect ratio using CSS padding trick
+- Shows podcast title, duration
+- "Read Transcript Instead" button (opens PDF in new tab)
+- Status indicator showing: Not Started → In Progress → Completed
+- "Mark as Completed (+1 pt)" button
+- Checkmark and green styling when completed
+- Auto-triggers START_PODCAST when opened
+
+**Key implementation:**
+
+```tsx
+// 16:9 aspect ratio embed
+<div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+  <iframe
+    src={podcast.embedUrl}
+    className="absolute inset-0 w-full h-full rounded-lg"
+    frameBorder="0"
+    allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+    referrerPolicy="strict-origin-when-cross-origin"
+    title={podcast.title}
+  />
+</div>
 ```
-
-**Restructure the component layout:**
-1. Keep the Lived Experience card content (image + narrative)
-2. Remove the Continue button from inside the card
-3. Add `<LearnerReflectionSection />` below the Lived Experience card
-4. Add the Continue button at the bottom (outside both cards)
-
-This creates a clean vertical flow: Lived Experience → Learner Reflection → Continue
 
 ---
 
-#### 4. Update CaseFlowPage Integration
+#### 5. Create AllPodcastsModal Component
+
+**New File: `src/components/AllPodcastsModal.tsx`**
+
+A sheet/drawer listing all podcasts across the application:
+
+- Uses Sheet component sliding from the right (consistent with JITPanel)
+- Lists all podcasts with title, duration, and point value
+- Status indicators (circle empty, circle half, checkmark)
+- Watch button and Transcript link for each podcast
+- Click opens PodcastPlayerModal
+- Shows progress summary (e.g., "1 of 2 completed")
+- Aggregates podcasts from all cases (future-proof for multi-case)
+
+---
+
+#### 6. Create PodcastListSection Component
+
+**New File: `src/components/PodcastListSection.tsx`**
+
+A card section for the Completion page displaying available podcasts:
+
+- Card with "Continue Your Learning" header and subheader
+- Lists podcast items with title, duration, point badge, status
+- Watch button and Transcript link
+- Opens PodcastPlayerModal when clicking Watch
+- Shows overall progress
+
+---
+
+#### 7. Update HUD Component
+
+**File: `src/components/HUD.tsx`**
+
+**Add new props to interface (around line 9):**
+
+```typescript
+interface HUDProps {
+  maxPoints?: number;
+  showBadgeGallery?: () => void;
+  activeJIT?: JITResource | null;
+  isJITCompleted?: boolean;
+  onJITClick?: () => void;
+  // Podcast props
+  onPodcastsClick?: () => void;
+  totalPodcasts?: number;
+  completedPodcasts?: number;
+}
+```
+
+**Add Podcasts button between Additional Resources and Badge Progress (around line 96):**
+
+```tsx
+{/* Podcasts Button */}
+<button
+  onClick={onPodcastsClick}
+  disabled={!totalPodcasts}
+  className={cn(
+    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
+    !totalPodcasts && "opacity-40 cursor-not-allowed bg-primary-foreground/10",
+    totalPodcasts && completedPodcasts === totalPodcasts && "bg-success text-success-foreground hover:bg-success/90",
+    totalPodcasts && completedPodcasts < totalPodcasts && "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+  )}
+  title="View all podcasts"
+  aria-label={`Podcasts: ${completedPodcasts || 0} of ${totalPodcasts || 0} completed`}
+>
+  {completedPodcasts === totalPodcasts && totalPodcasts > 0 ? (
+    <>
+      <CheckCircle className="h-4 w-4" />
+      <span>Podcasts</span>
+    </>
+  ) : (
+    <>
+      <Headphones className="h-4 w-4" />
+      <span>Podcasts</span>
+      {totalPodcasts > 0 && completedPodcasts < totalPodcasts && (
+        <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+          {totalPodcasts - completedPodcasts}
+        </Badge>
+      )}
+    </>
+  )}
+</button>
+```
+
+**Add import for Headphones icon from lucide-react.**
+
+---
+
+#### 8. Update CaseFlowPage Integration
 
 **File: `src/pages/CaseFlowPage.tsx`**
 
-**Get submitted reflections for current case:**
+**Add state for podcast modal:**
+
 ```typescript
-const submittedReflections = state.learnerReflections[caseId || ""] || {};
+const [showPodcastsModal, setShowPodcastsModal] = useState(false);
+const [selectedPodcast, setSelectedPodcast] = useState<Podcast | null>(null);
 ```
 
-**Add reflection submission handler:**
+**Compute podcast counts:**
+
 ```typescript
-const handleSubmitReflection = (questionId: string, text: string) => {
-  if (caseId) {
-    dispatch({
-      type: "SUBMIT_REFLECTION",
-      caseId,
-      questionId,
-      text,
-      points: 1,
-    });
-  }
+const allPodcasts = useMemo(() => {
+  if (!caseData.podcasts) return [];
+  return caseData.podcasts.map(p => ({ caseId: caseId || "", podcast: p }));
+}, [caseData.podcasts, caseId]);
+
+const totalPodcasts = allPodcasts.length;
+const completedPodcastCount = (state.podcastsCompleted?.[caseId || ""] || []).length;
+```
+
+**Add handlers:**
+
+```typescript
+const handleStartPodcast = (podcastCaseId: string, podcastId: string) => {
+  dispatch({ type: "START_PODCAST", caseId: podcastCaseId, podcastId });
+};
+
+const handleCompletePodcast = (podcastCaseId: string, podcastId: string, points: number) => {
+  dispatch({ type: "COMPLETE_PODCAST", caseId: podcastCaseId, podcastId, points });
 };
 ```
 
 **Update maxPoints calculation (line 70):**
+
 ```typescript
-const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2; 
-// +2 for IP Insights + JIT points + 2 for reflections (1 pt each)
+const podcastTotalPoints = caseData.podcasts?.reduce((sum, p) => sum + p.points, 0) || 0;
+const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2 + podcastTotalPoints;
 ```
 
-**Update LivedExperienceSection usage (lines 262-266):**
-```typescript
-<LivedExperienceSection
-  caseId={caseId || ""}
-  onContinue={() => navigate(`/completion/${caseId}`)}
-  submittedReflections={submittedReflections}
-  onSubmitReflection={handleSubmitReflection}
+**Update HUD usage:**
+
+```tsx
+<HUD 
+  maxPoints={maxPoints} 
+  showBadgeGallery={() => setShowBadgeGallery(true)}
+  activeJIT={activeJIT}
+  isJITCompleted={isJITCompleted}
+  onJITClick={() => setShowJITPanel(true)}
+  onPodcastsClick={() => setShowPodcastsModal(true)}
+  totalPodcasts={totalPodcasts}
+  completedPodcasts={completedPodcastCount}
 />
+```
+
+**Add modal rendering at the end:**
+
+```tsx
+{/* All Podcasts Modal */}
+<AllPodcastsModal
+  isOpen={showPodcastsModal}
+  onClose={() => setShowPodcastsModal(false)}
+  podcasts={allPodcasts}
+  completedPodcasts={state.podcastsCompleted || {}}
+  inProgressPodcasts={state.podcastsInProgress || {}}
+  onStartPodcast={handleStartPodcast}
+  onCompletePodcast={handleCompletePodcast}
+/>
+```
+
+---
+
+#### 9. Update CompletionPage Integration
+
+**File: `src/pages/CompletionPage.tsx`**
+
+**Add imports and load case data:**
+
+```typescript
+import { loadCase } from "@/lib/content-loader";
+import { stubCase } from "@/lib/stub-data";
+import { PodcastListSection } from "@/components/PodcastListSection";
+import type { Case, Podcast } from "@/lib/content-schema";
+```
+
+**Add state for case data and podcast modal:**
+
+```typescript
+const [caseData, setCaseData] = useState<Case>(stubCase);
+const [selectedPodcast, setSelectedPodcast] = useState<Podcast | null>(null);
+```
+
+**Load case data on mount:**
+
+```typescript
+useEffect(() => {
+  async function load() {
+    if (!caseId) return;
+    const result = await loadCase(caseId);
+    setCaseData(result.data);
+  }
+  load();
+}, [caseId]);
+```
+
+**Compute podcast status:**
+
+```typescript
+const completedPodcasts = state.podcastsCompleted?.[caseId || ""] || [];
+const inProgressPodcasts = state.podcastsInProgress?.[caseId || ""] || [];
+```
+
+**Add handlers:**
+
+```typescript
+const handleStartPodcast = (podcastId: string) => {
+  dispatch({ type: "START_PODCAST", caseId: caseId!, podcastId });
+};
+
+const handleCompletePodcast = (podcastId: string, points: number) => {
+  dispatch({ type: "COMPLETE_PODCAST", caseId: caseId!, podcastId, points });
+};
+```
+
+**Add PodcastListSection between Points Summary and Next Steps (around line 173):**
+
+```tsx
+{/* Post-Case Podcasts */}
+{caseData.podcasts && caseData.podcasts.length > 0 && (
+  <PodcastListSection
+    podcasts={caseData.podcasts}
+    caseId={caseId || ""}
+    completedPodcasts={completedPodcasts}
+    inProgressPodcasts={inProgressPodcasts}
+    onStartPodcast={handleStartPodcast}
+    onCompletePodcast={handleCompletePodcast}
+  />
+)}
 ```
 
 ---
@@ -207,28 +516,70 @@ const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2;
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/contexts/GameContext.tsx` | Modify | Add learnerReflections state and SUBMIT_REFLECTION action |
-| `src/components/LearnerReflectionSection.tsx` | Create | New component with reflection questions and text inputs |
-| `src/components/LivedExperienceSection.tsx` | Modify | Accept new props and render LearnerReflectionSection below content |
-| `src/pages/CaseFlowPage.tsx` | Modify | Pass reflection state/handlers and update maxPoints |
+| `src/lib/content-schema.ts` | Modify | Add PodcastSchema and podcasts array to CaseSchema |
+| `src/contexts/GameContext.tsx` | Modify | Add podcastsCompleted/InProgress state and actions |
+| `src/lib/stub-data.ts` | Modify | Add two podcast entries with Vimeo embed URLs |
+| `src/components/PodcastPlayerModal.tsx` | Create | Dialog modal with embedded Vimeo player |
+| `src/components/AllPodcastsModal.tsx` | Create | Sheet listing all podcasts with status |
+| `src/components/PodcastListSection.tsx` | Create | Card section for CompletionPage |
+| `src/components/HUD.tsx` | Modify | Add Podcasts button with badge and completion states |
+| `src/pages/CaseFlowPage.tsx` | Modify | Integrate podcast modal, handlers, update maxPoints |
+| `src/pages/CompletionPage.tsx` | Modify | Load case data, add PodcastListSection |
 
 ---
 
-### Reflection Questions Reference
+### Scoring Alignment
 
-| Question | Label | Points |
-|----------|-------|--------|
-| 1 | "How do you notice when waiting for clearer signals begins to narrow your judgment, and what helps you decide when widening your frame earlier may better support the person and those around them?" | 1 pt |
-| 2 (optional) | "When uncertainty is shared across roles and family, how do you decide what level of clarity is sufficient to move forward without over-relying on escalation as a default response?" | 1 pt |
+| Item | Points | Tracking |
+|------|--------|----------|
+| MCQ Questions (4 × 10) | 40 pts | mcqAttempts |
+| IP Insights | 2 pts | ipInsightsPoints |
+| JIT Resources | 2 pts | jitResourcesRead |
+| Learner Reflections | 2 pts | learnerReflections |
+| Podcast Episode 1 | 1 pt | podcastsCompleted |
+| Podcast Episode 2 | 1 pt | podcastsCompleted |
+| **Total Case Points** | **48 pts** | - |
+| Simulacrum | 12 pts | simulacrumPoints |
+| **Grand Total** | **60 pts** | - |
+
+Updated maxPoints calculation:
+```typescript
+const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2 + podcastTotalPoints;
+// = 40 + 2 + 2 + 2 + 2 = 48 pts (without simulacrum)
+```
 
 ---
 
-### User Experience Notes
+### Status State Machine
 
-- Reflections are optional but incentivized with points
-- Question 2 is explicitly marked as "(optional)" in the UI
-- Points only awarded once per question (no duplicate points on re-submission)
-- Previously submitted reflections are shown in the textarea (persisted)
-- The Continue button remains available regardless of reflection completion
-- Clean visual separation between Lived Experience content and Reflection section
+```text
+not_started → in_progress → completed
+     │              │             │
+     │              │             └── Points awarded, ✓ shown
+     │              └── User clicked Watch, tracking started
+     └── User hasn't interacted yet
+```
+
+---
+
+### Scalability
+
+This architecture is fully content-driven:
+
+1. **JSON Configuration**: Podcast URLs stored in case content, not hardcoded
+2. **No Code Changes Required**: To update podcasts, edit the `podcasts` array in case JSON
+3. **Per-Case Flexibility**: Each case can have 0-N podcasts
+4. **Global Aggregation**: HUD button can aggregate podcasts from all cases as more are added
+5. **Provider Agnostic**: Schema supports both Vimeo and YouTube
+
+---
+
+### Technical Notes
+
+- Vimeo embed uses `?badge=0&autopause=0` to hide branding and prevent auto-pause
+- 16:9 aspect ratio maintained via CSS padding-top trick (56.25% = 9/16)
+- All video playback stays inside the app (no external redirects)
+- Transcript PDFs open in new tab for accessibility
+- "Mark as Completed" button is manual for simplicity (no complex video progress tracking)
+- Safe access patterns used throughout to handle undefined localStorage data
 
