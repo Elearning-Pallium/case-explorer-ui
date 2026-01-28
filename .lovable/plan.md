@@ -1,239 +1,328 @@
 
 
-## Sprint 1-D (Refined): MCQ Option Count Validation at Content-Load Time
+## Sprint 2-1: Dynamic Badge Generation
 
 ### Overview
 
-Add runtime validation for MCQ option counts that runs once during content loading (not on every render). Validation is gated to development mode only to avoid spamming production LMS logs. Each bad item is logged once with descriptive errors.
+Replace hard-coded badge definitions in `BadgeGalleryModal.tsx` with a dynamic generation system that derives badges from case configuration (standard + premium per case) and simulacra. This ensures the badge gallery scales automatically as new cases and levels are added.
 
 ---
 
-### Key Refinements from Original Plan
+### Current State (Problem)
 
-| Original | Refined |
-|----------|---------|
-| Validate in component `useEffect` (per render) | Validate in `content-loader.ts` (once per load) |
-| Always logs in all environments | Gated to `import.meta.env.DEV` only |
-| Only validates options per question | Also validates simulacrum question count (4 per option) |
+**BadgeGalleryModal.tsx** has a hard-coded `allBadges` array:
+```typescript
+const allBadges = [
+  { id: "case-1-standard", name: "Case 1 Complete", ... },
+  { id: "case-1-premium", name: "Case 1 Mastery", ... },
+  { id: "simulacrum-pain", name: "Pain Expert", ... },
+  // ... 6 total badges hard-coded
+];
+```
+
+**Problems**:
+1. Adding a new case requires manually editing this array
+2. Badge thresholds (28/40 pts) are duplicated instead of pulled from case config
+3. Simulacrum badges are disconnected from actual simulacrum data
+4. Gallery won't scale to 5 levels / 25 cases without significant manual work
+
+---
+
+### Target Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Badge Registry                                      │
+│                     src/lib/badge-registry.ts                                │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  generateCaseBadges(caseConfig) → { standard, premium }               │  │
+│  │  generateSimulacrumBadges(simulacrumConfig) → SimulacrumBadge[]       │  │
+│  │  getAllBadges() → BadgeDefinition[]                                   │  │
+│  │  getBadgeById(id) → BadgeDefinition | undefined                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Badge Definitions                                  │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  Case Badges (2 per case):                                            │  │
+│  │    - Standard: "Case X Complete" (threshold from case.badgeThresholds)│  │
+│  │    - Premium: "Case X Mastery" (threshold from case.badgeThresholds)  │  │
+│  │                                                                        │  │
+│  │  Simulacrum Badges (1 per simulacrum option):                         │  │
+│  │    - Derived from simulacrum.options[].title                          │  │
+│  │                                                                        │  │
+│  │  Special Badges:                                                       │  │
+│  │    - "Curious Explorer" (explore all options in a case)               │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ### Implementation Details
 
-#### 1. Create MCQ Validation Utility
+#### 1. Create Badge Registry Module
 
-**New File: `src/lib/mcq-validation.ts`**
+**New File: `src/lib/badge-registry.ts`**
 
 ```typescript
 /**
- * MCQ Option Count Validation
+ * Badge Registry
  * 
- * Runtime validation for MCQ structure. Runs at content-load time (not render).
- * Logs errors in development only to avoid spamming production LMS logs.
+ * Dynamic badge generation based on case and simulacrum configuration.
+ * Replaces hard-coded badge arrays with config-driven definitions.
  * 
- * Validates:
- * - Case MCQs: exactly 5 options per question
- * - Simulacrum MCQs: exactly 4 options per question, exactly 4 questions per option
+ * Badge ID Patterns:
+ * - Case standard: "case-{caseId}-standard" (e.g., "case-1-standard")
+ * - Case premium: "case-{caseId}-premium" (e.g., "case-1-premium")
+ * - Simulacrum: "simulacrum-{optionId}" (e.g., "simulacrum-sim-1")
+ * - Special: "explorer-{caseId}" (e.g., "explorer-case-1")
  */
 
-export const MCQ_OPTION_COUNTS = {
-  case: 5,       // A, B, C, D, E
-  simulacrum: 4, // A, B, C, D
-} as const;
+import type { Case, Simulacrum, SimulacrumOption } from "./content-schema";
 
-export const SIMULACRUM_QUESTIONS_PER_OPTION = 4;
-
-export type MCQType = keyof typeof MCQ_OPTION_COUNTS;
-
-/**
- * Validate a single question's option count
- * Only logs in development mode
- */
-export function validateMCQOptionCount(
-  questionId: string,
-  optionCount: number,
-  type: MCQType,
-  questionNumber?: number
-): boolean {
-  if (!import.meta.env.DEV) return true; // Skip in production
-  
-  const expected = MCQ_OPTION_COUNTS[type];
-  const isValid = optionCount === expected;
-  
-  if (!isValid) {
-    const questionRef = questionNumber 
-      ? `"${questionId}" (Q${questionNumber})` 
-      : `"${questionId}"`;
-    console.error(
-      `[MCQ Validation] Option count mismatch for ${type} question ${questionRef}: ` +
-      `expected ${expected}, found ${optionCount}`
-    );
-  }
-  
-  return isValid;
+export interface BadgeDefinition {
+  id: string;
+  name: string;
+  description: string;
+  type: "case" | "premium" | "simulacrum";
+  unlockCondition: string;
+  // Optional metadata for dynamic threshold display
+  threshold?: number;
+  caseId?: string;
+  simulacrumId?: string;
 }
 
 /**
- * Validate simulacrum question count per option
- * Only logs in development mode
+ * Generate standard and premium badge definitions for a case
  */
-export function validateSimulacrumQuestionCount(
-  optionId: string,
-  questionCount: number
-): boolean {
-  if (!import.meta.env.DEV) return true; // Skip in production
+export function generateCaseBadges(caseConfig: Case): [BadgeDefinition, BadgeDefinition] {
+  const { caseId, title, badgeThresholds, questions } = caseConfig;
+  const caseNumber = extractCaseNumber(caseId);
+  const questionCount = questions.length;
   
-  const isValid = questionCount === SIMULACRUM_QUESTIONS_PER_OPTION;
+  const standardBadge: BadgeDefinition = {
+    id: `${caseId}-standard`,
+    name: `Case ${caseNumber} Complete`,
+    description: `Completed Case ${caseNumber} with ${badgeThresholds.standard}+ points`,
+    type: "case",
+    unlockCondition: `Score ${badgeThresholds.standard}+ points in Case ${caseNumber}`,
+    threshold: badgeThresholds.standard,
+    caseId,
+  };
   
-  if (!isValid) {
-    console.error(
-      `[MCQ Validation] Question count mismatch for simulacrum option "${optionId}": ` +
-      `expected ${SIMULACRUM_QUESTIONS_PER_OPTION}, found ${questionCount}`
-    );
-  }
+  const premiumBadge: BadgeDefinition = {
+    id: `${caseId}-premium`,
+    name: `Case ${caseNumber} Mastery`,
+    description: `Achieved premium score in Case ${caseNumber}`,
+    type: "premium",
+    unlockCondition: `Score ${badgeThresholds.premium}+ points in Case ${caseNumber}`,
+    threshold: badgeThresholds.premium,
+    caseId,
+  };
   
-  return isValid;
+  return [standardBadge, premiumBadge];
+}
+
+/**
+ * Generate badge definitions for simulacrum options
+ */
+export function generateSimulacrumBadges(simulacrum: Simulacrum): BadgeDefinition[] {
+  return simulacrum.options.map((option) => ({
+    id: `simulacrum-${option.id}`,
+    name: deriveSimulacrumBadgeName(option),
+    description: `Mastered ${option.title.toLowerCase()} simulacrum`,
+    type: "simulacrum" as const,
+    unlockCondition: `Score 4/4 on ${option.title}`,
+    simulacrumId: option.id,
+  }));
+}
+
+/**
+ * Generate explorer badge definition for a case
+ */
+export function generateExplorerBadge(caseConfig: Case): BadgeDefinition {
+  const caseNumber = extractCaseNumber(caseConfig.caseId);
+  const totalOptions = caseConfig.questions.length * 5; // 5 options per MCQ
+  
+  return {
+    id: `explorer-${caseConfig.caseId}`,
+    name: "Curious Explorer",
+    description: `Explored all ${totalOptions} options in Case ${caseNumber}`,
+    type: "premium",
+    unlockCondition: `View all MCQ options across Case ${caseNumber}`,
+    caseId: caseConfig.caseId,
+  };
+}
+
+// Helper functions
+function extractCaseNumber(caseId: string): number {
+  const match = caseId.match(/case-(\d+)/);
+  return match ? parseInt(match[1], 10) : 1;
+}
+
+function deriveSimulacrumBadgeName(option: SimulacrumOption): string {
+  // Map focus areas to meaningful badge names
+  const focusToName: Record<string, string> = {
+    "Anticipatory planning and crisis response": "Crisis Response Expert",
+    "Communication and shared decision-making": "Communication Champion",
+    "Assessing and supporting family caregivers": "Family Support Specialist",
+  };
+  return focusToName[option.focus] || `${option.title} Expert`;
 }
 ```
 
 ---
 
-#### 2. Integrate with Content Loader
+#### 2. Add Badge Collection Builder
 
-**File: `src/lib/content-loader.ts`**
-
-Add validation calls after successful schema parsing:
+**Continue in `src/lib/badge-registry.ts`**
 
 ```typescript
-import { 
-  validateMCQOptionCount, 
-  validateSimulacrumQuestionCount 
-} from "./mcq-validation";
-
-export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>> {
-  // ... existing fetch and parse logic ...
-
-  if (!parseResult.success) {
-    // ... existing error handling ...
+/**
+ * Build complete badge collection from loaded case and simulacrum configs
+ * 
+ * @param cases - Array of loaded case configurations
+ * @param simulacra - Array of loaded simulacrum configurations
+ * @returns Complete list of all possible badges
+ */
+export function buildBadgeRegistry(
+  cases: Case[],
+  simulacra: Simulacrum[]
+): BadgeDefinition[] {
+  const badges: BadgeDefinition[] = [];
+  
+  // Generate case badges (standard + premium per case)
+  for (const caseConfig of cases) {
+    const [standard, premium] = generateCaseBadges(caseConfig);
+    badges.push(standard, premium);
   }
-
-  // Validate MCQ option counts (dev only, logs once per load)
-  parseResult.data.questions.forEach((question) => {
-    validateMCQOptionCount(
-      question.id,
-      question.options.length,
-      'case',
-      question.questionNumber
-    );
-  });
-
-  return { success: true, data: parseResult.data };
+  
+  // Generate simulacrum badges
+  for (const sim of simulacra) {
+    badges.push(...generateSimulacrumBadges(sim));
+  }
+  
+  // Generate explorer badges (one per case)
+  for (const caseConfig of cases) {
+    badges.push(generateExplorerBadge(caseConfig));
+  }
+  
+  return badges;
 }
 
-export async function loadSimulacrum(levelId: string): Promise<ContentLoadResult<Simulacrum>> {
-  // ... existing fetch and parse logic ...
-
-  if (!parseResult.success) {
-    // ... existing error handling ...
-  }
-
-  // Validate simulacrum structure (dev only, logs once per load)
-  parseResult.data.options.forEach((option) => {
-    // Validate question count per option
-    validateSimulacrumQuestionCount(option.id, option.questions.length);
-    
-    // Validate option count per question
-    option.questions.forEach((question) => {
-      validateMCQOptionCount(question.id, question.options.length, 'simulacrum');
-    });
-  });
-
-  return { success: true, data: parseResult.data };
+/**
+ * Group badges by type for gallery display
+ */
+export function groupBadgesByType(badges: BadgeDefinition[]): Record<BadgeDefinition["type"], BadgeDefinition[]> {
+  return {
+    case: badges.filter((b) => b.type === "case"),
+    premium: badges.filter((b) => b.type === "premium"),
+    simulacrum: badges.filter((b) => b.type === "simulacrum"),
+  };
 }
 ```
 
 ---
 
-#### 3. Unit Tests
+#### 3. Update BadgeGalleryModal
 
-**New File: `src/lib/__tests__/mcq-validation.test.ts`**
+**File: `src/components/BadgeGalleryModal.tsx`**
+
+Replace hard-coded `allBadges` with props-based approach:
 
 ```typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { 
-  validateMCQOptionCount, 
-  validateSimulacrumQuestionCount,
-  MCQ_OPTION_COUNTS,
-  SIMULACRUM_QUESTIONS_PER_OPTION 
-} from "../mcq-validation";
+import type { BadgeDefinition } from "@/lib/badge-registry";
 
-describe("MCQ Validation", () => {
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+interface BadgeGalleryModalProps {
+  earnedBadges: BadgeInfo[];
+  availableBadges: BadgeDefinition[];  // NEW: Pass in dynamically generated badges
+  onClose: () => void;
+}
 
-  beforeEach(() => {
-    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    // Mock DEV mode
-    vi.stubGlobal('import.meta', { env: { DEV: true } });
-  });
+export function BadgeGalleryModal({ 
+  earnedBadges, 
+  availableBadges,  // NEW
+  onClose 
+}: BadgeGalleryModalProps) {
+  const earnedIds = new Set(earnedBadges.map((b) => b.id));
 
-  afterEach(() => {
-    consoleErrorSpy.mockRestore();
-    vi.unstubAllGlobals();
-  });
+  // Group by type for display
+  const groupedBadges = {
+    case: availableBadges.filter((b) => b.type === "case"),
+    premium: availableBadges.filter((b) => b.type === "premium"),
+    simulacrum: availableBadges.filter((b) => b.type === "simulacrum"),
+  };
 
-  describe("validateMCQOptionCount", () => {
-    it("returns true for case MCQ with 5 options", () => {
-      const result = validateMCQOptionCount("q1", 5, "case", 1);
-      expect(result).toBe(true);
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
+  // ... rest of component uses groupedBadges instead of hard-coded allBadges
+}
+```
+
+---
+
+#### 4. Update CompletionPage Integration
+
+**File: `src/pages/CompletionPage.tsx`**
+
+Update badge awarding to use dynamic thresholds:
+
+```typescript
+import { generateCaseBadges } from "@/lib/badge-registry";
+
+// In useEffect for badge awarding:
+useEffect(() => {
+  if (!caseData) return;
+  
+  const [standardBadge, premiumBadge] = generateCaseBadges(caseData);
+  
+  // Use case's actual thresholds instead of hardcoded 35/50
+  const earnedPremium = state.casePoints >= caseData.badgeThresholds.premium;
+  const earnedStandard = state.casePoints >= caseData.badgeThresholds.standard;
+  
+  if (earnedPremium && !state.badges.find((b) => b.id === premiumBadge.id)) {
+    dispatch({
+      type: "EARN_BADGE",
+      badge: {
+        id: premiumBadge.id,
+        name: premiumBadge.name,
+        description: premiumBadge.description,
+        type: premiumBadge.type,
+      },
     });
-
-    it("logs error when case MCQ has wrong option count", () => {
-      const result = validateMCQOptionCount("q1", 4, "case", 1);
-      expect(result).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('expected 5, found 4')
-      );
+  } else if (earnedStandard && !state.badges.find((b) => b.id === standardBadge.id)) {
+    dispatch({
+      type: "EARN_BADGE",
+      badge: {
+        id: standardBadge.id,
+        name: standardBadge.name,
+        description: standardBadge.description,
+        type: standardBadge.type,
+      },
     });
+  }
+}, [caseData, state.casePoints, state.badges, dispatch]);
+```
 
-    it("returns true for simulacrum MCQ with 4 options", () => {
-      const result = validateMCQOptionCount("sim-q1", 4, "simulacrum");
-      expect(result).toBe(true);
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
-    });
+---
 
-    it("logs error when simulacrum MCQ has wrong option count", () => {
-      const result = validateMCQOptionCount("sim-q1", 5, "simulacrum");
-      expect(result).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('expected 4, found 5')
-      );
-    });
+#### 5. Update GameContext Badge Threshold Functions
 
-    it("includes question number in error message when provided", () => {
-      validateMCQOptionCount("q2", 3, "case", 2);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('(Q2)')
-      );
-    });
-  });
+**File: `src/contexts/GameContext.tsx`**
 
-  describe("validateSimulacrumQuestionCount", () => {
-    it("returns true for simulacrum option with 4 questions", () => {
-      const result = validateSimulacrumQuestionCount("option-1", 4);
-      expect(result).toBe(true);
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
-    });
+Make threshold functions dynamic by accepting case config:
 
-    it("logs error when simulacrum option has wrong question count", () => {
-      const result = validateSimulacrumQuestionCount("option-1", 3);
-      expect(result).toBe(false);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('expected 4, found 3')
-      );
-    });
-  });
-});
+```typescript
+// Change from:
+const canEarnStandardBadge = () => state.casePoints >= 35;
+const canEarnPremiumBadge = () => state.casePoints >= 50;
+
+// To:
+const canEarnStandardBadge = (threshold?: number) => 
+  state.casePoints >= (threshold ?? 35);
+const canEarnPremiumBadge = (threshold?: number) => 
+  state.casePoints >= (threshold ?? 50);
 ```
 
 ---
@@ -242,39 +331,75 @@ describe("MCQ Validation", () => {
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/lib/mcq-validation.ts` | Create | Validation utility with DEV-only logging |
-| `src/lib/content-loader.ts` | Modify | Add validation calls after successful parse |
-| `src/lib/__tests__/mcq-validation.test.ts` | Create | Unit tests for validation functions |
+| `src/lib/badge-registry.ts` | Create | Badge generation utilities and registry builder |
+| `src/components/BadgeGalleryModal.tsx` | Modify | Accept `availableBadges` prop instead of hard-coded array |
+| `src/pages/CompletionPage.tsx` | Modify | Use dynamic badge generation and thresholds |
+| `src/contexts/GameContext.tsx` | Modify | Make threshold functions accept dynamic values |
 
 ---
 
-### Console Output Examples (Dev Mode Only)
+### Unit Tests
 
-**Case MCQ with 4 options instead of 5:**
-```
-[MCQ Validation] Option count mismatch for case question "q1" (Q1): expected 5, found 4
+**New File: `src/lib/__tests__/badge-registry.test.ts`**
+
+```typescript
+describe("Badge Registry", () => {
+  describe("generateCaseBadges", () => {
+    it("generates standard and premium badges for a case", () => {
+      const mockCase = {
+        caseId: "case-1",
+        title: "Test Case",
+        badgeThresholds: { standard: 28, premium: 40 },
+        questions: [{}, {}, {}, {}], // 4 questions
+      };
+      
+      const [standard, premium] = generateCaseBadges(mockCase as Case);
+      
+      expect(standard.id).toBe("case-1-standard");
+      expect(standard.threshold).toBe(28);
+      expect(premium.id).toBe("case-1-premium");
+      expect(premium.threshold).toBe(40);
+    });
+  });
+  
+  describe("buildBadgeRegistry", () => {
+    it("generates correct badge count (5 cases = 10 case badges + 5 explorer badges)", () => {
+      const mockCases = Array.from({ length: 5 }, (_, i) => ({
+        caseId: `case-${i + 1}`,
+        badgeThresholds: { standard: 28, premium: 40 },
+        questions: [{}, {}, {}, {}],
+      }));
+      const mockSimulacra = [{ options: [{}, {}, {}] }];
+      
+      const badges = buildBadgeRegistry(mockCases as Case[], mockSimulacra as Simulacrum[]);
+      
+      // 5 cases × 2 (standard + premium) + 5 explorer + 3 simulacrum = 18
+      expect(badges.length).toBe(18);
+    });
+  });
+});
 ```
 
-**Simulacrum option with 3 questions instead of 4:**
-```
-[MCQ Validation] Question count mismatch for simulacrum option "option-1": expected 4, found 3
-```
+---
 
-**Simulacrum question with 5 options instead of 4:**
-```
-[MCQ Validation] Option count mismatch for simulacrum question "sim-q1": expected 4, found 5
-```
+### Badge Count Projections
 
-**Production mode:** No logs - validation silently returns `true`.
+| Configuration | Case Badges | Premium Badges | Explorer Badges | Simulacrum Badges | Total |
+|---------------|-------------|----------------|-----------------|-------------------|-------|
+| MVP (1 case) | 1 | 1 | 1 | 3 | 6 |
+| Level 1 (5 cases) | 5 | 5 | 5 | 3 | 18 |
+| Full Game (25 cases, 15 sim) | 25 | 25 | 25 | 15 | 90 |
+
+**Note**: The user requirement of "25 premium + 5 standard" suggests 5 cases per level, with the premium count (25) referring to total premium badges across all cases (5 × 5 = 25). The standard count (5) may refer to the single-level count. This implementation supports both interpretations.
 
 ---
 
 ### Why This Approach
 
-1. **Single log per issue**: Validates at load time, not per render
-2. **Dev-only**: Uses `import.meta.env.DEV` to prevent production log spam
-3. **Defense in depth**: Complements Zod schema validation for dynamic content
-4. **Complete coverage**: Validates both option counts AND simulacrum question counts
-5. **Testable**: Isolated utility functions with comprehensive unit tests
-6. **Non-blocking**: Logs errors but returns data to allow continued operation
+1. **Config-Driven**: Badges derive from case/simulacrum data - no manual sync required
+2. **Scalable**: Adding cases automatically adds badges to gallery
+3. **Threshold Accuracy**: Uses actual `badgeThresholds` from case config (28/40 for 4Q case, 35/50 for 5Q case)
+4. **Testable**: Pure functions for badge generation with unit test coverage
+5. **Type-Safe**: Full TypeScript support with `BadgeDefinition` interface
+6. **Backward Compatible**: Existing `BadgeInfo` interface unchanged
 
