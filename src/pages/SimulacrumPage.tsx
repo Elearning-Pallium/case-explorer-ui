@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useGame } from "@/contexts/GameContext";
 import { stubSimulacrum } from "@/lib/stub-data";
 import { cn } from "@/lib/utils";
+import { calculateSimulacrumPoints, SIMULACRUM_SCORING } from "@/lib/scoring-constants";
 import type { SimulacrumOption } from "@/lib/content-schema";
 
 type SimulacrumPhase = "selection" | "quiz" | "result";
@@ -74,13 +75,8 @@ export default function SimulacrumPage() {
       // Calculate final score
       const finalCorrect = correctCount + (selectedOption?.isCorrect ? 1 : 0);
       
-      // Award points
-      let points = 0;
-      if (finalCorrect === 4) {
-        points = 15; // Perfect
-      } else if (finalCorrect >= 3) {
-        points = 10; // Pass
-      }
+      // Award points using centralized scoring
+      const points = calculateSimulacrumPoints(finalCorrect);
       
       if (points > 0) {
         dispatch({ type: "ADD_POINTS", points, category: "simulacrum" });
@@ -129,9 +125,9 @@ export default function SimulacrumPage() {
               <h1 className="text-2xl font-bold text-primary mb-2">
                 Choose Your Simulacrum Topic
               </h1>
-              <p className="text-muted-foreground">
+            <p className="text-muted-foreground">
                 Select one of the following topics to test your knowledge. 
-                Score 3/4 to pass (10 pts) or 4/4 for a perfect score (15 pts).
+                Score {SIMULACRUM_SCORING.PASS_THRESHOLD}/4 to pass ({SIMULACRUM_SCORING.PASS_SCORE_POINTS} pts) or {SIMULACRUM_SCORING.PERFECT_THRESHOLD}/4 for a perfect score ({SIMULACRUM_SCORING.PERFECT_SCORE_POINTS} pts).
               </p>
             </div>
 
@@ -309,16 +305,16 @@ export default function SimulacrumPage() {
               <CardHeader>
                 <div className={cn(
                   "mx-auto flex h-16 w-16 items-center justify-center rounded-full mb-4",
-                  correctCount >= 3 ? "bg-success text-success-foreground" : "bg-warning text-warning-foreground"
+                  correctCount >= SIMULACRUM_SCORING.PASS_THRESHOLD ? "bg-success text-success-foreground" : "bg-warning text-warning-foreground"
                 )}>
-                  {correctCount >= 3 ? (
+                  {correctCount >= SIMULACRUM_SCORING.PASS_THRESHOLD ? (
                     <Check className="h-8 w-8" />
                   ) : (
                     <X className="h-8 w-8" />
                   )}
                 </div>
                 <CardTitle className="text-2xl">
-                  {correctCount === 4 ? "Perfect Score!" : correctCount >= 3 ? "You Passed!" : "Try Again"}
+                  {correctCount >= SIMULACRUM_SCORING.PERFECT_THRESHOLD ? "Perfect Score!" : correctCount >= SIMULACRUM_SCORING.PASS_THRESHOLD ? "You Passed!" : "Try Again"}
                 </CardTitle>
                 <CardDescription>
                   You answered {correctCount} out of 4 questions correctly
@@ -342,13 +338,13 @@ export default function SimulacrumPage() {
                 <div className="p-4 rounded-lg bg-secondary">
                   <p className="text-sm text-muted-foreground">Points Earned</p>
                   <p className="text-3xl font-bold text-accent">
-                    {correctCount === 4 ? "+15" : correctCount >= 3 ? "+10" : "+0"} pts
+                    +{calculateSimulacrumPoints(correctCount)} pts
                   </p>
                 </div>
 
                 {/* Actions */}
                 <div className="flex flex-col gap-2 pt-4">
-                  {correctCount < 3 && (
+                  {correctCount < SIMULACRUM_SCORING.PASS_THRESHOLD && (
                     <Button onClick={handleRetry} variant="outline">
                       <RotateCcw className="mr-2 h-4 w-4" />
                       Try Different Topic
