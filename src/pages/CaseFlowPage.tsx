@@ -222,6 +222,7 @@ export default function CaseFlowPage() {
         onPodcastsClick={() => setShowPodcastsModal(true)}
         totalPodcasts={totalPodcasts}
         completedPodcasts={completedPodcastCount}
+        isReadOnly={state.isReadOnly}
       />
 
       {/* Patient Header */}

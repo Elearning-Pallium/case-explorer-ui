@@ -1,4 +1,4 @@
-import { Trophy, Star, Zap, Target, BookOpen, CheckCircle, Headphones } from "lucide-react";
+import { Trophy, Star, Zap, Target, BookOpen, CheckCircle, Headphones, Eye } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Progress } from "@/components/ui/progress";
@@ -15,6 +15,7 @@ interface HUDProps {
   onPodcastsClick?: () => void;
   totalPodcasts?: number;
   completedPodcasts?: number;
+  isReadOnly?: boolean;
 }
 
 export function HUD({ 
@@ -26,6 +27,7 @@ export function HUD({
   onPodcastsClick,
   totalPodcasts = 0,
   completedPodcasts = 0,
+  isReadOnly = false,
 }: HUDProps) {
   const { state } = useGame();
   
@@ -70,8 +72,19 @@ export function HUD({
           </div>
         </div>
 
-        {/* Right: JIT, Badges & Theme */}
+        {/* Right: Read-Only, JIT, Badges & Theme */}
         <div className="flex items-center gap-3">
+          {/* Read-Only Mode Indicator */}
+          {isReadOnly && (
+            <div 
+              className="flex items-center gap-2 bg-warning/20 text-warning-foreground px-3 py-1 rounded-lg"
+              title="Another tab is actively editing. Close other tabs to edit here."
+            >
+              <Eye className="h-4 w-4" />
+              <span className="text-sm font-medium">Read-Only</span>
+            </div>
+          )}
+          
           {/* Additional Resources Button */}
           <button
             onClick={onJITClick}
