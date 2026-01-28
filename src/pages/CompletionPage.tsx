@@ -9,8 +9,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { PodcastListSection } from "@/components/PodcastListSection";
 import { useGame } from "@/contexts/GameContext";
-import { loadCase, loadSimulacrum } from "@/lib/content-loader";
-import { stubCase, stubSimulacrum } from "@/lib/stub-data";
+import { loadCase, loadSimulacrum, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
+import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
 import { generateCaseBadges, buildBadgeRegistry } from "@/lib/badge-registry";
 import { cn } from "@/lib/utils";
 import type { Case, Simulacrum } from "@/lib/content-schema";
@@ -20,38 +20,72 @@ export default function CompletionPage() {
   const navigate = useNavigate();
   const { state, dispatch, canEarnStandardBadge, canEarnPremiumBadge } = useGame();
   
-  const [caseData, setCaseData] = useState<Case>(stubCase);
-  const [simulacrumData, setSimulacrumData] = useState<Simulacrum>(stubSimulacrum);
+  const [caseData, setCaseData] = useState<Case | null>(null);
+  const [simulacrumData, setSimulacrumData] = useState<Simulacrum | null>(null);
+  const [contentError, setContentError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [showCelebration, setShowCelebration] = useState(true);
 
-  // Load case and simulacrum data
+  // Load case and simulacrum data with error handling
   useEffect(() => {
     async function load() {
       if (!caseId) return;
+      setIsLoading(true);
+      setContentError(null);
+      
       const [caseResult, simResult] = await Promise.all([
         loadCase(caseId),
         loadSimulacrum("level-1"),
       ]);
-      setCaseData(caseResult.data);
-      setSimulacrumData(simResult.data);
+      
+      // Handle case load result
+      if (isContentLoadError(caseResult)) {
+        if (hasStubFallback(caseResult)) {
+          setCaseData(caseResult.data);
+          setContentError(caseResult.error);
+        } else {
+          setCaseData(null);
+          setContentError(caseResult.error);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        setCaseData(caseResult.data);
+      }
+      
+      // Handle simulacrum load result
+      if (isContentLoadError(simResult)) {
+        if (hasStubFallback(simResult)) {
+          setSimulacrumData(simResult.data);
+        } else {
+          setSimulacrumData(null);
+        }
+      } else {
+        setSimulacrumData(simResult.data);
+      }
+      
+      setIsLoading(false);
     }
     load();
-  }, [caseId]);
+  }, [caseId, loadAttempt]);
   
-  // Generate dynamic badges from case config
+  // Generate dynamic badges from case config (only when data is loaded)
   const caseBadges = useMemo(() => {
+    if (!caseData) return [];
     return generateCaseBadges(caseData);
   }, [caseData]);
 
-  // Build available badges for gallery
+  // Build available badges for gallery (only when data is loaded)
   const availableBadges = useMemo(() => {
+    if (!caseData || !simulacrumData) return [];
     return buildBadgeRegistry([caseData], [simulacrumData]);
   }, [caseData, simulacrumData]);
 
   // Award badges on mount using dynamic thresholds
   useEffect(() => {
-    if (!caseData) return;
+    if (!caseData || caseBadges.length < 2) return;
     
     const [standardBadge, premiumBadge] = caseBadges;
     const earnedPremium = canEarnPremiumBadge(caseData.badgeThresholds.premium);
@@ -103,16 +137,50 @@ export default function CompletionPage() {
     }
   };
 
-  // Determine earned badge using dynamic thresholds
-  const [standardBadge, premiumBadge] = caseBadges;
-  const earnedBadge = canEarnPremiumBadge(caseData.badgeThresholds.premium)
-    ? { name: premiumBadge.name, type: "premium" as const, icon: Sparkles }
-    : canEarnStandardBadge(caseData.badgeThresholds.standard)
-    ? { name: standardBadge.name, type: "case" as const, icon: Trophy }
-    : null;
+  // Determine earned badge using dynamic thresholds (only when data is loaded)
+  const earnedBadge = useMemo(() => {
+    if (!caseData || caseBadges.length < 2) return null;
+    const [standardBadge, premiumBadge] = caseBadges;
+    if (canEarnPremiumBadge(caseData.badgeThresholds.premium)) {
+      return { name: premiumBadge.name, type: "premium" as const, icon: Sparkles };
+    }
+    if (canEarnStandardBadge(caseData.badgeThresholds.standard)) {
+      return { name: standardBadge.name, type: "case" as const, icon: Trophy };
+    }
+    return null;
+  }, [caseData, caseBadges, canEarnPremiumBadge, canEarnStandardBadge]);
 
-  const maxCasePoints = caseData.badgeThresholds.premium;
+  const maxCasePoints = caseData?.badgeThresholds.premium ?? 50;
   const casePercentage = Math.round((state.casePoints / maxCasePoints) * 100);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-8 w-8 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading completion data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Production error state - show error boundary
+  if (contentError && !caseData) {
+    return (
+      <ContentErrorBoundary
+        error={contentError}
+        contentType="case"
+        contentId={caseId || "unknown"}
+        onRetry={() => setLoadAttempt((prev) => prev + 1)}
+      />
+    );
+  }
+
+  // Guard: ensure caseData is loaded
+  if (!caseData) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -129,6 +197,14 @@ export default function CompletionPage() {
             <h2 className="text-3xl font-bold mb-2">Badge Earned!</h2>
             <p className="text-xl text-muted-foreground">{earnedBadge.name}</p>
           </div>
+        </div>
+      )}
+
+      {/* Content Error Banner (for dev mode warnings) */}
+      {contentError && caseData && (
+        <div className="bg-warning/20 border-b border-warning px-4 py-2 text-sm text-center">
+          <span className="text-warning-foreground font-medium">Note:</span>{" "}
+          <span className="text-foreground">Using placeholder content - {contentError}</span>
         </div>
       )}
 

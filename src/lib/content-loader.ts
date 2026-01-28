@@ -1,33 +1,101 @@
-import { CaseSchema, SimulacrumSchema, type Case, type Simulacrum } from "./content-schema";
+import { CaseSchema, SimulacrumSchema, CURRENT_SCHEMA_VERSION, type Case, type Simulacrum } from "./content-schema";
 import { stubCase, stubSimulacrum } from "./stub-data";
 import { 
   validateMCQOptionCount, 
   validateSimulacrumQuestionCount 
 } from "./mcq-validation";
 
+/**
+ * Content load result - environment-aware
+ * - success: true → valid data loaded
+ * - success: false, useStub: true → DEV mode with stub fallback
+ * - success: false, useStub: false → PROD mode, no fallback (show error UI)
+ */
+export type ContentLoadSuccess<T> = { success: true; data: T; schemaWarning?: string };
+export type ContentLoadErrorWithStub<T> = { success: false; error: string; useStub: true; data: T };
+export type ContentLoadErrorNoStub = { success: false; error: string; useStub: false; data: null };
+
 export type ContentLoadResult<T> = 
-  | { success: true; data: T }
-  | { success: false; error: string; useStub: true; data: T };
+  | ContentLoadSuccess<T>
+  | ContentLoadErrorWithStub<T>
+  | ContentLoadErrorNoStub;
+
+/**
+ * Type guard to check if result is an error (not success)
+ */
+export function isContentLoadError<T>(
+  result: ContentLoadResult<T>
+): result is ContentLoadErrorWithStub<T> | ContentLoadErrorNoStub {
+  return !result.success;
+}
+
+/**
+ * Type guard for error with stub fallback
+ */
+export function hasStubFallback<T>(
+  result: ContentLoadErrorWithStub<T> | ContentLoadErrorNoStub
+): result is ContentLoadErrorWithStub<T> {
+  return result.useStub === true;
+}
+
+/**
+ * Validate schema version and return warning message if mismatch
+ */
+export function validateSchemaVersion(
+  rawData: unknown,
+  contentId: string
+): string | null {
+  if (typeof rawData !== "object" || rawData === null) {
+    return null;
+  }
+  
+  const data = rawData as Record<string, unknown>;
+  const contentVersion = data.schemaVersion;
+  
+  if (!contentVersion) {
+    console.warn(`[Content Loader] Missing schemaVersion in ${contentId}`);
+    return `Missing schemaVersion in content`;
+  }
+  
+  if (contentVersion !== CURRENT_SCHEMA_VERSION) {
+    console.warn(
+      `[Content Loader] Schema version mismatch in ${contentId}: ` +
+      `expected ${CURRENT_SCHEMA_VERSION}, found ${contentVersion}`
+    );
+    return `Schema version mismatch: expected ${CURRENT_SCHEMA_VERSION}, found ${contentVersion}`;
+  }
+  
+  return null; // No warning
+}
 
 /**
  * Load and validate case content from JSON file
- * Falls back to stub data if file is missing or invalid
+ * - DEV: Falls back to stub data if file is missing or invalid
+ * - PROD: Returns error state for explicit error UI
  */
 export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>> {
+  const isDev = import.meta.env.DEV;
+  
   try {
     const response = await fetch(`/content/${caseId}.json`);
     
     if (!response.ok) {
-      console.warn(`Case file not found: /content/${caseId}.json - using stub data`);
-      return {
-        success: false,
-        error: `Case file not found: ${caseId}`,
-        useStub: true,
-        data: stubCase,
-      };
+      const error = `Case file not found: ${caseId}`;
+      console.warn(
+        `[Content Loader] ${error} - ${isDev ? "using stub data" : "no fallback in production"}`
+      );
+      
+      if (isDev) {
+        return { success: false, error, useStub: true, data: stubCase };
+      }
+      return { success: false, error, useStub: false, data: null };
     }
 
     const rawData = await response.json();
+    
+    // Check schema version (warns on mismatch but doesn't fail)
+    const schemaWarning = validateSchemaVersion(rawData, caseId);
+    
     const parseResult = CaseSchema.safeParse(rawData);
 
     if (!parseResult.success) {
@@ -35,13 +103,13 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
         .map((e) => `${e.path.join(".")}: ${e.message}`)
         .join("; ");
       
-      console.error(`Schema validation failed for ${caseId}:`, errorMessages);
-      return {
-        success: false,
-        error: `Invalid case data: ${errorMessages}`,
-        useStub: true,
-        data: stubCase,
-      };
+      const error = `Invalid case data: ${errorMessages}`;
+      console.error(`[Content Loader] Schema validation failed for ${caseId}:`, errorMessages);
+      
+      if (isDev) {
+        return { success: false, error, useStub: true, data: stubCase };
+      }
+      return { success: false, error, useStub: false, data: null };
     }
 
     // Validate MCQ option counts (dev only, logs once per load)
@@ -54,38 +122,50 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
       );
     });
 
-    return { success: true, data: parseResult.data };
+    return { 
+      success: true, 
+      data: parseResult.data,
+      ...(schemaWarning && { schemaWarning })
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error(`Failed to load case ${caseId}:`, message);
-    return {
-      success: false,
-      error: message,
-      useStub: true,
-      data: stubCase,
-    };
+    console.error(`[Content Loader] Failed to load case ${caseId}:`, message);
+    
+    if (isDev) {
+      return { success: false, error: message, useStub: true, data: stubCase };
+    }
+    return { success: false, error: message, useStub: false, data: null };
   }
 }
 
 /**
  * Load and validate simulacrum content from JSON file
- * Falls back to stub data if file is missing or invalid
+ * - DEV: Falls back to stub data if file is missing or invalid
+ * - PROD: Returns error state for explicit error UI
  */
 export async function loadSimulacrum(levelId: string): Promise<ContentLoadResult<Simulacrum>> {
+  const isDev = import.meta.env.DEV;
+  
   try {
     const response = await fetch(`/content/simulacrum-${levelId}.json`);
     
     if (!response.ok) {
-      console.warn(`Simulacrum file not found: /content/simulacrum-${levelId}.json - using stub data`);
-      return {
-        success: false,
-        error: `Simulacrum file not found: ${levelId}`,
-        useStub: true,
-        data: stubSimulacrum,
-      };
+      const error = `Simulacrum file not found: ${levelId}`;
+      console.warn(
+        `[Content Loader] ${error} - ${isDev ? "using stub data" : "no fallback in production"}`
+      );
+      
+      if (isDev) {
+        return { success: false, error, useStub: true, data: stubSimulacrum };
+      }
+      return { success: false, error, useStub: false, data: null };
     }
 
     const rawData = await response.json();
+    
+    // Check schema version
+    const schemaWarning = validateSchemaVersion(rawData, `simulacrum-${levelId}`);
+    
     const parseResult = SimulacrumSchema.safeParse(rawData);
 
     if (!parseResult.success) {
@@ -93,13 +173,13 @@ export async function loadSimulacrum(levelId: string): Promise<ContentLoadResult
         .map((e) => `${e.path.join(".")}: ${e.message}`)
         .join("; ");
       
-      console.error(`Schema validation failed for simulacrum ${levelId}:`, errorMessages);
-      return {
-        success: false,
-        error: `Invalid simulacrum data: ${errorMessages}`,
-        useStub: true,
-        data: stubSimulacrum,
-      };
+      const error = `Invalid simulacrum data: ${errorMessages}`;
+      console.error(`[Content Loader] Schema validation failed for simulacrum ${levelId}:`, errorMessages);
+      
+      if (isDev) {
+        return { success: false, error, useStub: true, data: stubSimulacrum };
+      }
+      return { success: false, error, useStub: false, data: null };
     }
 
     // Validate simulacrum structure (dev only, logs once per load)
@@ -113,15 +193,18 @@ export async function loadSimulacrum(levelId: string): Promise<ContentLoadResult
       });
     });
 
-    return { success: true, data: parseResult.data };
+    return { 
+      success: true, 
+      data: parseResult.data,
+      ...(schemaWarning && { schemaWarning })
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error(`Failed to load simulacrum ${levelId}:`, message);
-    return {
-      success: false,
-      error: message,
-      useStub: true,
-      data: stubSimulacrum,
-    };
+    console.error(`[Content Loader] Failed to load simulacrum ${levelId}:`, message);
+    
+    if (isDev) {
+      return { success: false, error: message, useStub: true, data: stubSimulacrum };
+    }
+    return { success: false, error: message, useStub: false, data: null };
   }
 }
