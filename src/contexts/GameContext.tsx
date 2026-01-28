@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from "react";
 import { stateManager, SerializedState, STATE_VERSION } from "@/lib/state-manager";
 import { tabLockManager } from "@/lib/tab-lock-manager";
+import { 
+  BADGE_DEFAULTS, 
+  MCQ_SCORING, 
+  calculateClusterFromScore 
+} from "@/lib/scoring-constants";
 
 // Types for game state
 export interface BadgeInfo {
@@ -304,14 +309,11 @@ const GameContext = createContext<GameContextType | null>(null);
 
 // Helper functions
 function calculateCluster(score: number): "A" | "B" | "C" {
-  if (score === 10) return "A";
-  if (score === 7 || score === 4) return "B";
-  return "C";
+  return calculateClusterFromScore(score);
 }
 
 function getMaxPossiblePoints(questionCount: number): number {
-  // Max 10 points per question (5+5 for correct combination)
-  return questionCount * 10;
+  return questionCount * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
 }
 
 // Helper to serialize state for SCORM/localStorage
@@ -483,9 +485,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     dispatch(action);
   }, []);
 
-  // Dynamic threshold functions - accept optional threshold or use defaults
-  const canEarnStandardBadge = (threshold?: number) => state.casePoints >= (threshold ?? 35);
-  const canEarnPremiumBadge = (threshold?: number) => state.casePoints >= (threshold ?? 50);
+  // Dynamic threshold functions - per-case thresholds override defaults
+  const canEarnStandardBadge = (threshold?: number) => 
+    state.casePoints >= (threshold ?? BADGE_DEFAULTS.STANDARD_THRESHOLD);
+  const canEarnPremiumBadge = (threshold?: number) => 
+    state.casePoints >= (threshold ?? BADGE_DEFAULTS.PREMIUM_THRESHOLD);
 
   return (
     <GameContext.Provider

@@ -4,10 +4,11 @@ import { ThemeToggle } from "./ThemeToggle";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { HUD_DISPLAY } from "@/lib/ui-constants";
 import type { JITResource } from "@/lib/content-schema";
 
 interface HUDProps {
-  maxPoints?: number;
+  maxPoints: number; // Required - must be calculated from case data
   showBadgeGallery?: () => void;
   activeJIT?: JITResource | null;
   isJITCompleted?: boolean;
@@ -19,7 +20,7 @@ interface HUDProps {
 }
 
 export function HUD({ 
-  maxPoints = 67, 
+  maxPoints, 
   showBadgeGallery,
   activeJIT,
   isJITCompleted,
@@ -33,7 +34,7 @@ export function HUD({
   
   const pointsPercentage = Math.round((state.totalPoints / maxPoints) * 100);
   const earnedBadgesCount = state.badges.length;
-  const maxBadges = 5; // Placeholder for total possible badges
+  const maxBadges = HUD_DISPLAY.MAX_BADGES_SHOWN;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-soft">

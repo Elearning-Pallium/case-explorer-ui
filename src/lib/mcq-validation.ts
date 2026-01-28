@@ -9,12 +9,14 @@
  * - Simulacrum MCQs: exactly 4 options per question, exactly 4 questions per option
  */
 
+import { MCQ_SCORING, SIMULACRUM_SCORING } from "./scoring-constants";
+
 export const MCQ_OPTION_COUNTS = {
-  case: 5,       // A, B, C, D, E
-  simulacrum: 4, // A, B, C, D
+  case: MCQ_SCORING.OPTIONS_PER_CASE_QUESTION,       // A, B, C, D, E
+  simulacrum: MCQ_SCORING.OPTIONS_PER_SIMULACRUM_QUESTION, // A, B, C, D
 } as const;
 
-export const SIMULACRUM_QUESTIONS_PER_OPTION = 4;
+export const SIMULACRUM_QUESTIONS_PER_OPTION = SIMULACRUM_SCORING.PERFECT_THRESHOLD;
 
 export type MCQType = keyof typeof MCQ_OPTION_COUNTS;
 

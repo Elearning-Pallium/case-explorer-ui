@@ -17,6 +17,8 @@ import { loadCase, loadSimulacrum } from "@/lib/content-loader";
 import type { Case, JITResource, Simulacrum } from "@/lib/content-schema";
 import { stubCase, stubSimulacrum } from "@/lib/stub-data";
 import { buildBadgeRegistry } from "@/lib/badge-registry";
+import { calculateMaxCasePoints, ACTIVITY_POINTS } from "@/lib/scoring-constants";
+import { CHART_REVEAL } from "@/lib/ui-constants";
 
 type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
 
@@ -45,7 +47,7 @@ export default function CaseFlowPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [lastScore, setLastScore] = useState(0);
   const [lastCluster, setLastCluster] = useState<"A" | "B" | "C">("C");
-  const [revealedChartEntries, setRevealedChartEntries] = useState(2); // Start with 2 entries revealed
+  const [revealedChartEntries, setRevealedChartEntries] = useState<number>(CHART_REVEAL.INITIAL_ENTRIES);
 
   // Modal state
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
@@ -78,10 +80,15 @@ export default function CaseFlowPage() {
 
   const currentQuestion = caseData.questions[currentQuestionIndex];
   
-  // Calculate max points including JIT resources, reflections, and podcasts
+  // Calculate max points using centralized helper
   const jitTotalPoints = caseData.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
   const podcastTotalPoints = caseData.podcasts?.reduce((sum, p) => sum + p.points, 0) || 0;
-  const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2 + podcastTotalPoints; // +2 for IP Insights + JIT points + 2 for reflections + podcasts
+  const maxPoints = calculateMaxCasePoints(
+    caseData.questions.length,
+    jitTotalPoints,
+    podcastTotalPoints,
+    2 // reflection questions
+  );
 
   // Get submitted reflections for current case (safe access for existing localStorage data)
   const submittedReflections = state.learnerReflections?.[caseId || ""] || {};
@@ -94,7 +101,7 @@ export default function CaseFlowPage() {
         caseId,
         questionId,
         text,
-        points: 1,
+        points: ACTIVITY_POINTS.REFLECTION_PER_QUESTION,
       });
     }
   };
@@ -176,8 +183,8 @@ export default function CaseFlowPage() {
       dispatch({ type: "ADD_EXPLORATORY_TOKEN", optionId: optId });
     });
 
-    // Reveal next 2 chart entries per MCQ completion
-    setRevealedChartEntries((prev) => Math.min(prev + 2, caseData.chartEntries.length));
+    // Reveal chart entries per MCQ completion
+    setRevealedChartEntries((prev) => Math.min(prev + CHART_REVEAL.ENTRIES_PER_MCQ, caseData.chartEntries.length));
 
     // Move to feedback phase
     setPhase("feedback");
