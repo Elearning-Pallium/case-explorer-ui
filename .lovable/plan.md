@@ -1,375 +1,453 @@
 
 
-## Sprint 2-3: Content Loader Improvements
+## Sprint 2-4 (Refined): CaseFlowPage Refactor
 
 ### Overview
 
-Improve content loading error handling by:
-1. Differentiating behavior between dev (stub fallback allowed) and prod (explicit error UI)
-2. Adding schema version validation with warnings for mismatches
-3. Creating a dedicated error UI component for content load failures
+Extract phase logic into a custom `useCaseFlow` hook while incorporating key safeguards:
+1. **Reset hook state on case change** - Prevent stale state across cases
+2. **Preserve exact initial values** - `lastCluster` starts as `"C"`, matches current behavior
+3. **Use existing constants** - `CHART_REVEAL` from `ui-constants.ts` is already in use
 
 ---
 
-### Current State (Problems)
+### Current State (Verified)
 
-| Issue | Impact |
-|-------|--------|
-| Silent stub fallback in production | LMS users see placeholder content without realizing real content failed to load |
-| No schema version check | Outdated content files could silently break features |
-| Simple warning banner | Not prominent enough for critical load failures |
-| Schema version discrepancy | SSOT says 1.1, code uses 1.2 (needs alignment) |
+| Item | Status |
+|------|--------|
+| `CHART_REVEAL` in `ui-constants.ts` | Exists and imported (line 22) |
+| `lastCluster` initial value | `"C"` (line 51) |
+| `revealedChartEntries` initial | `CHART_REVEAL.INITIAL_ENTRIES` (line 52) |
+| Phase state | 5 variables (lines 48-52) |
+| Phase handlers | 4 functions (lines 197-263) |
 
 ---
 
-### Target Architecture
+### Key Safeguard: Reset on Case Change
 
-```text
-Content Load Flow:
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         content-loader.ts                                   │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │  1. Fetch content JSON                                                │  │
-│  │  2. Parse JSON                                                        │  │
-│  │  3. Check schemaVersion (warn on mismatch)                           │  │
-│  │  4. Validate with Zod schema                                         │  │
-│  │  5. Return result based on environment:                              │  │
-│  │     - DEV: Allow stub fallback with warning                          │  │
-│  │     - PROD: Return error state (no stub)                             │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         ContentLoadResult                                   │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │  success: true  → data: T                                             │  │
-│  │  success: false → error: string, useStub: boolean, data: T | null     │  │
-│  │                                                                        │  │
-│  │  In PROD: useStub = false, data = null → show ContentErrorBoundary    │  │
-│  │  In DEV:  useStub = true, data = stubData → show warning banner       │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
+The hook will include a `useEffect` that resets all state when `caseId` changes:
+
+```typescript
+// Inside useCaseFlow hook
+useEffect(() => {
+  // Reset all flow state when case changes
+  setPhase("intro");
+  setCurrentQuestionIndex(0);
+  setLastScore(0);
+  setLastCluster("C");
+  setRevealedChartEntries(CHART_REVEAL.INITIAL_ENTRIES);
+}, [caseId]);
 ```
+
+This ensures navigating from `/case/case-1` to `/case/case-2` starts fresh.
 
 ---
 
 ### Implementation Details
 
-#### 1. Add Schema Version Constant
+#### 1. Create useCaseFlow Hook
 
-**File: `src/lib/content-schema.ts`**
-
-Add a constant for the current schema version:
+**New File: `src/hooks/use-case-flow.ts`**
 
 ```typescript
 /**
- * Current schema version - used for validation
- * Update this when schema changes require content updates
+ * useCaseFlow - Phase state machine for case progression
+ * 
+ * Manages the intro -> mcq -> feedback -> lived-experience flow
+ * with automatic reset when caseId changes.
  */
-export const CURRENT_SCHEMA_VERSION = "1.2";
-```
 
-#### 2. Update ContentLoadResult Type
+import { useState, useCallback, useEffect } from "react";
+import { useGame } from "@/contexts/GameContext";
+import { CHART_REVEAL } from "@/lib/ui-constants";
+import type { Case, MCQQuestion } from "@/lib/content-schema";
 
-**File: `src/lib/content-loader.ts`**
+export type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
 
-Modify the result type to handle production vs dev scenarios:
-
-```typescript
-export type ContentLoadResult<T> = 
-  | { success: true; data: T; schemaWarning?: string }
-  | { success: false; error: string; useStub: true; data: T }  // DEV only
-  | { success: false; error: string; useStub: false; data: null };  // PROD
-
-export type ContentLoadError = {
-  type: "not_found" | "validation_error" | "parse_error" | "network_error";
-  message: string;
-  details?: string;
-};
-```
-
-#### 3. Add Schema Version Validation
-
-**File: `src/lib/content-loader.ts`**
-
-Add version checking before Zod validation:
-
-```typescript
-import { CURRENT_SCHEMA_VERSION } from "./content-schema";
-
-function validateSchemaVersion(
-  rawData: unknown,
-  contentId: string
-): string | null {
-  if (typeof rawData !== "object" || rawData === null) return null;
-  
-  const data = rawData as Record<string, unknown>;
-  const contentVersion = data.schemaVersion;
-  
-  if (!contentVersion) {
-    console.warn(`[Content Loader] Missing schemaVersion in ${contentId}`);
-    return `Missing schemaVersion in content`;
-  }
-  
-  if (contentVersion !== CURRENT_SCHEMA_VERSION) {
-    console.warn(
-      `[Content Loader] Schema version mismatch in ${contentId}: ` +
-      `expected ${CURRENT_SCHEMA_VERSION}, found ${contentVersion}`
-    );
-    return `Schema version mismatch: expected ${CURRENT_SCHEMA_VERSION}, found ${contentVersion}`;
-  }
-  
-  return null; // No warning
+interface UseCaseFlowOptions {
+  caseData: Case | null;
+  caseId: string;
 }
-```
 
-#### 4. Update loadCase Function
-
-**File: `src/lib/content-loader.ts`**
-
-Differentiate behavior based on environment:
-
-```typescript
-export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>> {
-  const isDev = import.meta.env.DEV;
+interface UseCaseFlowReturn {
+  // State
+  phase: CaseFlowPhase;
+  currentQuestionIndex: number;
+  currentQuestion: MCQQuestion | null;
+  lastScore: number;
+  lastCluster: "A" | "B" | "C";
+  revealedChartEntries: number;
   
-  try {
-    const response = await fetch(`/content/${caseId}.json`);
-    
-    if (!response.ok) {
-      const error = `Case file not found: ${caseId}`;
-      console.warn(`[Content Loader] ${error} - ${isDev ? "using stub data" : "no fallback in production"}`);
-      
-      if (isDev) {
-        return { success: false, error, useStub: true, data: stubCase };
-      }
-      return { success: false, error, useStub: false, data: null };
-    }
+  // Actions
+  startCase: () => void;
+  submitMCQ: (selectedOptions: string[], score: number) => void;
+  continueFeedback: () => void;
+  retryQuestion: () => void;
+  onFeedbackComplete: () => void;
+}
 
-    const rawData = await response.json();
-    
-    // Check schema version
-    const schemaWarning = validateSchemaVersion(rawData, caseId);
-    
-    const parseResult = CaseSchema.safeParse(rawData);
+export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFlowReturn {
+  const { dispatch, calculateCluster } = useGame();
+  
+  // Phase state - initialized to match current CaseFlowPage exactly
+  const [phase, setPhase] = useState<CaseFlowPhase>("intro");
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [lastScore, setLastScore] = useState(0);
+  const [lastCluster, setLastCluster] = useState<"A" | "B" | "C">("C"); // Matches line 51
+  const [revealedChartEntries, setRevealedChartEntries] = useState<number>(
+    CHART_REVEAL.INITIAL_ENTRIES
+  );
 
-    if (!parseResult.success) {
-      const errorMessages = parseResult.error.errors
-        .map((e) => `${e.path.join(".")}: ${e.message}`)
-        .join("; ");
-      
-      const error = `Invalid case data: ${errorMessages}`;
-      console.error(`[Content Loader] Schema validation failed for ${caseId}:`, errorMessages);
-      
-      if (isDev) {
-        return { success: false, error, useStub: true, data: stubCase };
-      }
-      return { success: false, error, useStub: false, data: null };
-    }
+  // CRITICAL: Reset all state when caseId changes
+  useEffect(() => {
+    setPhase("intro");
+    setCurrentQuestionIndex(0);
+    setLastScore(0);
+    setLastCluster("C");
+    setRevealedChartEntries(CHART_REVEAL.INITIAL_ENTRIES);
+  }, [caseId]);
 
-    // Validate MCQ option counts (dev only)
-    parseResult.data.questions.forEach((question) => {
-      validateMCQOptionCount(question.id, question.options.length, 'case', question.questionNumber);
+  // Computed value
+  const currentQuestion = caseData?.questions[currentQuestionIndex] ?? null;
+
+  // Actions (unchanged logic from CaseFlowPage)
+  const startCase = useCallback(() => {
+    setPhase("mcq");
+  }, []);
+
+  const submitMCQ = useCallback((selectedOptions: string[], score: number) => {
+    if (!currentQuestion || !caseData) return;
+    
+    const cluster = calculateCluster(score);
+    setLastScore(score);
+    setLastCluster(cluster);
+
+    // Record attempt
+    dispatch({
+      type: "RECORD_MCQ_ATTEMPT",
+      attempt: {
+        questionId: currentQuestion.id,
+        selectedOptions,
+        score,
+        cluster,
+        timestamp: new Date(),
+      },
     });
 
-    return { 
-      success: true, 
-      data: parseResult.data,
-      ...(schemaWarning && { schemaWarning })
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error(`[Content Loader] Failed to load case ${caseId}:`, message);
-    
-    if (isDev) {
-      return { success: false, error: message, useStub: true, data: stubCase };
+    // Add points
+    dispatch({ type: "ADD_POINTS", points: score, category: "case" });
+
+    // Add correct token if perfect score
+    if (score === 10) {
+      dispatch({ type: "ADD_CORRECT_TOKEN" });
     }
-    return { success: false, error: message, useStub: false, data: null };
-  }
+
+    // Track exploratory tokens
+    selectedOptions.forEach((optId) => {
+      dispatch({ type: "ADD_EXPLORATORY_TOKEN", optionId: optId });
+    });
+
+    // Reveal chart entries
+    setRevealedChartEntries((prev) => 
+      Math.min(prev + CHART_REVEAL.ENTRIES_PER_MCQ, caseData.chartEntries.length)
+    );
+
+    // Move to feedback
+    setPhase("feedback");
+  }, [currentQuestion, caseData, dispatch, calculateCluster]);
+
+  const continueFeedback = useCallback(() => {
+    if (!caseData) return;
+    
+    if (currentQuestionIndex < caseData.questions.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+      setPhase("mcq");
+    } else {
+      setPhase("lived-experience");
+    }
+  }, [caseData, currentQuestionIndex]);
+
+  const retryQuestion = useCallback(() => {
+    setPhase("mcq");
+  }, []);
+
+  const onFeedbackComplete = useCallback(() => {
+    // All sections viewed - currently no-op (matches line 238-240)
+  }, []);
+
+  return {
+    phase,
+    currentQuestionIndex,
+    currentQuestion,
+    lastScore,
+    lastCluster,
+    revealedChartEntries,
+    startCase,
+    submitMCQ,
+    continueFeedback,
+    retryQuestion,
+    onFeedbackComplete,
+  };
 }
 ```
 
-#### 5. Create ContentErrorBoundary Component
+---
 
-**New File: `src/components/ContentErrorBoundary.tsx`**
-
-Dedicated error UI for content load failures:
-
-```typescript
-import { AlertTriangle, RefreshCw, Home } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { useNavigate } from "react-router-dom";
-
-interface ContentErrorBoundaryProps {
-  error: string;
-  contentType: "case" | "simulacrum";
-  contentId: string;
-  onRetry?: () => void;
-}
-
-export function ContentErrorBoundary({
-  error,
-  contentType,
-  contentId,
-  onRetry,
-}: ContentErrorBoundaryProps) {
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <div className="max-w-md w-full space-y-6">
-        <Alert variant="destructive" className="border-2">
-          <AlertTriangle className="h-5 w-5" />
-          <AlertTitle className="text-lg">Content Load Error</AlertTitle>
-          <AlertDescription className="mt-2">
-            <p className="mb-2">
-              Unable to load {contentType} content: <strong>{contentId}</strong>
-            </p>
-            <p className="text-sm opacity-80">{error}</p>
-          </AlertDescription>
-        </Alert>
-
-        <div className="flex flex-col gap-3">
-          {onRetry && (
-            <Button onClick={onRetry} className="w-full">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Retry Loading
-            </Button>
-          )}
-          <Button variant="outline" onClick={() => navigate("/")} className="w-full">
-            <Home className="mr-2 h-4 w-4" />
-            Return to Home
-          </Button>
-        </div>
-
-        <p className="text-xs text-muted-foreground text-center">
-          If this problem persists, please contact your administrator.
-        </p>
-      </div>
-    </div>
-  );
-}
-```
-
-#### 6. Update CaseFlowPage to Use Error Boundary
+#### 2. Simplify CaseFlowPage
 
 **File: `src/pages/CaseFlowPage.tsx`**
 
-Handle the new error states:
+Key changes:
+- Import and use `useCaseFlow` hook
+- Remove lines 48-52 (flow state declarations)
+- Remove lines 197-263 (phase handlers)
+- Replace with hook consumption
 
 ```typescript
-import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
+// Add import
+import { useCaseFlow, type CaseFlowPhase } from "@/hooks/use-case-flow";
 
-// In load effect:
-useEffect(() => {
-  async function load() {
-    if (!caseId) return;
-    setIsLoading(true);
-    setContentError(null);
-    
-    const [caseResult, simResult] = await Promise.all([
-      loadCase(caseId),
-      loadSimulacrum("level-1"),
-    ]);
-    
-    // Handle case load result
-    if (!caseResult.success) {
-      if (caseResult.useStub) {
-        // DEV mode: use stub with warning
-        setCaseData(caseResult.data);
-        setContentError(caseResult.error);
-      } else {
-        // PROD mode: show error UI
-        setContentError(caseResult.error);
-        setIsLoading(false);
-        return; // Don't continue loading
-      }
-    } else {
-      setCaseData(caseResult.data);
-      // Handle schema warning
-      if (caseResult.schemaWarning) {
-        console.warn(`[Schema Warning] ${caseResult.schemaWarning}`);
-      }
-    }
-    
-    // Handle simulacrum similarly...
-    setSimulacrumData(simResult.data);
-    setIsLoading(false);
-  }
-  load();
-}, [caseId]);
+// Replace flow state (lines 47-52) with:
+const {
+  phase,
+  currentQuestionIndex,
+  currentQuestion,
+  lastScore,
+  lastCluster,
+  revealedChartEntries,
+  startCase,
+  submitMCQ,
+  continueFeedback,
+  retryQuestion,
+  onFeedbackComplete,
+} = useCaseFlow({ caseData, caseId: caseId || "" });
 
-// In render:
-if (!isLoading && contentError && !caseData) {
-  return (
-    <ContentErrorBoundary
-      error={contentError}
-      contentType="case"
-      contentId={caseId || "unknown"}
-      onRetry={() => window.location.reload()}
-    />
-  );
-}
+// Remove these handlers (now in hook):
+// - handleMCQSubmit (lines 197-235)
+// - handleFeedbackComplete (lines 238-240)
+// - handleContinueFeedback (lines 243-253)
+// - handleRetryQuestion (lines 256-258)
+// - handleStartCase (lines 261-263)
+
+// Update render to use hook methods:
+// - onClick={handleStartCase} -> onClick={startCase}
+// - onSubmit={handleMCQSubmit} -> onSubmit={submitMCQ}
+// - onRetry={handleRetryQuestion} -> onRetry={retryQuestion}
+// - onContinue={handleContinueFeedback} -> onContinue={continueFeedback}
+// - onAllSectionsViewed={handleFeedbackComplete} -> onAllSectionsViewed={onFeedbackComplete}
+```
+
+---
+
+#### 3. Move PHASE_TO_PLACEMENT to Hook
+
+The JIT placement mapping is used by `CaseFlowPage` for `activeJIT` computation. It should stay in `CaseFlowPage` since it's used for JIT logic, not phase transitions.
+
+```typescript
+// Keep in CaseFlowPage.tsx (lines 26-33)
+const PHASE_TO_PLACEMENT: Record<CaseFlowPhase, string[]> = {
+  "intro": ["intro"],
+  "mcq": ["mid-case"],
+  "feedback": ["post-feedback"],
+  "lived-experience": ["pre-lived-experience"],
+  "complete": ["post-case"],
+};
 ```
 
 ---
 
 ### File Changes Summary
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/lib/content-schema.ts` | Modify | Add `CURRENT_SCHEMA_VERSION` constant |
-| `src/lib/content-loader.ts` | Modify | Add schema version validation, env-based error handling |
-| `src/components/ContentErrorBoundary.tsx` | Create | Dedicated error UI component |
-| `src/pages/CaseFlowPage.tsx` | Modify | Use new error handling pattern |
-| `src/pages/CompletionPage.tsx` | Modify | Add similar error handling |
-| `src/lib/__tests__/content-loader.test.ts` | Create | Unit tests for version mismatch and error handling |
+| File | Action | Lines Removed | Lines Added |
+|------|--------|---------------|-------------|
+| `src/hooks/use-case-flow.ts` | Create | 0 | ~115 |
+| `src/pages/CaseFlowPage.tsx` | Modify | ~75 | ~15 |
+
+**Net effect**: CaseFlowPage reduced from ~430 to ~355 lines, with phase logic isolated in testable hook.
 
 ---
 
-### Unit Tests
+### What Stays in CaseFlowPage
 
-**New File: `src/lib/__tests__/content-loader.test.ts`**
+- Content loading (lines 59-109) - page-specific
+- Modal state (lines 55-57) - UI-only
+- JIT/Podcast computed values (lines 150-194) - depend on global state + caseData
+- Render JSX (lines 293-429)
+- `PHASE_TO_PLACEMENT` constant - used by JIT logic
+
+### What Moves to Hook
+
+- Phase state: `phase`, `currentQuestionIndex`, `lastScore`, `lastCluster`, `revealedChartEntries`
+- Phase transitions: `startCase`, `submitMCQ`, `continueFeedback`, `retryQuestion`, `onFeedbackComplete`
+- `currentQuestion` computation
+- Reset logic for case changes
+
+---
+
+### Test Plan
+
+**New File: `src/hooks/__tests__/use-case-flow.test.tsx`**
 
 ```typescript
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { CURRENT_SCHEMA_VERSION } from "../content-schema";
+import { renderHook, act } from "@testing-library/react";
+import { useCaseFlow } from "../use-case-flow";
+import { GameProvider } from "@/contexts/GameContext";
+import type { Case } from "@/lib/content-schema";
+import { CHART_REVEAL } from "@/lib/ui-constants";
 
-describe("Content Loader", () => {
-  describe("Schema Version Validation", () => {
-    it("warns when schemaVersion is missing", () => {
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      // Test validateSchemaVersion with missing version
-      // Expect warning to be logged
-      warnSpy.mockRestore();
+// Minimal mock case for testing
+const createMockCase = (questionCount: number): Case => ({
+  schemaVersion: "1.2",
+  contentType: "case",
+  caseId: "test-case",
+  level: 1,
+  title: "Test Case",
+  patientBaseline: { name: "Test", age: 70, diagnosis: "Test", livingSituation: "Home", ppsScore: 50 },
+  personInContext: { title: "Test", narrative: "Test" },
+  openingScene: { narrative: "Test" },
+  chartEntries: Array(6).fill({ id: "e1", title: "Entry", content: "Content" }),
+  questions: Array(questionCount).fill(null).map((_, i) => ({
+    id: `q${i + 1}`,
+    questionNumber: i + 1,
+    stem: "Test stem",
+    chartEntryIds: [],
+    options: Array(5).fill(null).map((_, j) => ({
+      id: `opt-${j}`,
+      label: String.fromCharCode(65 + j),
+      text: "Option",
+      score: j === 0 ? 5 : 1,
+    })),
+    clusterFeedback: {
+      A: { type: "A" as const, rationale: "", knownOutcomes: "", thinkingPatternInsight: "", reasoningTrace: "" },
+      B: { type: "B" as const, rationale: "", likelyConsequences: "", thinkingPatternInsight: "", reasoningTrace: "" },
+      C: { type: "C" as const, boundaryExplanation: "", likelyDetrimentalOutcomes: "", thinkingPatternInsight: "", reasoningTrace: "", safetyReframe: "" },
+    },
+    correctCombination: ["opt-0", "opt-1"],
+  })),
+  ipInsights: [],
+  badgeThresholds: { standard: 35, premium: 50 },
+});
+
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <GameProvider>{children}</GameProvider>
+);
+
+describe("useCaseFlow", () => {
+  describe("Initial State", () => {
+    it("starts in intro phase", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      expect(result.current.phase).toBe("intro");
     });
 
-    it("warns when schemaVersion mismatches current", () => {
-      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-      // Test with { schemaVersion: "1.0" } vs CURRENT_SCHEMA_VERSION
-      // Expect warning with both versions mentioned
-      warnSpy.mockRestore();
+    it("initializes lastCluster to C", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      expect(result.current.lastCluster).toBe("C");
     });
 
-    it("returns no warning when schemaVersion matches", () => {
-      // Test with { schemaVersion: CURRENT_SCHEMA_VERSION }
-      // Expect null (no warning)
+    it("initializes revealedChartEntries from CHART_REVEAL constant", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      expect(result.current.revealedChartEntries).toBe(CHART_REVEAL.INITIAL_ENTRIES);
     });
   });
 
-  describe("Environment-Based Fallback", () => {
-    it("returns stub data in DEV mode on fetch error", async () => {
-      // Mock import.meta.env.DEV = true
-      // Mock fetch to return 404
-      // Expect { success: false, useStub: true, data: stubCase }
+  describe("Phase Transitions", () => {
+    it("transitions intro -> mcq on startCase", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      act(() => result.current.startCase());
+      expect(result.current.phase).toBe("mcq");
     });
 
-    it("returns null data in PROD mode on fetch error", async () => {
-      // Mock import.meta.env.DEV = false
-      // Mock fetch to return 404
-      // Expect { success: false, useStub: false, data: null }
+    it("transitions mcq -> feedback on submitMCQ", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      act(() => result.current.startCase());
+      act(() => result.current.submitMCQ(["opt-0", "opt-1"], 10));
+      expect(result.current.phase).toBe("feedback");
+    });
+
+    it("transitions feedback -> mcq on continueFeedback (not last question)", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      act(() => result.current.startCase());
+      act(() => result.current.submitMCQ(["opt-0"], 7));
+      act(() => result.current.continueFeedback());
+      expect(result.current.phase).toBe("mcq");
+      expect(result.current.currentQuestionIndex).toBe(1);
+    });
+
+    it("transitions feedback -> lived-experience on continueFeedback (last question)", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      // Go through both questions
+      act(() => result.current.startCase());
+      act(() => result.current.submitMCQ(["opt-0"], 7));
+      act(() => result.current.continueFeedback());
+      act(() => result.current.submitMCQ(["opt-1"], 10));
+      act(() => result.current.continueFeedback());
+      expect(result.current.phase).toBe("lived-experience");
+    });
+
+    it("transitions feedback -> mcq on retryQuestion", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      act(() => result.current.startCase());
+      act(() => result.current.submitMCQ(["opt-0"], 7));
+      act(() => result.current.retryQuestion());
+      expect(result.current.phase).toBe("mcq");
+    });
+  });
+
+  describe("Case Change Reset", () => {
+    it("resets to intro phase when caseId changes", () => {
+      const { result, rerender } = renderHook(
+        ({ caseId }) => useCaseFlow({ caseData: createMockCase(2), caseId }),
+        { wrapper, initialProps: { caseId: "case-1" } }
+      );
+      
+      // Progress to feedback
+      act(() => result.current.startCase());
+      act(() => result.current.submitMCQ(["opt-0"], 7));
+      expect(result.current.phase).toBe("feedback");
+      
+      // Change case
+      rerender({ caseId: "case-2" });
+      expect(result.current.phase).toBe("intro");
+      expect(result.current.currentQuestionIndex).toBe(0);
+      expect(result.current.lastCluster).toBe("C");
+    });
+  });
+
+  describe("Chart Reveal", () => {
+    it("reveals additional entries after MCQ submission", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        { wrapper }
+      );
+      const initial = result.current.revealedChartEntries;
+      act(() => result.current.startCase());
+      act(() => result.current.submitMCQ(["opt-0"], 7));
+      expect(result.current.revealedChartEntries).toBe(initial + CHART_REVEAL.ENTRIES_PER_MCQ);
     });
   });
 });
@@ -377,46 +455,13 @@ describe("Content Loader", () => {
 
 ---
 
-### Error UI Examples
+### Verification Checklist
 
-**Production - Content Not Found:**
-```
-┌─────────────────────────────────────────────────────────┐
-│  ⚠️ Content Load Error                                  │
-│                                                         │
-│  Unable to load case content: case-1                   │
-│                                                         │
-│  Case file not found: case-1                           │
-│                                                         │
-│  [🔄 Retry Loading]                                     │
-│  [🏠 Return to Home]                                    │
-│                                                         │
-│  If this problem persists, please contact your admin.  │
-└─────────────────────────────────────────────────────────┘
-```
-
-**Development - Stub Fallback (existing banner):**
-```
-┌─────────────────────────────────────────────────────────┐
-│  ⚡ Note: Using placeholder content - Case file not     │
-│     found: case-1                                       │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-### Why This Approach
-
-1. **Environment-Aware**: Dev gets fast iteration with stubs; Prod gets explicit errors
-2. **Schema Safety**: Version mismatches are caught early with clear warnings
-3. **User-Friendly**: Production users see actionable error UI, not broken content
-4. **Debuggable**: Console logs include context (content ID, expected vs actual version)
-5. **Testable**: Pure functions for validation, mockable fetch for integration tests
-6. **LMS-Safe**: No silent failures that could corrupt completion tracking
-
----
-
-### Note on Schema Version
-
-The SSOT document references schemaVersion 1.1, but `content-schema.ts` uses 1.2. This plan uses the code's version (1.2) as authoritative. If alignment is needed, the SSOT should be updated to match the implemented schema.
+| Requirement | Implementation |
+|-------------|----------------|
+| Reset on caseId change | `useEffect` with `caseId` dependency resets all state |
+| `lastCluster` initialized to `"C"` | Line: `useState<"A" \| "B" \| "C">("C")` |
+| Use existing `CHART_REVEAL` constant | Import from `@/lib/ui-constants` |
+| Same phase transition semantics | Logic copied verbatim from current handlers |
+| Test coverage | 8 tests covering init, transitions, reset, chart reveal |
 
