@@ -1,38 +1,56 @@
 
 
-## Fix: Create Content JSON Files
+## Fix: Podcast Duration & Transcript Hosting
 
-### Problem
-The content loader fetches from `/content/case-1.json` and `/content/simulacrum-level-1.json`, but no `public/content/` directory exists. In production/preview mode, the loader shows an error instead of falling back to stub data.
+### Overview
 
-### Solution
-Create `public/content/` directory with the required JSON files, derived from the existing `stub-data.ts`.
+Standardize podcast durations to "~5 min" and set up transcript PDF hosting location.
 
 ---
 
-### Implementation
+### Changes
 
-#### 1. Create Case Content File
+#### 1. Update Podcast Durations in Content
 
-**New File: `public/content/case-1.json`**
+**File: `public/content/case-1.json`**
 
-Export the `stubCase` object from `stub-data.ts` as JSON. This contains:
-- Schema version: `1.2`
-- Patient baseline (Adam, 68, squamous cell carcinoma)
-- 4 MCQ questions with full cluster feedback
-- 12 chart entries
-- 4 IP insights
-- Person in context, opening scene, patient perspective
-- Badge thresholds (standard: 35, premium: 50)
+Change both podcast entries from their current durations to `"~5 min"`:
 
-#### 2. Create Simulacrum Content File
+```json
+"podcasts": [
+  {
+    "id": "podcast-ep1",
+    "title": "Episode 1: From Caregiver to Change-Maker",
+    "provider": "vimeo",
+    "embedUrl": "https://player.vimeo.com/video/1159004283?h=f63ff145ce&badge=0&autopause=0&player_id=0&app_id=58479",
+    "duration": "~5 min",    // Was "~15 min"
+    "transcriptUrl": "/transcripts/episode-1.pdf",
+    "points": 1
+  },
+  {
+    "id": "podcast-ep2",
+    "title": "Episode 2: Everyday Resilience in Palliative Care",
+    "provider": "vimeo",
+    "embedUrl": "https://player.vimeo.com/video/1159004255?h=b0e5e80f4d&badge=0&autopause=0&player_id=0&app_id=58479",
+    "duration": "~5 min",    // Was "~12 min"
+    "transcriptUrl": "/transcripts/episode-2.pdf",
+    "points": 1
+  }
+]
+```
 
-**New File: `public/content/simulacrum-level-1.json`**
+---
 
-Export the `stubSimulacrum` object from `stub-data.ts` as JSON. This contains:
-- Schema version: `1.2`
-- 3 patient options
-- 4 questions per option (single-select A-D)
+#### 2. Create Transcripts Directory
+
+**New Directory: `public/transcripts/`**
+
+This is where transcript PDFs will be hosted. The current `transcriptUrl` values already point here:
+
+- `/transcripts/episode-1.pdf` → `public/transcripts/episode-1.pdf`
+- `/transcripts/episode-2.pdf` → `public/transcripts/episode-2.pdf`
+
+**Note:** The actual PDF files need to be provided and placed in this directory. Until then, the "Read Transcript Instead" button will 404.
 
 ---
 
@@ -40,34 +58,34 @@ Export the `stubSimulacrum` object from `stub-data.ts` as JSON. This contains:
 
 ```text
 public/
-├── content/                    ← NEW DIRECTORY
-│   ├── case-1.json            ← NEW (from stubCase)
-│   └── simulacrum-level-1.json ← NEW (from stubSimulacrum)
+├── content/
+│   ├── case-1.json           ← Updated durations
+│   └── simulacrum-level-1.json
+├── transcripts/              ← NEW DIRECTORY
+│   ├── episode-1.pdf         ← Needs real PDF file
+│   └── episode-2.pdf         ← Needs real PDF file
 ├── case-assets/
 ├── ip-insights/
-├── favicon.ico
-├── placeholder.svg
-└── robots.txt
+└── ...
 ```
 
 ---
 
-### Why This Approach
+### Optional: Hide Transcript Button Until Files Exist
 
-| Benefit | Explanation |
-|---------|-------------|
-| Zero loader changes | Fetch path `/content/${caseId}.json` already correct |
-| Production-ready | Real JSON files work in all environments |
-| Content authoring path | Future cases just need new JSON files |
-| Validates schema | Loader's Zod validation will verify content structure |
+If you want to hide the "Read Transcript Instead" button when transcripts aren't available, we could either:
+
+**Option A:** Remove `transcriptUrl` from the JSON until PDFs are ready  
+**Option B:** Add a check in `PodcastPlayerModal` that verifies the URL before showing the button
 
 ---
 
-### Verification
+### Summary
 
-After implementation:
-1. Navigate to `/case/case-1`
-2. Should see intro screen with patient header (Adam, 68)
-3. No error boundary should appear
-4. Console should show no content loader warnings
+| Change | File |
+|--------|------|
+| Duration "~15 min" → "~5 min" | `public/content/case-1.json` (line 408) |
+| Duration "~12 min" → "~5 min" | `public/content/case-1.json` (line 417) |
+| Create transcripts directory | `public/transcripts/` |
+| Add placeholder or real PDFs | `public/transcripts/episode-*.pdf` |
 
