@@ -57,6 +57,10 @@ export interface GameState {
   // Learner Reflections tracking
   learnerReflections: Record<string, Record<string, string>>; // { [caseId]: { [questionId]: "reflection text" } }
   
+  // Podcast tracking
+  podcastsCompleted: Record<string, string[]>; // { [caseId]: [podcastId, ...] }
+  podcastsInProgress: Record<string, string[]>; // { [caseId]: [podcastId, ...] }
+  
   // Theme
   theme: "light" | "dark";
   
@@ -77,6 +81,8 @@ type GameAction =
   | { type: "VIEW_FEEDBACK_SECTION"; sectionId: string }
   | { type: "COMPLETE_JIT_RESOURCE"; caseId: string; jitId: string; points: number }
   | { type: "SUBMIT_REFLECTION"; caseId: string; questionId: string; text: string; points: number }
+  | { type: "START_PODCAST"; caseId: string; podcastId: string }
+  | { type: "COMPLETE_PODCAST"; caseId: string; podcastId: string; points: number }
   | { type: "SET_THEME"; theme: "light" | "dark" }
   | { type: "COMPLETE_CASE" }
   | { type: "START_SIMULACRUM" }
@@ -105,6 +111,8 @@ const initialState: GameState = {
   viewedFeedbackSections: new Set(),
   jitResourcesRead: {},
   learnerReflections: {},
+  podcastsCompleted: {},
+  podcastsInProgress: {},
   theme: "light",
   showMultiTabWarning: false,
 };
@@ -217,6 +225,32 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case "START_PODCAST": {
+      const existing = state.podcastsInProgress[action.caseId] || [];
+      if (existing.includes(action.podcastId)) return state;
+      return {
+        ...state,
+        podcastsInProgress: {
+          ...state.podcastsInProgress,
+          [action.caseId]: [...existing, action.podcastId],
+        },
+      };
+    }
+
+    case "COMPLETE_PODCAST": {
+      const existing = state.podcastsCompleted[action.caseId] || [];
+      if (existing.includes(action.podcastId)) return state;
+      return {
+        ...state,
+        totalPoints: state.totalPoints + action.points,
+        casePoints: state.casePoints + action.points,
+        podcastsCompleted: {
+          ...state.podcastsCompleted,
+          [action.caseId]: [...existing, action.podcastId],
+        },
+      };
+    }
+
     case "SET_THEME":
       return { ...state, theme: action.theme };
 
@@ -297,6 +331,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
             viewedFeedbackSections: new Set(parsed.viewedFeedbackSections || []),
             jitResourcesRead: parsed.jitResourcesRead || {},
             learnerReflections: parsed.learnerReflections || {},
+            podcastsCompleted: parsed.podcastsCompleted || {},
+            podcastsInProgress: parsed.podcastsInProgress || {},
           },
         });
       }
@@ -319,6 +355,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         viewedFeedbackSections: Array.from(state.viewedFeedbackSections),
         jitResourcesRead: state.jitResourcesRead,
         learnerReflections: state.learnerReflections,
+        podcastsCompleted: state.podcastsCompleted,
+        podcastsInProgress: state.podcastsInProgress,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch (error) {

@@ -7,17 +7,32 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
+import { PodcastListSection } from "@/components/PodcastListSection";
 import { useGame } from "@/contexts/GameContext";
+import { loadCase } from "@/lib/content-loader";
+import { stubCase } from "@/lib/stub-data";
 import { cn } from "@/lib/utils";
+import type { Case } from "@/lib/content-schema";
 
 export default function CompletionPage() {
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
   const { state, dispatch, canEarnStandardBadge, canEarnPremiumBadge } = useGame();
   
+  const [caseData, setCaseData] = useState<Case>(stubCase);
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [showCelebration, setShowCelebration] = useState(true);
 
+  // Load case data
+  useEffect(() => {
+    async function load() {
+      if (!caseId) return;
+      const result = await loadCase(caseId);
+      setCaseData(result.data);
+    }
+    load();
+  }, [caseId]);
+  
   // Award badges on mount
   useEffect(() => {
     if (canEarnPremiumBadge() && !state.badges.find((b) => b.id === `${caseId}-premium`)) {
@@ -49,7 +64,24 @@ export default function CompletionPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const earnedBadge = canEarnPremiumBadge() 
+  // Podcast state
+  const completedPodcasts = state.podcastsCompleted?.[caseId || ""] || [];
+  const inProgressPodcasts = state.podcastsInProgress?.[caseId || ""] || [];
+
+  // Podcast handlers
+  const handleStartPodcast = (podcastId: string) => {
+    if (caseId) {
+      dispatch({ type: "START_PODCAST", caseId, podcastId });
+    }
+  };
+
+  const handleCompletePodcast = (podcastId: string, points: number) => {
+    if (caseId) {
+      dispatch({ type: "COMPLETE_PODCAST", caseId, podcastId, points });
+    }
+  };
+
+  const earnedBadge = canEarnPremiumBadge()
     ? { name: "Case 1 Mastery", type: "premium" as const, icon: Sparkles }
     : canEarnStandardBadge()
     ? { name: "Case 1 Complete", type: "case" as const, icon: Trophy }
@@ -229,6 +261,18 @@ export default function CompletionPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Post-Case Podcasts */}
+        {caseData.podcasts && caseData.podcasts.length > 0 && (
+          <PodcastListSection
+            podcasts={caseData.podcasts}
+            caseId={caseId || ""}
+            completedPodcasts={completedPodcasts}
+            inProgressPodcasts={inProgressPodcasts}
+            onStartPodcast={handleStartPodcast}
+            onCompletePodcast={handleCompletePodcast}
+          />
+        )}
 
         {/* Next Steps */}
         <Card className="shadow-soft">
