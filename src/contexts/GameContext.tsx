@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from "react";
+import { stateManager, SerializedState, STATE_VERSION } from "@/lib/state-manager";
 
 // Types for game state
 export interface BadgeInfo {
@@ -304,86 +305,141 @@ function getMaxPossiblePoints(questionCount: number): number {
   return questionCount * 10;
 }
 
-// Storage config
-const STORAGE_KEY = "palliative-care-game-state";
-const STATE_VERSION = 2; // Increment when schema changes
+// Helper to serialize state for SCORM/localStorage
+function serializeState(state: GameState): SerializedState {
+  return {
+    _stateVersion: STATE_VERSION,
+    _timestamp: Date.now(),
+    currentLevel: state.currentLevel,
+    currentCase: state.currentCase,
+    currentQuestion: state.currentQuestion,
+    totalPoints: state.totalPoints,
+    casePoints: state.casePoints,
+    simulacrumPoints: state.simulacrumPoints,
+    ipInsightsPoints: state.ipInsightsPoints,
+    tokens: {
+      correct: state.tokens.correct,
+      exploratory: state.tokens.exploratory,
+      viewedOptions: Array.from(state.tokens.viewedOptions),
+    },
+    badges: state.badges.map((b) => ({
+      ...b,
+      earnedAt: b.earnedAt?.toISOString(),
+    })),
+    mcqAttempts: state.mcqAttempts.map((a) => ({
+      ...a,
+      timestamp: a.timestamp instanceof Date ? a.timestamp.toISOString() : a.timestamp as unknown as string,
+    })),
+    viewedPerspectives: Array.from(state.viewedPerspectives),
+    reflectedPerspectives: Array.from(state.reflectedPerspectives),
+    viewedFeedbackSections: Array.from(state.viewedFeedbackSections),
+    jitResourcesRead: state.jitResourcesRead,
+    learnerReflections: state.learnerReflections,
+    podcastsCompleted: state.podcastsCompleted,
+    podcastsInProgress: state.podcastsInProgress,
+    theme: state.theme,
+  };
+}
+
+// Helper to deserialize state from SCORM/localStorage
+function deserializeState(saved: SerializedState): Partial<GameState> {
+  return {
+    currentLevel: saved.currentLevel,
+    currentCase: saved.currentCase,
+    currentQuestion: saved.currentQuestion,
+    totalPoints: saved.totalPoints,
+    casePoints: saved.casePoints,
+    simulacrumPoints: saved.simulacrumPoints,
+    ipInsightsPoints: saved.ipInsightsPoints,
+    tokens: {
+      correct: saved.tokens?.correct ?? 0,
+      exploratory: saved.tokens?.exploratory ?? 0,
+      viewedOptions: new Set(saved.tokens?.viewedOptions || []),
+    },
+    badges: (saved.badges || []).map((b) => ({
+      ...b,
+      earnedAt: b.earnedAt ? new Date(b.earnedAt) : undefined,
+    })),
+    mcqAttempts: (saved.mcqAttempts || []).map((a) => ({
+      ...a,
+      timestamp: new Date(a.timestamp),
+    })),
+    viewedPerspectives: new Set(saved.viewedPerspectives || []),
+    reflectedPerspectives: new Set(saved.reflectedPerspectives || []),
+    viewedFeedbackSections: new Set(saved.viewedFeedbackSections || []),
+    jitResourcesRead: saved.jitResourcesRead ?? {},
+    learnerReflections: saved.learnerReflections ?? {},
+    podcastsCompleted: saved.podcastsCompleted ?? {},
+    podcastsInProgress: saved.podcastsInProgress ?? {},
+    theme: saved.theme,
+  };
+}
+
+// Critical action types that require immediate SCORM commit
+const CRITICAL_ACTIONS: GameAction["type"][] = [
+  "RECORD_MCQ_ATTEMPT",
+  "EARN_BADGE",
+  "COMPLETE_CASE",
+  "COMPLETE_PODCAST",
+  "COMPLETE_JIT_RESOURCE",
+];
 
 // Provider component
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const lastActionRef = useRef<GameAction["type"] | null>(null);
+  const isInitializedRef = useRef(false);
 
-  // Load state from localStorage on mount
+  // Initialize StateManager and load state on mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        
-        // Check schema version - reset if outdated or missing
-        if (!parsed._stateVersion || parsed._stateVersion < STATE_VERSION) {
-          console.warn(
-            `[GameContext] State schema outdated (v${parsed._stateVersion || 0} -> v${STATE_VERSION}). Resetting.`
-          );
-          localStorage.removeItem(STORAGE_KEY);
-          return;
-        }
-        
-        // Convert Sets back from arrays with safe defaults
+    async function init() {
+      await stateManager.initialize();
+      
+      const { state: savedState, multiTabWarning } = await stateManager.loadState();
+      
+      if (savedState) {
         dispatch({
           type: "LOAD_STATE",
-          state: {
-            ...parsed,
-            tokens: {
-              correct: parsed.tokens?.correct ?? 0,
-              exploratory: parsed.tokens?.exploratory ?? 0,
-              viewedOptions: new Set(parsed.tokens?.viewedOptions || []),
-            },
-            viewedPerspectives: new Set(parsed.viewedPerspectives || []),
-            reflectedPerspectives: new Set(parsed.reflectedPerspectives || []),
-            viewedFeedbackSections: new Set(parsed.viewedFeedbackSections || []),
-            jitResourcesRead: parsed.jitResourcesRead ?? {},
-            learnerReflections: parsed.learnerReflections ?? {},
-            podcastsCompleted: parsed.podcastsCompleted ?? {},
-            podcastsInProgress: parsed.podcastsInProgress ?? {},
-          },
+          state: deserializeState(savedState),
         });
       }
-    } catch (error) {
-      console.error("Failed to load game state:", error);
-      localStorage.removeItem(STORAGE_KEY); // Clear corrupted data
+      
+      if (multiTabWarning) {
+        dispatch({ type: "SHOW_MULTI_TAB_WARNING", show: true });
+      }
+      
+      isInitializedRef.current = true;
     }
+    
+    init();
   }, []);
 
-  // Save state to localStorage on change
+  // Save state on change via StateManager
   useEffect(() => {
-    try {
-      const toSave = {
-        _stateVersion: STATE_VERSION,
-        ...state,
-        tokens: {
-          ...state.tokens,
-          viewedOptions: Array.from(state.tokens.viewedOptions),
-        },
-        viewedPerspectives: Array.from(state.viewedPerspectives),
-        reflectedPerspectives: Array.from(state.reflectedPerspectives),
-        viewedFeedbackSections: Array.from(state.viewedFeedbackSections),
-        jitResourcesRead: state.jitResourcesRead,
-        learnerReflections: state.learnerReflections,
-        podcastsCompleted: state.podcastsCompleted,
-        podcastsInProgress: state.podcastsInProgress,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-    } catch (error) {
-      console.error("Failed to save game state:", error);
-    }
+    if (!isInitializedRef.current) return;
+    
+    const serialized = serializeState(state);
+    const isCritical = lastActionRef.current ? CRITICAL_ACTIONS.includes(lastActionRef.current) : false;
+    
+    stateManager.saveState(serialized, { critical: isCritical });
   }, [state]);
+
+  // Force commit on page unload
+  useEffect(() => {
+    const handleUnload = () => {
+      stateManager.forceCommit();
+    };
+    
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, []);
 
   // Apply theme
   useEffect(() => {
     document.documentElement.classList.toggle("dark", state.theme === "dark");
   }, [state.theme]);
 
-  // Multi-tab detection
+  // Multi-tab detection via BroadcastChannel
   useEffect(() => {
     const channel = new BroadcastChannel("palliative-care-game");
     
@@ -397,6 +453,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     return () => channel.close();
   }, []);
+  
+  // Wrapper dispatch that tracks action type for critical detection
+  const wrappedDispatch = React.useCallback((action: GameAction) => {
+    lastActionRef.current = action.type;
+    dispatch(action);
+  }, []);
 
   const canEarnStandardBadge = () => state.casePoints >= 35;
   const canEarnPremiumBadge = () => state.casePoints >= 50;
@@ -405,7 +467,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     <GameContext.Provider
       value={{
         state,
-        dispatch,
+        dispatch: wrappedDispatch,
         calculateCluster,
         getMaxPossiblePoints,
         canEarnStandardBadge,
