@@ -1,4 +1,4 @@
-import { Trophy, Star, Zap, Target, BookOpen, CheckCircle } from "lucide-react";
+import { Trophy, Star, Zap, Target, BookOpen, CheckCircle, Headphones } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Progress } from "@/components/ui/progress";
@@ -12,6 +12,9 @@ interface HUDProps {
   activeJIT?: JITResource | null;
   isJITCompleted?: boolean;
   onJITClick?: () => void;
+  onPodcastsClick?: () => void;
+  totalPodcasts?: number;
+  completedPodcasts?: number;
 }
 
 export function HUD({ 
@@ -20,6 +23,9 @@ export function HUD({
   activeJIT,
   isJITCompleted,
   onJITClick,
+  onPodcastsClick,
+  totalPodcasts = 0,
+  completedPodcasts = 0,
 }: HUDProps) {
   const { state } = useGame();
   
@@ -90,6 +96,37 @@ export function HUD({
                 <span>Additional Resources</span>
                 {activeJIT && (
                   <span className="ml-1 text-xs opacity-90">+{activeJIT.points}</span>
+                )}
+              </>
+            )}
+          </button>
+
+          {/* Podcasts Button */}
+          <button
+            onClick={onPodcastsClick}
+            disabled={!totalPodcasts}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
+              !totalPodcasts && "opacity-40 cursor-not-allowed bg-primary-foreground/10 text-primary-foreground/60",
+              totalPodcasts > 0 && completedPodcasts === totalPodcasts && "bg-success text-success-foreground hover:bg-success/90",
+              totalPodcasts > 0 && completedPodcasts < totalPodcasts && "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            )}
+            title="View all podcasts"
+            aria-label={`Podcasts: ${completedPodcasts} of ${totalPodcasts} completed`}
+          >
+            {completedPodcasts === totalPodcasts && totalPodcasts > 0 ? (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                <span>Podcasts</span>
+              </>
+            ) : (
+              <>
+                <Headphones className="h-4 w-4" />
+                <span>Podcasts</span>
+                {totalPodcasts > 0 && completedPodcasts < totalPodcasts && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {totalPodcasts - completedPodcasts}
+                  </Badge>
                 )}
               </>
             )}

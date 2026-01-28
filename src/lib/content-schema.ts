@@ -129,6 +129,17 @@ export const JITResourceSchema = z.object({
   points: z.number().default(2),
 });
 
+// Podcast resource schema
+export const PodcastSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  provider: z.enum(["vimeo", "youtube"]).default("vimeo"),
+  embedUrl: z.string(),
+  duration: z.string(),
+  transcriptUrl: z.string().optional(),
+  points: z.number().default(1),
+});
+
 // Complete case schema
 export const CaseSchema = z.object({
   schemaVersion: z.literal("1.2"),
@@ -144,6 +155,7 @@ export const CaseSchema = z.object({
   questions: z.array(MCQQuestionSchema),
   ipInsights: z.array(IPPerspectiveSchema).length(4),
   jitResources: z.array(JITResourceSchema).optional(),
+  podcasts: z.array(PodcastSchema).optional(),
   badgeThresholds: z.object({
     standard: z.number(),
     premium: z.number(),
@@ -190,6 +202,7 @@ export type ClusterFeedback = z.infer<typeof ClusterFeedbackSchema>;
 export type MCQQuestion = z.infer<typeof MCQQuestionSchema>;
 export type IPPerspective = z.infer<typeof IPPerspectiveSchema>;
 export type JITResource = z.infer<typeof JITResourceSchema>;
+export type Podcast = z.infer<typeof PodcastSchema>;
 export type Case = z.infer<typeof CaseSchema>;
 export type SimulacrumOption = z.infer<typeof SimulacrumOptionSchema>;
 export type Simulacrum = z.infer<typeof SimulacrumSchema>;

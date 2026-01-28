@@ -10,6 +10,7 @@ import { IPInsightsPanel } from "@/components/IPInsightsPanel";
 import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { LivedExperienceSection } from "@/components/LivedExperienceSection";
 import { JITPanel } from "@/components/JITPanel";
+import { AllPodcastsModal } from "@/components/AllPodcastsModal";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
 import { loadCase } from "@/lib/content-loader";
@@ -47,6 +48,7 @@ export default function CaseFlowPage() {
   // Modal state
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [showJITPanel, setShowJITPanel] = useState(false);
+  const [showPodcastsModal, setShowPodcastsModal] = useState(false);
 
   // Load case content
   useEffect(() => {
@@ -65,9 +67,10 @@ export default function CaseFlowPage() {
 
   const currentQuestion = caseData.questions[currentQuestionIndex];
   
-  // Calculate max points including JIT resources and reflections
+  // Calculate max points including JIT resources, reflections, and podcasts
   const jitTotalPoints = caseData.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
-  const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2; // +2 for IP Insights + JIT points + 2 for reflections
+  const podcastTotalPoints = caseData.podcasts?.reduce((sum, p) => sum + p.points, 0) || 0;
+  const maxPoints = caseData.questions.length * 10 + 2 + jitTotalPoints + 2 + podcastTotalPoints; // +2 for IP Insights + JIT points + 2 for reflections + podcasts
 
   // Get submitted reflections for current case (safe access for existing localStorage data)
   const submittedReflections = state.learnerReflections?.[caseId || ""] || {};
@@ -111,6 +114,24 @@ export default function CaseFlowPage() {
         points: activeJIT.points,
       });
     }
+  };
+
+  // Podcast computed values
+  const allPodcasts = useMemo(() => {
+    if (!caseData.podcasts) return [];
+    return caseData.podcasts.map(p => ({ caseId: caseId || "", podcast: p }));
+  }, [caseData.podcasts, caseId]);
+
+  const totalPodcasts = allPodcasts.length;
+  const completedPodcastCount = (state.podcastsCompleted?.[caseId || ""] || []).length;
+
+  // Podcast handlers
+  const handleStartPodcast = (podcastCaseId: string, podcastId: string) => {
+    dispatch({ type: "START_PODCAST", caseId: podcastCaseId, podcastId });
+  };
+
+  const handleCompletePodcast = (podcastCaseId: string, podcastId: string, points: number) => {
+    dispatch({ type: "COMPLETE_PODCAST", caseId: podcastCaseId, podcastId, points });
   };
 
   // Handle MCQ submission
@@ -198,6 +219,9 @@ export default function CaseFlowPage() {
         activeJIT={activeJIT}
         isJITCompleted={isJITCompleted}
         onJITClick={() => setShowJITPanel(true)}
+        onPodcastsClick={() => setShowPodcastsModal(true)}
+        totalPodcasts={totalPodcasts}
+        completedPodcasts={completedPodcastCount}
       />
 
       {/* Patient Header */}
@@ -308,6 +332,17 @@ export default function CaseFlowPage() {
           onClose={() => setShowJITPanel(false)}
         />
       )}
+
+      {/* All Podcasts Modal */}
+      <AllPodcastsModal
+        isOpen={showPodcastsModal}
+        onClose={() => setShowPodcastsModal(false)}
+        podcasts={allPodcasts}
+        completedPodcasts={state.podcastsCompleted || {}}
+        inProgressPodcasts={state.podcastsInProgress || {}}
+        onStartPodcast={handleStartPodcast}
+        onCompletePodcast={handleCompletePodcast}
+      />
     </div>
   );
 }

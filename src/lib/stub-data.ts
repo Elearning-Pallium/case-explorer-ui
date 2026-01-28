@@ -411,6 +411,26 @@ export const stubCase: Case = {
       points: 2,
     },
   ],
+  podcasts: [
+    {
+      id: "podcast-ep1",
+      title: "Episode 1: From Caregiver to Change-Maker",
+      provider: "vimeo" as const,
+      embedUrl: "https://player.vimeo.com/video/1159004283?h=f63ff145ce&badge=0&autopause=0&player_id=0&app_id=58479",
+      duration: "~15 min",
+      transcriptUrl: "/transcripts/episode-1.pdf",
+      points: 1,
+    },
+    {
+      id: "podcast-ep2",
+      title: "Episode 2: Everyday Resilience in Palliative Care",
+      provider: "vimeo" as const,
+      embedUrl: "https://player.vimeo.com/video/1159004255?h=b0e5e80f4d&badge=0&autopause=0&player_id=0&app_id=58479",
+      duration: "~12 min",
+      transcriptUrl: "/transcripts/episode-2.pdf",
+      points: 1,
+    },
+  ],
   badgeThresholds: {
     standard: 28, // 4 questions × 7 points minimum to pass
     premium: 40,  // 4 questions × 10 points for perfect score
