@@ -296,8 +296,8 @@ interface GameContextType {
   // Helper functions
   calculateCluster: (score: number) => "A" | "B" | "C";
   getMaxPossiblePoints: (questionCount: number) => number;
-  canEarnStandardBadge: () => boolean;
-  canEarnPremiumBadge: () => boolean;
+  canEarnStandardBadge: (threshold?: number) => boolean;
+  canEarnPremiumBadge: (threshold?: number) => boolean;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
@@ -483,8 +483,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     dispatch(action);
   }, []);
 
-  const canEarnStandardBadge = () => state.casePoints >= 35;
-  const canEarnPremiumBadge = () => state.casePoints >= 50;
+  // Dynamic threshold functions - accept optional threshold or use defaults
+  const canEarnStandardBadge = (threshold?: number) => state.casePoints >= (threshold ?? 35);
+  const canEarnPremiumBadge = (threshold?: number) => state.casePoints >= (threshold ?? 50);
 
   return (
     <GameContext.Provider

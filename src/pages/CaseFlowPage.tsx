@@ -13,9 +13,10 @@ import { JITPanel } from "@/components/JITPanel";
 import { AllPodcastsModal } from "@/components/AllPodcastsModal";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
-import { loadCase } from "@/lib/content-loader";
-import type { Case, JITResource } from "@/lib/content-schema";
-import { stubCase } from "@/lib/stub-data";
+import { loadCase, loadSimulacrum } from "@/lib/content-loader";
+import type { Case, JITResource, Simulacrum } from "@/lib/content-schema";
+import { stubCase, stubSimulacrum } from "@/lib/stub-data";
+import { buildBadgeRegistry } from "@/lib/badge-registry";
 
 type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
 
@@ -35,6 +36,7 @@ export default function CaseFlowPage() {
 
   // Content state
   const [caseData, setCaseData] = useState<Case>(stubCase);
+  const [simulacrumData, setSimulacrumData] = useState<Simulacrum>(stubSimulacrum);
   const [contentError, setContentError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -50,20 +52,29 @@ export default function CaseFlowPage() {
   const [showJITPanel, setShowJITPanel] = useState(false);
   const [showPodcastsModal, setShowPodcastsModal] = useState(false);
 
-  // Load case content
+  // Load case and simulacrum content
   useEffect(() => {
     async function load() {
       if (!caseId) return;
       setIsLoading(true);
-      const result = await loadCase(caseId);
-      setCaseData(result.data);
-      if (!result.success && 'error' in result) {
-        setContentError(result.error);
+      const [caseResult, simResult] = await Promise.all([
+        loadCase(caseId),
+        loadSimulacrum("level-1"),
+      ]);
+      setCaseData(caseResult.data);
+      setSimulacrumData(simResult.data);
+      if (!caseResult.success && 'error' in caseResult) {
+        setContentError(caseResult.error);
       }
       setIsLoading(false);
     }
     load();
   }, [caseId]);
+
+  // Build available badges for gallery
+  const availableBadges = useMemo(() => {
+    return buildBadgeRegistry([caseData], [simulacrumData]);
+  }, [caseData, simulacrumData]);
 
   const currentQuestion = caseData.questions[currentQuestionIndex];
   
@@ -319,6 +330,7 @@ export default function CaseFlowPage() {
       {showBadgeGallery && (
         <BadgeGalleryModal
           earnedBadges={state.badges}
+          availableBadges={availableBadges}
           onClose={() => setShowBadgeGallery(false)}
         />
       )}
