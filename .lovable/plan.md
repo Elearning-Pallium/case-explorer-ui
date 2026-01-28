@@ -1,328 +1,345 @@
 
 
-## Sprint 2-1: Dynamic Badge Generation
+## Sprint 2-2 (Refined): Centralized Scoring Constants
 
 ### Overview
 
-Replace hard-coded badge definitions in `BadgeGalleryModal.tsx` with a dynamic generation system that derives badges from case configuration (standard + premium per case) and simulacra. This ensures the badge gallery scales automatically as new cases and levels are added.
+Extract all scoring constants into a centralized configuration with proper separation of concerns. This refined plan addresses three key improvements:
+
+1. **Separation of concerns**: Split into `scoring-constants.ts` (game logic) and `ui-constants.ts` (display settings)
+2. **HUD maxPoints handling**: Remove the hard-coded `67` default and require explicit passing from case data
+3. **Case threshold authority**: Ensure per-case `badgeThresholds` always override defaults
 
 ---
 
-### Current State (Problem)
+### Current Issues Found
 
-**BadgeGalleryModal.tsx** has a hard-coded `allBadges` array:
-```typescript
-const allBadges = [
-  { id: "case-1-standard", name: "Case 1 Complete", ... },
-  { id: "case-1-premium", name: "Case 1 Mastery", ... },
-  { id: "simulacrum-pain", name: "Pain Expert", ... },
-  // ... 6 total badges hard-coded
-];
-```
-
-**Problems**:
-1. Adding a new case requires manually editing this array
-2. Badge thresholds (28/40 pts) are duplicated instead of pulled from case config
-3. Simulacrum badges are disconnected from actual simulacrum data
-4. Gallery won't scale to 5 levels / 25 cases without significant manual work
+| Issue | Location | Current Value | Problem |
+|-------|----------|---------------|---------|
+| Hardcoded HUD default | `HUD.tsx:22` | `maxPoints = 67` | Arbitrary placeholder, not derived from case data |
+| Hardcoded badge thresholds | `GameContext.tsx:487-488` | `35`, `50` | Should reference constants |
+| Hardcoded simulacrum points | `SimulacrumPage.tsx:79-82` | `15`, `10` | Magic numbers in logic |
+| Hardcoded max badges in HUD | `HUD.tsx:36` | `5` | Comment says "placeholder" |
+| MCQ cluster scores | `GameContext.tsx:306-309` | `10`, `7`, `4` | Inline magic numbers |
 
 ---
 
 ### Target Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Badge Registry                                      │
-│                     src/lib/badge-registry.ts                                │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │  generateCaseBadges(caseConfig) → { standard, premium }               │  │
-│  │  generateSimulacrumBadges(simulacrumConfig) → SimulacrumBadge[]       │  │
-│  │  getAllBadges() → BadgeDefinition[]                                   │  │
-│  │  getBadgeById(id) → BadgeDefinition | undefined                       │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Badge Definitions                                  │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │  Case Badges (2 per case):                                            │  │
-│  │    - Standard: "Case X Complete" (threshold from case.badgeThresholds)│  │
-│  │    - Premium: "Case X Mastery" (threshold from case.badgeThresholds)  │  │
-│  │                                                                        │  │
-│  │  Simulacrum Badges (1 per simulacrum option):                         │  │
-│  │    - Derived from simulacrum.options[].title                          │  │
-│  │                                                                        │  │
-│  │  Special Badges:                                                       │  │
-│  │    - "Curious Explorer" (explore all options in a case)               │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
+src/lib/
+├── scoring-constants.ts      ← Game logic constants (points, thresholds)
+│   ├── MCQ_SCORING
+│   ├── ACTIVITY_POINTS
+│   ├── SIMULACRUM_SCORING
+│   ├── BADGE_DEFAULTS
+│   ├── CLUSTER_SCORES
+│   └── Helper functions
+│
+└── ui-constants.ts           ← Display/presentation constants
+    ├── HUD_DISPLAY
+    └── CHART_REVEAL
 ```
 
 ---
 
 ### Implementation Details
 
-#### 1. Create Badge Registry Module
+#### 1. Create Scoring Constants Module
 
-**New File: `src/lib/badge-registry.ts`**
+**New File: `src/lib/scoring-constants.ts`**
 
 ```typescript
 /**
- * Badge Registry
+ * Centralized Scoring Constants
  * 
- * Dynamic badge generation based on case and simulacrum configuration.
- * Replaces hard-coded badge arrays with config-driven definitions.
+ * Single source of truth for all scoring-related values.
+ * These are GAME LOGIC constants that affect point calculations.
  * 
- * Badge ID Patterns:
- * - Case standard: "case-{caseId}-standard" (e.g., "case-1-standard")
- * - Case premium: "case-{caseId}-premium" (e.g., "case-1-premium")
- * - Simulacrum: "simulacrum-{optionId}" (e.g., "simulacrum-sim-1")
- * - Special: "explorer-{caseId}" (e.g., "explorer-case-1")
+ * For UI/display constants, see ui-constants.ts
  */
 
-import type { Case, Simulacrum, SimulacrumOption } from "./content-schema";
-
-export interface BadgeDefinition {
-  id: string;
-  name: string;
-  description: string;
-  type: "case" | "premium" | "simulacrum";
-  unlockCondition: string;
-  // Optional metadata for dynamic threshold display
-  threshold?: number;
-  caseId?: string;
-  simulacrumId?: string;
-}
-
 /**
- * Generate standard and premium badge definitions for a case
+ * MCQ Scoring Configuration
  */
-export function generateCaseBadges(caseConfig: Case): [BadgeDefinition, BadgeDefinition] {
-  const { caseId, title, badgeThresholds, questions } = caseConfig;
-  const caseNumber = extractCaseNumber(caseId);
-  const questionCount = questions.length;
-  
-  const standardBadge: BadgeDefinition = {
-    id: `${caseId}-standard`,
-    name: `Case ${caseNumber} Complete`,
-    description: `Completed Case ${caseNumber} with ${badgeThresholds.standard}+ points`,
-    type: "case",
-    unlockCondition: `Score ${badgeThresholds.standard}+ points in Case ${caseNumber}`,
-    threshold: badgeThresholds.standard,
-    caseId,
-  };
-  
-  const premiumBadge: BadgeDefinition = {
-    id: `${caseId}-premium`,
-    name: `Case ${caseNumber} Mastery`,
-    description: `Achieved premium score in Case ${caseNumber}`,
-    type: "premium",
-    unlockCondition: `Score ${badgeThresholds.premium}+ points in Case ${caseNumber}`,
-    threshold: badgeThresholds.premium,
-    caseId,
-  };
-  
-  return [standardBadge, premiumBadge];
-}
+export const MCQ_SCORING = {
+  /** Maximum points per MCQ question (5+5 for correct combination) */
+  MAX_POINTS_PER_QUESTION: 10,
+  /** Number of options per case MCQ question (A-E) */
+  OPTIONS_PER_CASE_QUESTION: 5,
+  /** Number of options per simulacrum MCQ question (A-D) */
+  OPTIONS_PER_SIMULACRUM_QUESTION: 4,
+} as const;
 
 /**
- * Generate badge definitions for simulacrum options
+ * Activity Points - Points awarded for non-MCQ activities
  */
-export function generateSimulacrumBadges(simulacrum: Simulacrum): BadgeDefinition[] {
-  return simulacrum.options.map((option) => ({
-    id: `simulacrum-${option.id}`,
-    name: deriveSimulacrumBadgeName(option),
-    description: `Mastered ${option.title.toLowerCase()} simulacrum`,
-    type: "simulacrum" as const,
-    unlockCondition: `Score 4/4 on ${option.title}`,
-    simulacrumId: option.id,
-  }));
-}
+export const ACTIVITY_POINTS = {
+  /** Total points for viewing all IP Insights (awarded once per case) */
+  IP_INSIGHTS_TOTAL: 2,
+  /** Points per learner reflection question submitted */
+  REFLECTION_PER_QUESTION: 1,
+  /** Default points for completing a JIT resource (can be overridden in content) */
+  JIT_DEFAULT: 2,
+  /** Default points for completing a podcast (can be overridden in content) */
+  PODCAST_DEFAULT: 1,
+} as const;
 
 /**
- * Generate explorer badge definition for a case
+ * Simulacrum Scoring
  */
-export function generateExplorerBadge(caseConfig: Case): BadgeDefinition {
-  const caseNumber = extractCaseNumber(caseConfig.caseId);
-  const totalOptions = caseConfig.questions.length * 5; // 5 options per MCQ
-  
-  return {
-    id: `explorer-${caseConfig.caseId}`,
-    name: "Curious Explorer",
-    description: `Explored all ${totalOptions} options in Case ${caseNumber}`,
-    type: "premium",
-    unlockCondition: `View all MCQ options across Case ${caseNumber}`,
-    caseId: caseConfig.caseId,
-  };
-}
+export const SIMULACRUM_SCORING = {
+  /** Points awarded for perfect score (4/4 correct) */
+  PERFECT_SCORE_POINTS: 15,
+  /** Points awarded for passing score (3/4 correct) */
+  PASS_SCORE_POINTS: 10,
+  /** Minimum correct answers for perfect score */
+  PERFECT_THRESHOLD: 4,
+  /** Minimum correct answers for passing score */
+  PASS_THRESHOLD: 3,
+} as const;
 
-// Helper functions
-function extractCaseNumber(caseId: string): number {
-  const match = caseId.match(/case-(\d+)/);
-  return match ? parseInt(match[1], 10) : 1;
-}
-
-function deriveSimulacrumBadgeName(option: SimulacrumOption): string {
-  // Map focus areas to meaningful badge names
-  const focusToName: Record<string, string> = {
-    "Anticipatory planning and crisis response": "Crisis Response Expert",
-    "Communication and shared decision-making": "Communication Champion",
-    "Assessing and supporting family caregivers": "Family Support Specialist",
-  };
-  return focusToName[option.focus] || `${option.title} Expert`;
-}
-```
-
----
-
-#### 2. Add Badge Collection Builder
-
-**Continue in `src/lib/badge-registry.ts`**
-
-```typescript
 /**
- * Build complete badge collection from loaded case and simulacrum configs
+ * Badge Threshold Defaults
  * 
- * @param cases - Array of loaded case configurations
- * @param simulacra - Array of loaded simulacrum configurations
- * @returns Complete list of all possible badges
+ * IMPORTANT: Per-case thresholds in content JSON (case.badgeThresholds) 
+ * ALWAYS override these defaults. These are fallbacks only.
  */
-export function buildBadgeRegistry(
-  cases: Case[],
-  simulacra: Simulacrum[]
-): BadgeDefinition[] {
-  const badges: BadgeDefinition[] = [];
+export const BADGE_DEFAULTS = {
+  /** Default minimum points for standard badge (fallback only) */
+  STANDARD_THRESHOLD: 35,
+  /** Default minimum points for premium badge (fallback only) */
+  PREMIUM_THRESHOLD: 50,
+} as const;
+
+/**
+ * Cluster Mapping for MCQ Scores
+ * Used to determine feedback cluster (A/B/C) based on score
+ */
+export const CLUSTER_SCORES = {
+  /** Perfect score - Cluster A */
+  A: 10,
+  /** Partial credit scores - Cluster B */
+  B: [7, 4] as readonly number[],
+  /** Misconception scores - Cluster C */
+  C: [6, 3, 2] as readonly number[],
+} as const;
+
+// ============ Helper Functions ============
+
+/**
+ * Calculate max possible points for a case
+ * 
+ * Use this instead of hardcoding max points in components.
+ * Pass the result to HUD's maxPoints prop.
+ */
+export function calculateMaxCasePoints(
+  questionCount: number,
+  jitPoints: number = 0,
+  podcastPoints: number = 0,
+  reflectionQuestions: number = 2
+): number {
+  const mcqPoints = questionCount * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
+  const ipPoints = ACTIVITY_POINTS.IP_INSIGHTS_TOTAL;
+  const reflectionPoints = reflectionQuestions * ACTIVITY_POINTS.REFLECTION_PER_QUESTION;
   
-  // Generate case badges (standard + premium per case)
-  for (const caseConfig of cases) {
-    const [standard, premium] = generateCaseBadges(caseConfig);
-    badges.push(standard, premium);
-  }
-  
-  // Generate simulacrum badges
-  for (const sim of simulacra) {
-    badges.push(...generateSimulacrumBadges(sim));
-  }
-  
-  // Generate explorer badges (one per case)
-  for (const caseConfig of cases) {
-    badges.push(generateExplorerBadge(caseConfig));
-  }
-  
-  return badges;
+  return mcqPoints + ipPoints + jitPoints + reflectionPoints + podcastPoints;
 }
 
 /**
- * Group badges by type for gallery display
+ * Calculate cluster from MCQ score
  */
-export function groupBadgesByType(badges: BadgeDefinition[]): Record<BadgeDefinition["type"], BadgeDefinition[]> {
-  return {
-    case: badges.filter((b) => b.type === "case"),
-    premium: badges.filter((b) => b.type === "premium"),
-    simulacrum: badges.filter((b) => b.type === "simulacrum"),
-  };
-}
-```
-
----
-
-#### 3. Update BadgeGalleryModal
-
-**File: `src/components/BadgeGalleryModal.tsx`**
-
-Replace hard-coded `allBadges` with props-based approach:
-
-```typescript
-import type { BadgeDefinition } from "@/lib/badge-registry";
-
-interface BadgeGalleryModalProps {
-  earnedBadges: BadgeInfo[];
-  availableBadges: BadgeDefinition[];  // NEW: Pass in dynamically generated badges
-  onClose: () => void;
+export function calculateClusterFromScore(score: number): "A" | "B" | "C" {
+  if (score === CLUSTER_SCORES.A) return "A";
+  if (CLUSTER_SCORES.B.includes(score)) return "B";
+  return "C";
 }
 
-export function BadgeGalleryModal({ 
-  earnedBadges, 
-  availableBadges,  // NEW
-  onClose 
-}: BadgeGalleryModalProps) {
-  const earnedIds = new Set(earnedBadges.map((b) => b.id));
-
-  // Group by type for display
-  const groupedBadges = {
-    case: availableBadges.filter((b) => b.type === "case"),
-    premium: availableBadges.filter((b) => b.type === "premium"),
-    simulacrum: availableBadges.filter((b) => b.type === "simulacrum"),
-  };
-
-  // ... rest of component uses groupedBadges instead of hard-coded allBadges
-}
-```
-
----
-
-#### 4. Update CompletionPage Integration
-
-**File: `src/pages/CompletionPage.tsx`**
-
-Update badge awarding to use dynamic thresholds:
-
-```typescript
-import { generateCaseBadges } from "@/lib/badge-registry";
-
-// In useEffect for badge awarding:
-useEffect(() => {
-  if (!caseData) return;
-  
-  const [standardBadge, premiumBadge] = generateCaseBadges(caseData);
-  
-  // Use case's actual thresholds instead of hardcoded 35/50
-  const earnedPremium = state.casePoints >= caseData.badgeThresholds.premium;
-  const earnedStandard = state.casePoints >= caseData.badgeThresholds.standard;
-  
-  if (earnedPremium && !state.badges.find((b) => b.id === premiumBadge.id)) {
-    dispatch({
-      type: "EARN_BADGE",
-      badge: {
-        id: premiumBadge.id,
-        name: premiumBadge.name,
-        description: premiumBadge.description,
-        type: premiumBadge.type,
-      },
-    });
-  } else if (earnedStandard && !state.badges.find((b) => b.id === standardBadge.id)) {
-    dispatch({
-      type: "EARN_BADGE",
-      badge: {
-        id: standardBadge.id,
-        name: standardBadge.name,
-        description: standardBadge.description,
-        type: standardBadge.type,
-      },
-    });
+/**
+ * Calculate simulacrum points based on correct answers
+ */
+export function calculateSimulacrumPoints(correctCount: number): number {
+  if (correctCount >= SIMULACRUM_SCORING.PERFECT_THRESHOLD) {
+    return SIMULACRUM_SCORING.PERFECT_SCORE_POINTS;
   }
-}, [caseData, state.casePoints, state.badges, dispatch]);
+  if (correctCount >= SIMULACRUM_SCORING.PASS_THRESHOLD) {
+    return SIMULACRUM_SCORING.PASS_SCORE_POINTS;
+  }
+  return 0;
+}
 ```
 
 ---
 
-#### 5. Update GameContext Badge Threshold Functions
+#### 2. Create UI Constants Module (Separate File)
+
+**New File: `src/lib/ui-constants.ts`**
+
+```typescript
+/**
+ * UI Display Constants
+ * 
+ * Constants for visual presentation and UI behavior.
+ * These do NOT affect game logic or scoring calculations.
+ * 
+ * For scoring/points constants, see scoring-constants.ts
+ */
+
+/**
+ * HUD Display Settings
+ */
+export const HUD_DISPLAY = {
+  /** Maximum badge stars shown in HUD (visual limit, not game limit) */
+  MAX_BADGES_SHOWN: 5,
+} as const;
+
+/**
+ * Chart Reveal Behavior
+ */
+export const CHART_REVEAL = {
+  /** Number of chart entries visible at case start */
+  INITIAL_ENTRIES: 2,
+  /** Additional entries revealed after each MCQ completion */
+  ENTRIES_PER_MCQ: 2,
+} as const;
+```
+
+---
+
+#### 3. Update HUD - Remove Hardcoded Default
+
+**File: `src/components/HUD.tsx`**
+
+The HUD currently has `maxPoints = 67` as a default. This should be removed to enforce explicit passing from parent components:
+
+```typescript
+import { HUD_DISPLAY } from "@/lib/ui-constants";
+
+interface HUDProps {
+  maxPoints: number;  // REMOVE default - make required
+  // ... rest unchanged
+}
+
+export function HUD({ 
+  maxPoints,  // No default - must be passed from case data
+  showBadgeGallery,
+  // ...
+}: HUDProps) {
+  const maxBadges = HUD_DISPLAY.MAX_BADGES_SHOWN;  // Replace hardcoded 5
+  // ...
+}
+```
+
+This forces `CaseFlowPage.tsx` (which already calculates `maxPoints` correctly) to always pass it.
+
+---
+
+#### 4. Update GameContext
 
 **File: `src/contexts/GameContext.tsx`**
 
-Make threshold functions dynamic by accepting case config:
+Replace magic numbers with imported constants:
 
 ```typescript
-// Change from:
-const canEarnStandardBadge = () => state.casePoints >= 35;
-const canEarnPremiumBadge = () => state.casePoints >= 50;
+import { 
+  BADGE_DEFAULTS,
+  MCQ_SCORING,
+  calculateClusterFromScore 
+} from "@/lib/scoring-constants";
 
-// To:
+// Replace calculateCluster function
+function calculateCluster(score: number): "A" | "B" | "C" {
+  return calculateClusterFromScore(score);
+}
+
+// Replace getMaxPossiblePoints function
+function getMaxPossiblePoints(questionCount: number): number {
+  return questionCount * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
+}
+
+// Update threshold functions to use BADGE_DEFAULTS
 const canEarnStandardBadge = (threshold?: number) => 
-  state.casePoints >= (threshold ?? 35);
+  state.casePoints >= (threshold ?? BADGE_DEFAULTS.STANDARD_THRESHOLD);
 const canEarnPremiumBadge = (threshold?: number) => 
-  state.casePoints >= (threshold ?? 50);
+  state.casePoints >= (threshold ?? BADGE_DEFAULTS.PREMIUM_THRESHOLD);
+```
+
+---
+
+#### 5. Update CaseFlowPage
+
+**File: `src/pages/CaseFlowPage.tsx`**
+
+```typescript
+import { calculateMaxCasePoints, ACTIVITY_POINTS } from "@/lib/scoring-constants";
+import { CHART_REVEAL } from "@/lib/ui-constants";
+
+// Update max points calculation (already done correctly, just import helper)
+const maxPoints = calculateMaxCasePoints(
+  caseData.questions.length,
+  jitTotalPoints,
+  podcastTotalPoints,
+  2
+);
+
+// Update reflection dispatch
+dispatch({
+  type: "SUBMIT_REFLECTION",
+  caseId,
+  questionId,
+  text,
+  points: ACTIVITY_POINTS.REFLECTION_PER_QUESTION,
+});
+
+// Update chart entries state
+const [revealedChartEntries, setRevealedChartEntries] = useState(CHART_REVEAL.INITIAL_ENTRIES);
+
+// In handleMCQSubmit
+setRevealedChartEntries((prev) => 
+  Math.min(prev + CHART_REVEAL.ENTRIES_PER_MCQ, caseData.chartEntries.length)
+);
+```
+
+---
+
+#### 6. Update SimulacrumPage
+
+**File: `src/pages/SimulacrumPage.tsx`**
+
+```typescript
+import { calculateSimulacrumPoints, SIMULACRUM_SCORING } from "@/lib/scoring-constants";
+
+// In handleNextQuestion, replace magic numbers:
+const finalCorrect = correctCount + (selectedOption?.isCorrect ? 1 : 0);
+const points = calculateSimulacrumPoints(finalCorrect);
+
+if (points > 0) {
+  dispatch({ type: "ADD_POINTS", points, category: "simulacrum" });
+}
+
+// In result display, use constants:
+<p className="text-3xl font-bold text-accent">
+  {correctCount >= SIMULACRUM_SCORING.PERFECT_THRESHOLD 
+    ? `+${SIMULACRUM_SCORING.PERFECT_SCORE_POINTS}` 
+    : correctCount >= SIMULACRUM_SCORING.PASS_THRESHOLD 
+      ? `+${SIMULACRUM_SCORING.PASS_SCORE_POINTS}` 
+      : "+0"} pts
+</p>
+```
+
+---
+
+#### 7. Update MCQ Validation
+
+**File: `src/lib/mcq-validation.ts`**
+
+```typescript
+import { MCQ_SCORING } from "./scoring-constants";
+
+export const MCQ_OPTION_COUNTS = {
+  case: MCQ_SCORING.OPTIONS_PER_CASE_QUESTION,
+  simulacrum: MCQ_SCORING.OPTIONS_PER_SIMULACRUM_QUESTION,
+} as const;
 ```
 
 ---
@@ -331,50 +348,114 @@ const canEarnPremiumBadge = (threshold?: number) =>
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/lib/badge-registry.ts` | Create | Badge generation utilities and registry builder |
-| `src/components/BadgeGalleryModal.tsx` | Modify | Accept `availableBadges` prop instead of hard-coded array |
-| `src/pages/CompletionPage.tsx` | Modify | Use dynamic badge generation and thresholds |
-| `src/contexts/GameContext.tsx` | Modify | Make threshold functions accept dynamic values |
+| `src/lib/scoring-constants.ts` | Create | Game logic constants and helpers |
+| `src/lib/ui-constants.ts` | Create | UI display constants (separate concern) |
+| `src/contexts/GameContext.tsx` | Modify | Import and use scoring constants |
+| `src/pages/CaseFlowPage.tsx` | Modify | Use calculateMaxCasePoints and constants |
+| `src/pages/SimulacrumPage.tsx` | Modify | Use calculateSimulacrumPoints |
+| `src/lib/mcq-validation.ts` | Modify | Import option counts from scoring constants |
+| `src/components/HUD.tsx` | Modify | Remove default maxPoints, use HUD_DISPLAY |
 
 ---
 
 ### Unit Tests
 
-**New File: `src/lib/__tests__/badge-registry.test.ts`**
+**New File: `src/lib/__tests__/scoring-constants.test.ts`**
 
 ```typescript
-describe("Badge Registry", () => {
-  describe("generateCaseBadges", () => {
-    it("generates standard and premium badges for a case", () => {
-      const mockCase = {
-        caseId: "case-1",
-        title: "Test Case",
-        badgeThresholds: { standard: 28, premium: 40 },
-        questions: [{}, {}, {}, {}], // 4 questions
-      };
-      
-      const [standard, premium] = generateCaseBadges(mockCase as Case);
-      
-      expect(standard.id).toBe("case-1-standard");
-      expect(standard.threshold).toBe(28);
-      expect(premium.id).toBe("case-1-premium");
-      expect(premium.threshold).toBe(40);
+import { describe, it, expect } from "vitest";
+import {
+  MCQ_SCORING,
+  ACTIVITY_POINTS,
+  SIMULACRUM_SCORING,
+  BADGE_DEFAULTS,
+  CLUSTER_SCORES,
+  calculateMaxCasePoints,
+  calculateClusterFromScore,
+  calculateSimulacrumPoints,
+} from "../scoring-constants";
+
+describe("Scoring Constants", () => {
+  describe("MCQ_SCORING", () => {
+    it("has correct max points per question", () => {
+      expect(MCQ_SCORING.MAX_POINTS_PER_QUESTION).toBe(10);
+    });
+
+    it("has correct options per case question", () => {
+      expect(MCQ_SCORING.OPTIONS_PER_CASE_QUESTION).toBe(5);
+    });
+
+    it("has correct options per simulacrum question", () => {
+      expect(MCQ_SCORING.OPTIONS_PER_SIMULACRUM_QUESTION).toBe(4);
     });
   });
-  
-  describe("buildBadgeRegistry", () => {
-    it("generates correct badge count (5 cases = 10 case badges + 5 explorer badges)", () => {
-      const mockCases = Array.from({ length: 5 }, (_, i) => ({
-        caseId: `case-${i + 1}`,
-        badgeThresholds: { standard: 28, premium: 40 },
-        questions: [{}, {}, {}, {}],
-      }));
-      const mockSimulacra = [{ options: [{}, {}, {}] }];
-      
-      const badges = buildBadgeRegistry(mockCases as Case[], mockSimulacra as Simulacrum[]);
-      
-      // 5 cases × 2 (standard + premium) + 5 explorer + 3 simulacrum = 18
-      expect(badges.length).toBe(18);
+
+  describe("calculateMaxCasePoints", () => {
+    it("calculates max for 4-question case (Adam: 48 pts)", () => {
+      // 4 MCQs × 10 + 2 IP + 2 JIT + 2 reflections + 2 podcasts = 48
+      const max = calculateMaxCasePoints(4, 2, 2, 2);
+      expect(max).toBe(48);
+    });
+
+    it("calculates max with no optional activities", () => {
+      // 4 MCQs × 10 + 2 IP + 0 + 2 reflections + 0 = 44
+      const max = calculateMaxCasePoints(4, 0, 0, 2);
+      expect(max).toBe(44);
+    });
+
+    it("uses default reflection count of 2", () => {
+      const withDefault = calculateMaxCasePoints(4, 0, 0);
+      const withExplicit = calculateMaxCasePoints(4, 0, 0, 2);
+      expect(withDefault).toBe(withExplicit);
+    });
+  });
+
+  describe("calculateClusterFromScore", () => {
+    it("returns A for perfect score (10)", () => {
+      expect(calculateClusterFromScore(10)).toBe("A");
+    });
+
+    it("returns B for partial credit scores (7, 4)", () => {
+      expect(calculateClusterFromScore(7)).toBe("B");
+      expect(calculateClusterFromScore(4)).toBe("B");
+    });
+
+    it("returns C for misconception scores (6, 3, 2)", () => {
+      expect(calculateClusterFromScore(6)).toBe("C");
+      expect(calculateClusterFromScore(3)).toBe("C");
+      expect(calculateClusterFromScore(2)).toBe("C");
+    });
+
+    it("returns C for unexpected scores", () => {
+      expect(calculateClusterFromScore(0)).toBe("C");
+      expect(calculateClusterFromScore(1)).toBe("C");
+      expect(calculateClusterFromScore(5)).toBe("C");
+    });
+  });
+
+  describe("calculateSimulacrumPoints", () => {
+    it("returns 15 for perfect (4/4)", () => {
+      expect(calculateSimulacrumPoints(4)).toBe(15);
+    });
+
+    it("returns 10 for pass (3/4)", () => {
+      expect(calculateSimulacrumPoints(3)).toBe(10);
+    });
+
+    it("returns 0 for fail (< 3)", () => {
+      expect(calculateSimulacrumPoints(2)).toBe(0);
+      expect(calculateSimulacrumPoints(1)).toBe(0);
+      expect(calculateSimulacrumPoints(0)).toBe(0);
+    });
+  });
+
+  describe("BADGE_DEFAULTS", () => {
+    it("has standard threshold of 35", () => {
+      expect(BADGE_DEFAULTS.STANDARD_THRESHOLD).toBe(35);
+    });
+
+    it("has premium threshold of 50", () => {
+      expect(BADGE_DEFAULTS.PREMIUM_THRESHOLD).toBe(50);
     });
   });
 });
@@ -382,24 +463,44 @@ describe("Badge Registry", () => {
 
 ---
 
-### Badge Count Projections
+### Key Refinements Addressed
 
-| Configuration | Case Badges | Premium Badges | Explorer Badges | Simulacrum Badges | Total |
-|---------------|-------------|----------------|-----------------|-------------------|-------|
-| MVP (1 case) | 1 | 1 | 1 | 3 | 6 |
-| Level 1 (5 cases) | 5 | 5 | 5 | 3 | 18 |
-| Full Game (25 cases, 15 sim) | 25 | 25 | 25 | 15 | 90 |
-
-**Note**: The user requirement of "25 premium + 5 standard" suggests 5 cases per level, with the premium count (25) referring to total premium badges across all cases (5 × 5 = 25). The standard count (5) may refer to the single-level count. This implementation supports both interpretations.
+| Refinement | Solution |
+|------------|----------|
+| Separate scoring from UI constants | Created two files: `scoring-constants.ts` and `ui-constants.ts` |
+| HUD maxPoints = 67 placeholder | Removed default; require explicit prop from CaseFlowPage |
+| Per-case thresholds override defaults | Added JSDoc noting case thresholds are authoritative; `??` fallback pattern preserved |
 
 ---
 
-### Why This Approach
+### Constants Quick Reference
 
-1. **Config-Driven**: Badges derive from case/simulacrum data - no manual sync required
-2. **Scalable**: Adding cases automatically adds badges to gallery
-3. **Threshold Accuracy**: Uses actual `badgeThresholds` from case config (28/40 for 4Q case, 35/50 for 5Q case)
-4. **Testable**: Pure functions for badge generation with unit test coverage
-5. **Type-Safe**: Full TypeScript support with `BadgeDefinition` interface
-6. **Backward Compatible**: Existing `BadgeInfo` interface unchanged
+**Scoring Constants (`scoring-constants.ts`)**
+
+| Category | Constant | Value |
+|----------|----------|-------|
+| MCQ | MAX_POINTS_PER_QUESTION | 10 |
+| MCQ | OPTIONS_PER_CASE_QUESTION | 5 |
+| MCQ | OPTIONS_PER_SIMULACRUM_QUESTION | 4 |
+| Activity | IP_INSIGHTS_TOTAL | 2 |
+| Activity | REFLECTION_PER_QUESTION | 1 |
+| Activity | JIT_DEFAULT | 2 |
+| Activity | PODCAST_DEFAULT | 1 |
+| Simulacrum | PERFECT_SCORE_POINTS | 15 |
+| Simulacrum | PASS_SCORE_POINTS | 10 |
+| Simulacrum | PERFECT_THRESHOLD | 4 |
+| Simulacrum | PASS_THRESHOLD | 3 |
+| Badge | STANDARD_THRESHOLD | 35 (fallback) |
+| Badge | PREMIUM_THRESHOLD | 50 (fallback) |
+| Cluster | A | 10 |
+| Cluster | B | [7, 4] |
+| Cluster | C | [6, 3, 2] |
+
+**UI Constants (`ui-constants.ts`)**
+
+| Category | Constant | Value |
+|----------|----------|-------|
+| HUD | MAX_BADGES_SHOWN | 5 |
+| Chart | INITIAL_ENTRIES | 2 |
+| Chart | ENTRIES_PER_MCQ | 2 |
 
