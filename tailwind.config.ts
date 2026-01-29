@@ -99,6 +99,22 @@ export default {
           from: { opacity: "0", transform: "scale(0.95)" },
           to: { opacity: "1", transform: "scale(1)" },
         },
+        "glow-pulse": {
+          "0%, 100%": {
+            boxShadow: "0 0 10px hsl(190 100% 50% / 0.3), 0 0 20px hsl(190 100% 50% / 0.2)",
+          },
+          "50%": {
+            boxShadow: "0 0 20px hsl(190 100% 50% / 0.5), 0 0 40px hsl(190 100% 50% / 0.3)",
+          },
+        },
+        "scan": {
+          from: { backgroundPosition: "0 0" },
+          to: { backgroundPosition: "0 100px" },
+        },
+        "flicker": {
+          "0%, 91%, 94%, 97%, 100%": { opacity: "1" },
+          "92%, 96%": { opacity: "0.85" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -106,6 +122,9 @@ export default {
         "fade-in": "fade-in 0.3s ease-out",
         "slide-up": "slide-up 0.3s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "scan": "scan 8s linear infinite",
+        "flicker": "flicker 4s linear infinite",
       },
     },
   },
