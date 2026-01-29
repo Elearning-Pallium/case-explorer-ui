@@ -1,196 +1,132 @@
 
-## Hi-Tech UI Enhancement: Glows, Shapes, and Light Gradient
+## Fix Light Mode Contrast & Enhance Background Gradient
 
-### Problem Summary
+### Problem Analysis
 
-1. **Glows not visible**: The `.glow-cyan` utilities exist but aren't applied to any components
-2. **GUI shapes need updating**: Buttons, tabs, cards need angular/beveled hi-tech shapes
-3. **Background flip requested**: Dark → Light gradient background with inverted text colors
+**Current Issues:**
+1. **Weak gradient**: Only 6% lightness difference (94% → 88%) - barely visible
+2. **Low text contrast**: Muted foreground at 35% lightness is too light on 94% background
+3. **Card/background similarity**: Card at 97% vs background at 94% = 3% difference
+4. **Primary cyan readability**: Pure #00D4FF has contrast issues on light backgrounds
 
----
+### Color Adjustments
 
-### Color Palette (Light Mode with Hi-Tech Styling)
+| Token | Current | New | Reason |
+|-------|---------|-----|--------|
+| `--background` | `195 40% 94%` | `195 35% 96%` | Lighter base for more gradient range |
+| `--foreground` | `215 60% 10%` | `220 70% 8%` | Darker text for better contrast |
+| `--card` | `195 50% 97%` | `0 0% 100%` | Pure white cards for max contrast |
+| `--muted-foreground` | `200 25% 35%` | `210 30% 28%` | Darker muted text |
+| `--primary` | `190 100% 50%` | `195 100% 40%` | Slightly darker cyan |
 
-```text
-Background Gradient:  #E8F4F8 → #D0E8EF (light cyan-tinted)
-Card Background:      #F0F8FA (very light cyan panel)
-Primary Cyan:         #00D4FF (bright glow, accents)
-Secondary Cyan:       #0099CC (interactive elements)
-Text Primary:         #0A1628 (dark navy text)
-Text Secondary:       #4A6B7A (muted text)
-Tech Border:          #00D4FF33 (translucent cyan)
-Success Glow:         #00FF88
-Warning Accent:       #FF6B35
-```
+### Enhanced Gradient
 
----
-
-### Implementation Plan
-
-#### File 1: `src/index.css`
-
-**Changes:**
-- Flip `:root` to light gradient theme
-- Flip `.dark` to maintain dark option
-- Add light-mode glow utilities (more visible on light backgrounds)
-- Add tech-frame corner bracket decorations
-- Add angular clip-path shapes for buttons
-
-**New/Enhanced Utilities:**
+**Before:**
 ```css
-/* Angular button shape */
-.btn-tech {
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
-}
-
-/* Corner brackets for panels */
-.tech-corners::before,
-.tech-corners::after {
-  content: "";
-  position: absolute;
-  border: 2px solid hsl(var(--primary));
-  /* Creates L-shaped corner brackets */
-}
-
-/* Enhanced glow for light backgrounds */
-.glow-cyan-light {
-  box-shadow: 
-    0 0 20px hsl(190 100% 50% / 0.4),
-    0 0 40px hsl(190 100% 50% / 0.25),
-    inset 0 0 10px hsl(190 100% 50% / 0.1);
-}
+background: linear-gradient(135deg, 
+  hsl(195 40% 94%) 0%, 
+  hsl(195 45% 90%) 50%, 
+  hsl(195 50% 88%) 100%
+);
+/* Only 6% lightness difference - barely visible */
 ```
 
-#### File 2: `src/components/ui/button.tsx`
-
-**Changes:**
-- Add hi-tech variant with angular shape + glow
-- Apply `clip-path` for beveled corners
-- Add hover glow animation
-- Maintain existing variants for compatibility
-
-**New Variant:**
-```tsx
-tech: "bg-primary text-primary-foreground glow-cyan hover:glow-cyan-intense btn-tech border border-primary/50"
+**After:**
+```css
+background: linear-gradient(135deg, 
+  hsl(200 50% 97%) 0%,    /* Near-white with cyan tint */
+  hsl(195 55% 90%) 35%,   /* Light cyan */
+  hsl(190 50% 82%) 70%,   /* Medium cyan-teal */
+  hsl(195 45% 75%) 100%   /* Deeper cyan edge */
+);
+/* 22% lightness difference - clearly visible gradient */
 ```
 
-#### File 3: `src/components/ui/card.tsx`
+### Files to Modify
 
-**Changes:**
-- Add `tech-border` class by default
-- Add optional corner bracket decorations
-- Apply subtle inner glow on hover
-
-#### File 4: `src/components/ui/tabs.tsx`
-
-**Changes:**
-- Restyle `TabsList` with tech border and inner glow
-- Make `TabsTrigger` active state show cyan glow
-- Add angular bottom border for active tab indicator
-
-#### File 5: `src/components/ui/badge.tsx`
-
-**Changes:**
-- Add `tech` variant with angular shape and subtle glow
-- Maintain rounded default for compatibility
-
-#### File 6: `tailwind.config.ts`
-
-**Changes:**
-- Add `btn-tech` plugin for clip-path utility
-- Add `glow-hover` animation for interactive elements
-
----
-
-### Visual Comparison
-
-| Element | Before | After |
-|---------|--------|-------|
-| **Background** | Dark navy (#0A1628) | Light cyan gradient (#E8F4F8 → #D0E8EF) |
-| **Text** | Light cyan (#E0F4FF) | Dark navy (#0A1628) |
-| **Cards** | Dark panel, subtle border | Light panel, cyan glow border, corner brackets |
-| **Buttons** | Rounded, cyan bg | Angular/beveled, glow effect on hover |
-| **Tabs** | Rounded, muted bg | Angular, cyan border-bottom when active |
-| **Badges** | Rounded pill | Angular with subtle glow |
-| **HUD Header** | Solid cyan bg | Gradient with bottom glow line |
-
----
-
-### Safety Assessment
-
-| Component | Risk | Notes |
-|-----------|------|-------|
-| CSS Variables | None | Value changes only |
-| Button variants | Low | New variant added, existing preserved |
-| Card styling | Low | Additional classes, base preserved |
-| Tabs styling | Low | Class changes only |
-| State management | None | No changes |
-| Business logic | None | No changes |
-| SCORM/xAPI | None | No changes |
-
----
-
-### Files Modified
-
-```text
-src/index.css               ← Color flip + new utilities
-src/components/ui/button.tsx  ← Add tech variant + glow
-src/components/ui/card.tsx    ← Add tech-border + corners
-src/components/ui/tabs.tsx    ← Angular styling + active glow
-src/components/ui/badge.tsx   ← Add tech variant
-tailwind.config.ts          ← New animation/utility classes
-```
+**`src/index.css`**:
+- Update `:root` CSS variables for better contrast
+- Replace body gradient with more pronounced 4-stop gradient
+- Adjust dark mode to have proper inverse contrast
 
 ---
 
 ### Technical Details
 
-#### Gradient Background Implementation
+#### Updated CSS Variables (`:root`)
+
+```css
+:root {
+  /* High Contrast Light Theme */
+  --background: 200 45% 96%;      /* #F5FAFC - lighter base */
+  --foreground: 220 70% 8%;       /* #0A0F1A - darker text */
+
+  --card: 0 0% 100%;              /* Pure white */
+  --card-foreground: 220 70% 8%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 70% 8%;
+
+  --primary: 195 100% 40%;        /* #00A3CC - darker cyan */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 200 30% 92%;       /* Subtle panel */
+  --secondary-foreground: 220 70% 8%;
+
+  --muted: 200 25% 90%;
+  --muted-foreground: 210 30% 28%; /* #3D5066 - darker muted */
+
+  --accent: 190 100% 45%;         /* Slightly darker accent */
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 16 100% 50%;     /* Darker for contrast */
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 200 40% 80%;          /* More visible border */
+  --input: 200 30% 88%;
+  --ring: 195 100% 40%;
+
+  --success: 155 80% 35%;         /* Darker green */
+  --success-foreground: 0 0% 100%;
+  
+  --warning: 20 95% 50%;          /* Darker orange */
+  --warning-foreground: 0 0% 100%;
+}
+```
+
+#### Pronounced Body Gradient
+
 ```css
 body {
-  background: linear-gradient(135deg, #E8F4F8 0%, #D0E8EF 50%, #C5E3EC 100%);
-}
-```
-
-#### Angular Button Clip-Path
-```css
-.btn-tech {
-  clip-path: polygon(
-    8px 0,           /* top-left beveled */
-    100% 0,          /* top-right */
-    100% calc(100% - 8px),  /* bottom-right beveled */
-    calc(100% - 8px) 100%,  /* bottom-right corner */
-    0 100%,          /* bottom-left */
-    0 8px            /* top-left corner */
+  background: linear-gradient(135deg, 
+    hsl(200 50% 97%) 0%,      /* Near-white cyan tint */
+    hsl(195 55% 90%) 35%,     /* Light cyan */
+    hsl(190 50% 82%) 70%,     /* Medium cyan-teal */
+    hsl(195 45% 75%) 100%     /* Deeper cyan edge */
   );
+  min-height: 100vh;
 }
 ```
 
-#### Corner Bracket Decorations
-```css
-.tech-corners {
-  position: relative;
-}
+---
 
-.tech-corners::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 16px;
-  height: 16px;
-  border-top: 2px solid hsl(var(--primary));
-  border-left: 2px solid hsl(var(--primary));
-}
+### Visual Impact
 
-.tech-corners::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 16px;
-  height: 16px;
-  border-bottom: 2px solid hsl(var(--primary));
-  border-right: 2px solid hsl(var(--primary));
-}
-```
+| Element | Before | After |
+|---------|--------|-------|
+| **Background gradient** | 6% difference (invisible) | 22% difference (clearly visible) |
+| **Text on background** | Contrast ratio ~7:1 | Contrast ratio ~12:1 |
+| **Muted text** | Light grey, hard to read | Dark grey-blue, legible |
+| **Cards** | Blend into background | Pop with pure white |
+| **Primary buttons** | Bright cyan | Deeper cyan, better text contrast |
+
+---
+
+### Safety Assessment
+
+| Aspect | Risk | Notes |
+|--------|------|-------|
+| CSS Variable values | None | Only color adjustments |
+| Component behavior | None | No logic changes |
+| Accessibility | Improved | Better WCAG contrast ratios |
+| Dark mode | Low | Existing dark values preserved |
