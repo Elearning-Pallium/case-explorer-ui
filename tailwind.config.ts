@@ -101,10 +101,10 @@ export default {
         },
         "glow-pulse": {
           "0%, 100%": {
-            boxShadow: "0 0 10px hsl(190 100% 50% / 0.3), 0 0 20px hsl(190 100% 50% / 0.2)",
+            boxShadow: "0 0 15px hsl(190 100% 50% / 0.4), 0 0 30px hsl(190 100% 50% / 0.25)",
           },
           "50%": {
-            boxShadow: "0 0 20px hsl(190 100% 50% / 0.5), 0 0 40px hsl(190 100% 50% / 0.3)",
+            boxShadow: "0 0 25px hsl(190 100% 50% / 0.6), 0 0 50px hsl(190 100% 50% / 0.4)",
           },
         },
         "scan": {
@@ -114,6 +114,14 @@ export default {
         "flicker": {
           "0%, 91%, 94%, 97%, 100%": { opacity: "1" },
           "92%, 96%": { opacity: "0.85" },
+        },
+        "glow-hover": {
+          "0%": {
+            boxShadow: "0 0 8px hsl(190 100% 50% / 0.3), 0 0 16px hsl(190 100% 50% / 0.15)",
+          },
+          "100%": {
+            boxShadow: "0 0 20px hsl(190 100% 50% / 0.5), 0 0 40px hsl(190 100% 50% / 0.3)",
+          },
         },
       },
       animation: {
@@ -125,6 +133,7 @@ export default {
         "glow-pulse": "glow-pulse 2s ease-in-out infinite",
         "scan": "scan 8s linear infinite",
         "flicker": "flicker 4s linear infinite",
+        "glow-hover": "glow-hover 0.3s ease forwards",
       },
     },
   },

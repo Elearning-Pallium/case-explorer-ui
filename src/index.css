@@ -2,22 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Hi-Tech Sci-Fi Learning Platform - Design System
+/* Hi-Tech Sci-Fi Learning Platform - Light Theme Design System
    Color Palette:
-   - Primary Cyan: #00D4FF (bright glow, buttons, accents)
-   - Secondary Cyan: #0099CC (dimmer interactive elements)
-   - Dark Background: #0A1628 (main background)
-   - Panel Background: #0D1B2A (cards, panels)
-   - Tech Border: #1A3A5C (borders, dividers)
-   - Text Primary: #E0F4FF (main text, near-white)
-   - Text Secondary: #6B8FAD (muted text)
-   - Warning Accent: #FF6B35 (alerts, notifications)
-   - Success Glow: #00FF88 (completions, correct answers)
+   - Background Gradient: #E8F4F8 → #D0E8EF (light cyan-tinted)
+   - Card Background: #F0F8FA (very light cyan panel)
+   - Primary Cyan: #00D4FF (bright glow, accents)
+   - Secondary Cyan: #0099CC (interactive elements)
+   - Text Primary: #0A1628 (dark navy text)
+   - Text Secondary: #4A6B7A (muted text)
+   - Tech Border: #00D4FF33 (translucent cyan)
+   - Success Glow: #00FF88
+   - Warning Accent: #FF6B35
 */
 
 @layer base {
   :root {
-    /* Hi-Tech Theme - Force dark aesthetic as default */
+    /* Hi-Tech Light Theme */
+    --background: 195 40% 94%; /* #E8F4F8 */
+    --foreground: 215 60% 10%; /* #0A1628 */
+
+    --card: 195 50% 97%; /* #F0F8FA */
+    --card-foreground: 215 60% 10%;
+
+    --popover: 195 50% 97%;
+    --popover-foreground: 215 60% 10%;
+
+    --primary: 190 100% 50%; /* #00D4FF */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 195 30% 90%; /* Light panel */
+    --secondary-foreground: 215 60% 10%;
+
+    --muted: 195 25% 88%;
+    --muted-foreground: 200 25% 35%; /* #4A6B7A */
+
+    --accent: 190 100% 50%; /* Cyan glow */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 16 100% 60%; /* #FF6B35 */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 190 100% 50% / 0.2; /* Translucent cyan */
+    --input: 195 30% 85%;
+    --ring: 190 100% 50%;
+
+    --radius: 0.5rem;
+
+    /* Custom tokens for gamification */
+    --highlight: 190 50% 90%;
+    --highlight-foreground: 190 100% 35%;
+    
+    --success: 155 100% 40%; /* #00FF88 adjusted for light bg */
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 16 100% 60%; /* #FF6B35 */
+    --warning-foreground: 0 0% 100%;
+
+    /* Sidebar tokens */
+    --sidebar-background: 195 35% 92%;
+    --sidebar-foreground: 215 60% 10%;
+    --sidebar-primary: 190 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 195 40% 88%;
+    --sidebar-accent-foreground: 215 60% 10%;
+    --sidebar-border: 190 100% 50% / 0.2;
+    --sidebar-ring: 190 100% 50%;
+  }
+
+  .dark {
+    /* Dark mode - original sci-fi theme */
     --background: 215 60% 10%; /* #0A1628 */
     --foreground: 200 100% 94%; /* #E0F4FF */
 
@@ -30,94 +83,39 @@
     --primary: 190 100% 50%; /* #00D4FF */
     --primary-foreground: 215 60% 6%;
 
-    --secondary: 210 55% 15%; /* Dark panel */
+    --secondary: 210 55% 15%;
     --secondary-foreground: 200 100% 94%;
 
     --muted: 210 40% 18%;
-    --muted-foreground: 210 30% 55%; /* #6B8FAD */
+    --muted-foreground: 210 30% 55%;
 
-    --accent: 190 100% 50%; /* Cyan glow */
+    --accent: 190 100% 50%;
     --accent-foreground: 215 60% 6%;
 
-    --destructive: 16 100% 60%; /* #FF6B35 */
+    --destructive: 16 100% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 55% 23%; /* #1A3A5C */
+    --border: 210 55% 23%;
     --input: 210 55% 23%;
     --ring: 190 100% 50%;
 
-    --radius: 0.75rem;
-
-    /* Custom tokens for gamification */
-    --highlight: 190 80% 15%; /* Dark cyan tint */
-    --highlight-foreground: 190 100% 70%;
-    
-    --success: 155 100% 50%; /* #00FF88 */
-    --success-foreground: 155 100% 10%;
-    
-    --warning: 16 100% 60%; /* #FF6B35 */
-    --warning-foreground: 0 0% 100%;
-
-    /* Sidebar tokens */
-    --sidebar-background: 215 60% 8%;
-    --sidebar-foreground: 200 100% 94%;
-    --sidebar-primary: 190 100% 50%;
-    --sidebar-primary-foreground: 215 60% 6%;
-    --sidebar-accent: 210 55% 18%;
-    --sidebar-accent-foreground: 200 100% 94%;
-    --sidebar-border: 210 55% 23%;
-    --sidebar-ring: 190 100% 50%;
-  }
-
-  .dark {
-    /* Even darker mode with brighter glows */
-    --background: 215 65% 6%;
-    --foreground: 200 100% 96%;
-
-    --card: 210 60% 8%;
-    --card-foreground: 200 100% 96%;
-
-    --popover: 210 60% 8%;
-    --popover-foreground: 200 100% 96%;
-
-    --primary: 190 100% 55%;
-    --primary-foreground: 215 65% 4%;
-
-    --secondary: 210 50% 12%;
-    --secondary-foreground: 200 100% 96%;
-
-    --muted: 210 45% 14%;
-    --muted-foreground: 210 30% 60%;
-
-    --accent: 190 100% 55%;
-    --accent-foreground: 215 65% 4%;
-
-    --destructive: 16 100% 55%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 210 50% 20%;
-    --input: 210 50% 20%;
-    --ring: 190 100% 55%;
-
-    /* Custom tokens for gamification - dark mode */
     --highlight: 190 70% 12%;
     --highlight-foreground: 190 100% 75%;
     
-    --success: 155 100% 55%;
+    --success: 155 100% 50%;
     --success-foreground: 155 100% 8%;
     
     --warning: 16 90% 55%;
     --warning-foreground: 0 0% 100%;
 
-    /* Sidebar tokens - dark mode */
-    --sidebar-background: 215 65% 5%;
-    --sidebar-foreground: 200 100% 96%;
-    --sidebar-primary: 190 100% 55%;
-    --sidebar-primary-foreground: 215 65% 4%;
+    --sidebar-background: 215 60% 8%;
+    --sidebar-foreground: 200 100% 94%;
+    --sidebar-primary: 190 100% 50%;
+    --sidebar-primary-foreground: 215 60% 6%;
     --sidebar-accent: 210 50% 15%;
-    --sidebar-accent-foreground: 200 100% 96%;
+    --sidebar-accent-foreground: 200 100% 94%;
     --sidebar-border: 210 50% 18%;
-    --sidebar-ring: 190 100% 55%;
+    --sidebar-ring: 190 100% 50%;
   }
 }
 
@@ -127,59 +125,117 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background: linear-gradient(135deg, 
+      hsl(195 40% 94%) 0%, 
+      hsl(195 45% 90%) 50%, 
+      hsl(195 50% 88%) 100%
+    );
+    min-height: 100vh;
   }
 
-  /* Tech-style typography */
+  .dark body {
+    background: linear-gradient(135deg, 
+      hsl(215 60% 10%) 0%, 
+      hsl(215 55% 8%) 50%, 
+      hsl(215 60% 6%) 100%
+    );
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
   }
 }
 
 @layer utilities {
-  /* Hi-Tech glow effects */
+  /* Angular button shape - beveled corners */
+  .btn-tech {
+    clip-path: polygon(
+      8px 0, 
+      100% 0, 
+      100% calc(100% - 8px), 
+      calc(100% - 8px) 100%, 
+      0 100%, 
+      0 8px
+    );
+  }
+
+  /* Hi-Tech glow effects - enhanced for light backgrounds */
   .glow-cyan {
     box-shadow: 
-      0 0 10px hsl(190 100% 50% / 0.3),
-      0 0 20px hsl(190 100% 50% / 0.2),
-      0 0 40px hsl(190 100% 50% / 0.1);
+      0 0 15px hsl(190 100% 50% / 0.4),
+      0 0 30px hsl(190 100% 50% / 0.25),
+      0 0 45px hsl(190 100% 50% / 0.15);
   }
 
   .glow-cyan-intense {
     box-shadow: 
-      0 0 15px hsl(190 100% 50% / 0.5),
-      0 0 30px hsl(190 100% 50% / 0.3),
+      0 0 20px hsl(190 100% 50% / 0.5),
+      0 0 40px hsl(190 100% 50% / 0.35),
       0 0 60px hsl(190 100% 50% / 0.2);
+  }
+
+  .glow-cyan-subtle {
+    box-shadow: 
+      0 0 8px hsl(190 100% 50% / 0.3),
+      0 0 16px hsl(190 100% 50% / 0.15);
   }
 
   .glow-success {
     box-shadow: 
-      0 0 10px hsl(155 100% 50% / 0.3),
-      0 0 20px hsl(155 100% 50% / 0.2),
-      0 0 40px hsl(155 100% 50% / 0.1);
+      0 0 15px hsl(155 100% 50% / 0.4),
+      0 0 30px hsl(155 100% 50% / 0.25);
   }
 
   .glow-warning {
     box-shadow: 
-      0 0 10px hsl(16 100% 60% / 0.3),
-      0 0 20px hsl(16 100% 60% / 0.2),
-      0 0 40px hsl(16 100% 60% / 0.1);
+      0 0 15px hsl(16 100% 60% / 0.4),
+      0 0 30px hsl(16 100% 60% / 0.25);
   }
 
   /* Tech border with inner glow */
   .tech-border {
-    border: 1px solid hsl(var(--border));
+    border: 1px solid hsl(190 100% 50% / 0.3);
     box-shadow: 
-      inset 0 0 20px hsl(190 100% 50% / 0.05),
-      0 0 15px hsl(190 100% 50% / 0.1);
+      inset 0 0 20px hsl(190 100% 50% / 0.08),
+      0 0 15px hsl(190 100% 50% / 0.15);
   }
 
   .tech-border-accent {
-    border: 1px solid hsl(var(--primary));
+    border: 2px solid hsl(190 100% 50% / 0.5);
     box-shadow: 
-      inset 0 0 30px hsl(190 100% 50% / 0.08),
-      0 0 20px hsl(190 100% 50% / 0.15);
+      inset 0 0 30px hsl(190 100% 50% / 0.1),
+      0 0 20px hsl(190 100% 50% / 0.25);
+  }
+
+  /* Corner bracket decorations */
+  .tech-corners {
+    position: relative;
+  }
+
+  .tech-corners::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 16px;
+    height: 16px;
+    border-top: 2px solid hsl(190 100% 50% / 0.6);
+    border-left: 2px solid hsl(190 100% 50% / 0.6);
+    pointer-events: none;
+  }
+
+  .tech-corners::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    border-bottom: 2px solid hsl(190 100% 50% / 0.6);
+    border-right: 2px solid hsl(190 100% 50% / 0.6);
+    pointer-events: none;
   }
 
   /* Scanline overlay effect */
@@ -195,8 +251,8 @@
       0deg,
       transparent,
       transparent 2px,
-      hsl(190 100% 50% / 0.03) 2px,
-      hsl(190 100% 50% / 0.03) 4px
+      hsl(190 100% 50% / 0.02) 2px,
+      hsl(190 100% 50% / 0.02) 4px
     );
     pointer-events: none;
     animation: scan 8s linear infinite;
@@ -221,7 +277,7 @@
     50% {
       box-shadow: 
         0 0 20px hsl(190 100% 50% / 0.5),
-        0 0 40px hsl(190 100% 50% / 0.3);
+        0 0 40px hsl(190 100% 50% / 0.35);
     }
   }
 
@@ -233,7 +289,7 @@
   @keyframes flicker {
     0%, 100% { opacity: 1; }
     92% { opacity: 1; }
-    93% { opacity: 0.8; }
+    93% { opacity: 0.85; }
     94% { opacity: 1; }
     96% { opacity: 0.9; }
     97% { opacity: 1; }
@@ -268,17 +324,28 @@
     100% { transform: scale(1); opacity: 1; }
   }
 
+  /* Glow hover transition */
+  .glow-hover {
+    transition: box-shadow 0.3s ease;
+  }
+
+  .glow-hover:hover {
+    box-shadow: 
+      0 0 20px hsl(190 100% 50% / 0.5),
+      0 0 40px hsl(190 100% 50% / 0.3);
+  }
+
   /* Tech shadow for cards */
   .shadow-soft {
     box-shadow: 
-      0 4px 20px -4px hsl(190 100% 50% / 0.15),
-      0 0 1px hsl(var(--border));
+      0 4px 20px -4px hsl(190 100% 50% / 0.2),
+      0 0 1px hsl(190 100% 50% / 0.3);
   }
 
   .shadow-soft-lg {
     box-shadow: 
-      0 8px 30px -8px hsl(190 100% 50% / 0.2),
-      0 0 1px hsl(var(--border));
+      0 8px 30px -8px hsl(190 100% 50% / 0.25),
+      0 0 1px hsl(190 100% 50% / 0.3);
   }
 
   /* Text glow for headings */
