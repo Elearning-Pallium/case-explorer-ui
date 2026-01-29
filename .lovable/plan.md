@@ -1,162 +1,196 @@
 
-## Hi-Tech Sci-Fi UI Reskin
+## Hi-Tech UI Enhancement: Glows, Shapes, and Light Gradient
 
-### Color Palette (Extracted from Reference)
+### Problem Summary
+
+1. **Glows not visible**: The `.glow-cyan` utilities exist but aren't applied to any components
+2. **GUI shapes need updating**: Buttons, tabs, cards need angular/beveled hi-tech shapes
+3. **Background flip requested**: Dark → Light gradient background with inverted text colors
+
+---
+
+### Color Palette (Light Mode with Hi-Tech Styling)
 
 ```text
-Primary Cyan:     #00D4FF (bright glow, buttons, accents)
-Secondary Cyan:   #0099CC (dimmer interactive elements)
-Dark Background:  #0A1628 (main background)
-Panel Background: #0D1B2A (cards, panels)
-Tech Border:      #1A3A5C (borders, dividers)
-Text Primary:     #E0F4FF (main text, near-white)
-Text Secondary:   #6B8FAD (muted text)
-Warning Accent:   #FF6B35 (alerts, notifications)
-Success Glow:     #00FF88 (completions, correct answers)
+Background Gradient:  #E8F4F8 → #D0E8EF (light cyan-tinted)
+Card Background:      #F0F8FA (very light cyan panel)
+Primary Cyan:         #00D4FF (bright glow, accents)
+Secondary Cyan:       #0099CC (interactive elements)
+Text Primary:         #0A1628 (dark navy text)
+Text Secondary:       #4A6B7A (muted text)
+Tech Border:          #00D4FF33 (translucent cyan)
+Success Glow:         #00FF88
+Warning Accent:       #FF6B35
 ```
 
 ---
 
-### Implementation Approach
-
-This is a **CSS-only reskin** that changes the design system variables without touching component logic.
+### Implementation Plan
 
 #### File 1: `src/index.css`
 
-Replace the entire color system with hi-tech theme:
+**Changes:**
+- Flip `:root` to light gradient theme
+- Flip `.dark` to maintain dark option
+- Add light-mode glow utilities (more visible on light backgrounds)
+- Add tech-frame corner bracket decorations
+- Add angular clip-path shapes for buttons
 
-**Light Mode (becomes the new default):**
-- Dark blue-black backgrounds
-- Cyan glow accents
-- High-contrast white text
-
-**Dark Mode:**
-- Even darker backgrounds
-- Brighter glows
-- Same cyan palette, increased intensity
-
-**New Utility Classes:**
-- `.glow-cyan` - Adds cyan box-shadow glow
-- `.tech-border` - Angled corner clip-path effect
-- `.scanline` - Subtle animated scanline overlay
-- `.pulse-glow` - Pulsing glow animation for active elements
-
-#### File 2: `tailwind.config.ts`
-
-Add new animations:
-- `glow-pulse` - Subtle glow breathing effect
-- `scan` - Horizontal scanline animation
-- `flicker` - Occasional flicker for tech feel
-
----
-
-### What Changes Visually
-
-| Component | Before | After |
-|-----------|--------|-------|
-| HUD Header | Dark purple bg | Dark navy with cyan border-bottom glow |
-| Cards | White bg, purple border | Dark panel bg, cyan border glow |
-| Buttons | Orange accent | Cyan glow with hover pulse |
-| Progress bars | Purple fill | Cyan gradient with glow |
-| Badges | Orange/purple | Cyan outline with glow |
-| Text | Dark purple | Near-white cyan tint |
-| Background | Light purple (#FBFAFD) | Dark navy (#0A1628) |
-
----
-
-### What Stays the Same
-
-- All React component structure
-- State management (GameContext)
-- Scoring logic
-- SCORM/xAPI integration
-- Content JSON structure
-- Navigation flow
-- Accessibility features (ARIA labels, focus states)
-
----
-
-### Technical Details
-
-#### CSS Variable Mapping
-
+**New/Enhanced Utilities:**
 ```css
-:root {
-  /* Hi-Tech Theme - Force dark aesthetic */
-  --background: 215 60% 10%;      /* #0A1628 */
-  --foreground: 200 100% 94%;     /* #E0F4FF */
-  
-  --primary: 190 100% 50%;        /* #00D4FF */
-  --primary-foreground: 215 60% 6%;
-  
-  --secondary: 210 55% 15%;       /* Dark panel */
-  --secondary-foreground: 200 100% 94%;
-  
-  --accent: 190 100% 50%;         /* Cyan glow */
-  --accent-foreground: 215 60% 6%;
-  
-  --card: 210 55% 12%;            /* #0D1B2A */
-  --card-foreground: 200 100% 94%;
-  
-  --border: 210 55% 23%;          /* #1A3A5C */
-  
-  /* Gamification tokens */
-  --success: 155 100% 50%;        /* #00FF88 */
-  --warning: 16 100% 60%;         /* #FF6B35 */
-  --highlight: 190 80% 15%;       /* Dark cyan tint */
+/* Angular button shape */
+.btn-tech {
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+/* Corner brackets for panels */
+.tech-corners::before,
+.tech-corners::after {
+  content: "";
+  position: absolute;
+  border: 2px solid hsl(var(--primary));
+  /* Creates L-shaped corner brackets */
+}
+
+/* Enhanced glow for light backgrounds */
+.glow-cyan-light {
+  box-shadow: 
+    0 0 20px hsl(190 100% 50% / 0.4),
+    0 0 40px hsl(190 100% 50% / 0.25),
+    inset 0 0 10px hsl(190 100% 50% / 0.1);
 }
 ```
 
-#### New Glow Utilities
+#### File 2: `src/components/ui/button.tsx`
 
-```css
-.glow-cyan {
-  box-shadow: 
-    0 0 10px hsl(190 100% 50% / 0.3),
-    0 0 20px hsl(190 100% 50% / 0.2),
-    0 0 40px hsl(190 100% 50% / 0.1);
-}
+**Changes:**
+- Add hi-tech variant with angular shape + glow
+- Apply `clip-path` for beveled corners
+- Add hover glow animation
+- Maintain existing variants for compatibility
 
-.tech-border {
-  border: 1px solid hsl(var(--border));
-  box-shadow: 
-    inset 0 0 20px hsl(190 100% 50% / 0.05),
-    0 0 15px hsl(190 100% 50% / 0.1);
-}
+**New Variant:**
+```tsx
+tech: "bg-primary text-primary-foreground glow-cyan hover:glow-cyan-intense btn-tech border border-primary/50"
 ```
 
+#### File 3: `src/components/ui/card.tsx`
+
+**Changes:**
+- Add `tech-border` class by default
+- Add optional corner bracket decorations
+- Apply subtle inner glow on hover
+
+#### File 4: `src/components/ui/tabs.tsx`
+
+**Changes:**
+- Restyle `TabsList` with tech border and inner glow
+- Make `TabsTrigger` active state show cyan glow
+- Add angular bottom border for active tab indicator
+
+#### File 5: `src/components/ui/badge.tsx`
+
+**Changes:**
+- Add `tech` variant with angular shape and subtle glow
+- Maintain rounded default for compatibility
+
+#### File 6: `tailwind.config.ts`
+
+**Changes:**
+- Add `btn-tech` plugin for clip-path utility
+- Add `glow-hover` animation for interactive elements
+
 ---
 
-### Risk Assessment
+### Visual Comparison
 
-| Aspect | Risk Level | Reason |
-|--------|------------|--------|
-| CSS Variables | None | Just value changes |
-| Component Logic | None | No code changes |
-| Tailwind Classes | None | Same class names, new values |
-| Animations | Low | Additive only |
-| Accessibility | Low | Same contrast ratios maintained |
-| Browser Support | None | Standard CSS features |
+| Element | Before | After |
+|---------|--------|-------|
+| **Background** | Dark navy (#0A1628) | Light cyan gradient (#E8F4F8 → #D0E8EF) |
+| **Text** | Light cyan (#E0F4FF) | Dark navy (#0A1628) |
+| **Cards** | Dark panel, subtle border | Light panel, cyan glow border, corner brackets |
+| **Buttons** | Rounded, cyan bg | Angular/beveled, glow effect on hover |
+| **Tabs** | Rounded, muted bg | Angular, cyan border-bottom when active |
+| **Badges** | Rounded pill | Angular with subtle glow |
+| **HUD Header** | Solid cyan bg | Gradient with bottom glow line |
 
 ---
 
-### Optional Enhancements (Not Required)
+### Safety Assessment
 
-These could be added later if desired:
-
-1. **Scanline overlay** - Subtle animated horizontal lines
-2. **Corner brackets** - Tech frame decorations on cards
-3. **Typing effect** - For text reveals
-4. **Sound effects** - UI feedback sounds
-5. **Particle effects** - Background ambient particles
+| Component | Risk | Notes |
+|-----------|------|-------|
+| CSS Variables | None | Value changes only |
+| Button variants | Low | New variant added, existing preserved |
+| Card styling | Low | Additional classes, base preserved |
+| Tabs styling | Low | Class changes only |
+| State management | None | No changes |
+| Business logic | None | No changes |
+| SCORM/xAPI | None | No changes |
 
 ---
 
 ### Files Modified
 
 ```text
-src/index.css          ← Full color palette replacement + new utilities
-tailwind.config.ts     ← New animation keyframes
+src/index.css               ← Color flip + new utilities
+src/components/ui/button.tsx  ← Add tech variant + glow
+src/components/ui/card.tsx    ← Add tech-border + corners
+src/components/ui/tabs.tsx    ← Angular styling + active glow
+src/components/ui/badge.tsx   ← Add tech variant
+tailwind.config.ts          ← New animation/utility classes
 ```
 
-No other files need modification - the semantic Tailwind classes (`bg-primary`, `text-accent`, etc.) automatically pick up the new values.
+---
+
+### Technical Details
+
+#### Gradient Background Implementation
+```css
+body {
+  background: linear-gradient(135deg, #E8F4F8 0%, #D0E8EF 50%, #C5E3EC 100%);
+}
+```
+
+#### Angular Button Clip-Path
+```css
+.btn-tech {
+  clip-path: polygon(
+    8px 0,           /* top-left beveled */
+    100% 0,          /* top-right */
+    100% calc(100% - 8px),  /* bottom-right beveled */
+    calc(100% - 8px) 100%,  /* bottom-right corner */
+    0 100%,          /* bottom-left */
+    0 8px            /* top-left corner */
+  );
+}
+```
+
+#### Corner Bracket Decorations
+```css
+.tech-corners {
+  position: relative;
+}
+
+.tech-corners::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  border-top: 2px solid hsl(var(--primary));
+  border-left: 2px solid hsl(var(--primary));
+}
+
+.tech-corners::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  border-bottom: 2px solid hsl(var(--primary));
+  border-right: 2px solid hsl(var(--primary));
+}
+```
