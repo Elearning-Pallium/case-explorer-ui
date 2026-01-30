@@ -4,6 +4,7 @@ import {
   validateMCQOptionCount, 
   validateSimulacrumQuestionCount 
 } from "./mcq-validation";
+import { buildContentUrl } from "./base-url";
 
 /**
  * Content load result - environment-aware
@@ -77,7 +78,9 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
   const isDev = import.meta.env.DEV;
   
   try {
-    const response = await fetch(`/content/${caseId}.json`);
+    const url = buildContentUrl(`content/${caseId}.json`);
+    console.log(`[Content Loader] Fetching case from: ${url}`);
+    const response = await fetch(url);
     
     if (!response.ok) {
       const error = `Case file not found: ${caseId}`;
@@ -147,7 +150,9 @@ export async function loadSimulacrum(levelId: string): Promise<ContentLoadResult
   const isDev = import.meta.env.DEV;
   
   try {
-    const response = await fetch(`/content/simulacrum-${levelId}.json`);
+    const url = buildContentUrl(`content/simulacrum-${levelId}.json`);
+    console.log(`[Content Loader] Fetching simulacrum from: ${url}`);
+    const response = await fetch(url);
     
     if (!response.ok) {
       const error = `Simulacrum file not found: ${levelId}`;
