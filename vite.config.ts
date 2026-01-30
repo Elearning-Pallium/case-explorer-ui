@@ -5,6 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: './', // Required for SCORM - all asset paths must be relative
   server: {
     host: "::",
     port: 8080,

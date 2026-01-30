@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- IMS Content Packaging Schema v1.1.2 - Simplified for SCORM 1.2 -->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+            xmlns:xml="http://www.w3.org/XML/1998/namespace"
+            targetNamespace="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+            elementFormDefault="qualified"
+            version="IMS CP 1.1.2">
+
+  <xsd:import namespace="http://www.w3.org/XML/1998/namespace" schemaLocation="ims_xml.xsd"/>
+
+  <xsd:element name="manifest" type="manifestType"/>
+
+  <xsd:complexType name="manifestType">
+    <xsd:sequence>
+      <xsd:element ref="metadata" minOccurs="0"/>
+      <xsd:element ref="organizations"/>
+      <xsd:element ref="resources"/>
+      <xsd:element ref="manifest" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="identifier" type="xsd:ID" use="required"/>
+    <xsd:attribute name="version" type="xsd:string"/>
+    <xsd:attribute ref="xml:base"/>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+  <xsd:element name="metadata" type="metadataType"/>
+
+  <xsd:complexType name="metadataType">
+    <xsd:sequence>
+      <xsd:element ref="schema" minOccurs="0"/>
+      <xsd:element ref="schemaversion" minOccurs="0"/>
+      <xsd:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+  <xsd:element name="schema" type="xsd:string"/>
+  <xsd:element name="schemaversion" type="xsd:string"/>
+
+  <xsd:element name="organizations" type="organizationsType"/>
+
+  <xsd:complexType name="organizationsType">
+    <xsd:sequence>
+      <xsd:element ref="organization" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="default" type="xsd:IDREF"/>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+  <xsd:element name="organization" type="organizationType"/>
+
+  <xsd:complexType name="organizationType">
+    <xsd:sequence>
+      <xsd:element ref="title" minOccurs="0"/>
+      <xsd:element ref="item" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="metadata" minOccurs="0"/>
+    </xsd:sequence>
+    <xsd:attribute name="identifier" type="xsd:ID" use="required"/>
+    <xsd:attribute name="structure" type="xsd:string"/>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+  <xsd:element name="item" type="itemType"/>
+
+  <xsd:complexType name="itemType">
+    <xsd:sequence>
+      <xsd:element ref="title" minOccurs="0"/>
+      <xsd:element ref="item" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="metadata" minOccurs="0"/>
+      <xsd:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="identifier" type="xsd:ID" use="required"/>
+    <xsd:attribute name="identifierref" type="xsd:string"/>
+    <xsd:attribute name="isvisible" type="xsd:boolean" default="true"/>
+    <xsd:attribute name="parameters" type="xsd:string"/>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+  <xsd:element name="title" type="xsd:string"/>
+
+  <xsd:element name="resources" type="resourcesType"/>
+
+  <xsd:complexType name="resourcesType">
+    <xsd:sequence>
+      <xsd:element ref="resource" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute ref="xml:base"/>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+  <xsd:element name="resource" type="resourceType"/>
+
+  <xsd:complexType name="resourceType">
+    <xsd:sequence>
+      <xsd:element ref="metadata" minOccurs="0"/>
+      <xsd:element ref="file" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="dependency" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="identifier" type="xsd:ID" use="required"/>
+    <xsd:attribute name="type" type="xsd:string" use="required"/>
+    <xsd:attribute name="href" type="xsd:string"/>
+    <xsd:attribute ref="xml:base"/>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+  <xsd:element name="file" type="fileType"/>
+
+  <xsd:complexType name="fileType">
+    <xsd:sequence>
+      <xsd:element ref="metadata" minOccurs="0"/>
+    </xsd:sequence>
+    <xsd:attribute name="href" type="xsd:string" use="required"/>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+  <xsd:element name="dependency" type="dependencyType"/>
+
+  <xsd:complexType name="dependencyType">
+    <xsd:attribute name="identifierref" type="xsd:string" use="required"/>
+    <xsd:anyAttribute namespace="##other" processContents="lax"/>
+  </xsd:complexType>
+
+</xsd:schema>

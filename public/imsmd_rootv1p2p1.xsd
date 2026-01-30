@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- IMS Metadata Schema v1.2.1 - Simplified for SCORM 1.2 -->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns="http://www.imsglobal.org/xsd/imsmd_rootv1p2p1"
+            targetNamespace="http://www.imsglobal.org/xsd/imsmd_rootv1p2p1"
+            elementFormDefault="qualified"
+            version="IMS MD 1.2.1">
+
+  <xsd:element name="lom" type="lomType"/>
+
+  <xsd:complexType name="lomType">
+    <xsd:sequence>
+      <xsd:element ref="general" minOccurs="0"/>
+      <xsd:element ref="lifecycle" minOccurs="0"/>
+      <xsd:element ref="metametadata" minOccurs="0"/>
+      <xsd:element ref="technical" minOccurs="0"/>
+      <xsd:element ref="educational" minOccurs="0"/>
+      <xsd:element ref="rights" minOccurs="0"/>
+      <xsd:element ref="relation" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="annotation" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="classification" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="general" type="generalType"/>
+  <xsd:complexType name="generalType">
+    <xsd:sequence>
+      <xsd:element name="identifier" type="xsd:string" minOccurs="0"/>
+      <xsd:element ref="title" minOccurs="0"/>
+      <xsd:element ref="catalogentry" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="language" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="description" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="keyword" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="coverage" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element ref="structure" minOccurs="0"/>
+      <xsd:element ref="aggregationlevel" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="title" type="langstringType"/>
+  <xsd:element name="catalogentry" type="catalogentryType"/>
+  <xsd:element name="language" type="xsd:string"/>
+  <xsd:element name="description" type="langstringType"/>
+  <xsd:element name="keyword" type="langstringType"/>
+  <xsd:element name="coverage" type="langstringType"/>
+  <xsd:element name="structure" type="vocabularyType"/>
+  <xsd:element name="aggregationlevel" type="vocabularyType"/>
+
+  <xsd:complexType name="langstringType">
+    <xsd:sequence>
+      <xsd:element name="langstring" type="xsd:string" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="catalogentryType">
+    <xsd:sequence>
+      <xsd:element name="catalog" type="xsd:string"/>
+      <xsd:element name="entry" type="langstringType"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="vocabularyType">
+    <xsd:sequence>
+      <xsd:element name="source" type="langstringType"/>
+      <xsd:element name="value" type="langstringType"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="lifecycle" type="lifecycleType"/>
+  <xsd:complexType name="lifecycleType">
+    <xsd:sequence>
+      <xsd:element name="version" type="langstringType" minOccurs="0"/>
+      <xsd:element name="status" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="contribute" type="contributeType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="contributeType">
+    <xsd:sequence>
+      <xsd:element name="role" type="vocabularyType"/>
+      <xsd:element name="centity" type="centityType" maxOccurs="unbounded"/>
+      <xsd:element name="date" type="dateType" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="centityType">
+    <xsd:sequence>
+      <xsd:element name="vcard" type="xsd:string"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="dateType">
+    <xsd:sequence>
+      <xsd:element name="datetime" type="xsd:string" minOccurs="0"/>
+      <xsd:element name="description" type="langstringType" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="metametadata" type="metametadataType"/>
+  <xsd:complexType name="metametadataType">
+    <xsd:sequence>
+      <xsd:element name="identifier" type="xsd:string" minOccurs="0"/>
+      <xsd:element name="catalogentry" type="catalogentryType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="contribute" type="contributeType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="metadatascheme" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="language" type="xsd:string" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="technical" type="technicalType"/>
+  <xsd:complexType name="technicalType">
+    <xsd:sequence>
+      <xsd:element name="format" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="size" type="xsd:string" minOccurs="0"/>
+      <xsd:element name="location" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="requirement" type="requirementType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="installationremarks" type="langstringType" minOccurs="0"/>
+      <xsd:element name="otherplatformrequirements" type="langstringType" minOccurs="0"/>
+      <xsd:element name="duration" type="durationformatType" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="requirementType">
+    <xsd:sequence>
+      <xsd:element name="type" type="vocabularyType"/>
+      <xsd:element name="name" type="vocabularyType"/>
+      <xsd:element name="minimumversion" type="xsd:string" minOccurs="0"/>
+      <xsd:element name="maximumversion" type="xsd:string" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="durationformatType">
+    <xsd:sequence>
+      <xsd:element name="datetime" type="xsd:string" minOccurs="0"/>
+      <xsd:element name="description" type="langstringType" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="educational" type="educationalType"/>
+  <xsd:complexType name="educationalType">
+    <xsd:sequence>
+      <xsd:element name="interactivitytype" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="learningresourcetype" type="vocabularyType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="interactivitylevel" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="semanticdensity" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="intendedenduserrole" type="vocabularyType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="context" type="vocabularyType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="typicalagerange" type="langstringType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="difficulty" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="typicallearningtime" type="durationformatType" minOccurs="0"/>
+      <xsd:element name="description" type="langstringType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="language" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="rights" type="rightsType"/>
+  <xsd:complexType name="rightsType">
+    <xsd:sequence>
+      <xsd:element name="cost" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="copyrightandotherrestrictions" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="description" type="langstringType" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="relation" type="relationType"/>
+  <xsd:complexType name="relationType">
+    <xsd:sequence>
+      <xsd:element name="kind" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="resource" type="resourceType" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="resourceType">
+    <xsd:sequence>
+      <xsd:element name="identifier" type="xsd:string" minOccurs="0"/>
+      <xsd:element name="description" type="langstringType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="catalogentry" type="catalogentryType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="annotation" type="annotationType"/>
+  <xsd:complexType name="annotationType">
+    <xsd:sequence>
+      <xsd:element name="person" type="xsd:string" minOccurs="0"/>
+      <xsd:element name="date" type="dateType" minOccurs="0"/>
+      <xsd:element name="description" type="langstringType" minOccurs="0"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:element name="classification" type="classificationType"/>
+  <xsd:complexType name="classificationType">
+    <xsd:sequence>
+      <xsd:element name="purpose" type="vocabularyType" minOccurs="0"/>
+      <xsd:element name="taxonpath" type="taxonpathType" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="description" type="langstringType" minOccurs="0"/>
+      <xsd:element name="keyword" type="langstringType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="taxonpathType">
+    <xsd:sequence>
+      <xsd:element name="source" type="langstringType" minOccurs="0"/>
+      <xsd:element name="taxon" type="taxonType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="taxonType">
+    <xsd:sequence>
+      <xsd:element name="id" type="xsd:string" minOccurs="0"/>
+      <xsd:element name="entry" type="langstringType" minOccurs="0"/>
+      <xsd:element name="taxon" type="taxonType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+</xsd:schema>
