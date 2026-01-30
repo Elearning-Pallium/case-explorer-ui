@@ -1,55 +1,78 @@
 
 
-## Fix Missing `build:scorm` Script
+## Fix SCORM 404 Error in Moodle
 
-### Problem
+### Problem Identified
 
-The `package.json` is missing the `build:scorm` script entry. The file shows:
-- `archiver` dependency is correctly installed (line 45)
-- `scripts/build-scorm.js` file exists
+The `index.html` file contains an **absolute path** for the main script:
 
-But the scripts section (lines 6-14) doesn't include the `build:scorm` command.
-
-### Solution
-
-Add the missing script to `package.json`:
-
-```json
-"scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "build:dev": "vite build --mode development",
-  "build:scorm": "node scripts/build-scorm.js",
-  "lint": "eslint .",
-  "preview": "vite preview",
-  "test": "vitest run",
-  "test:watch": "vitest"
-}
+```html
+<script type="module" src="/src/main.tsx"></script>
 ```
 
-### Files to Modify
+The leading `/` creates an absolute path that doesn't work inside the Moodle SCORM player. When Moodle serves the SCORM content, it looks for `/src/main.tsx` at the server root instead of within the SCORM package directory.
 
-**`package.json`**
-- Add `"build:scorm": "node scripts/build-scorm.js"` to the scripts section
-
-### After the Fix
-
-Run these commands in your terminal:
-
-```bash
-npm install
-npm run build:scorm
-```
-
-This will:
-1. Run the Vite build
-2. Verify schema files are present
-3. Update the manifest with all built files
-4. Create `scorm-package.zip` ready for Moodle upload
+Additionally, Vite transforms this during build - but the source file reference needs to be compatible.
 
 ---
 
-### Technical Note
+### Root Cause Analysis
 
-This is a single-line addition to `package.json`. No other files need changes - the build script and all dependencies are already in place.
+| Issue | Current | Required |
+|-------|---------|----------|
+| Script path in `index.html` | `/src/main.tsx` (absolute) | `./src/main.tsx` (relative) |
+| Vite base config | `'./'` (correct) | Already correct |
+| Build output | Uses relative paths | Should work after HTML fix |
+
+When Vite builds with `base: './'`, it transforms all asset references to relative paths. However, the source `index.html` must also use relative paths for the dev-to-production transformation to work correctly in SCORM contexts.
+
+---
+
+### Solution
+
+**Modify `index.html`** - Change the script source from absolute to relative:
+
+```html
+<!-- Before -->
+<script type="module" src="/src/main.tsx"></script>
+
+<!-- After -->
+<script type="module" src="./src/main.tsx"></script>
+```
+
+---
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `index.html` | Line 17: Change `/src/main.tsx` to `./src/main.tsx` |
+
+---
+
+### After the Fix
+
+1. Rebuild the SCORM package:
+   ```bash
+   npm run build:scorm
+   ```
+
+2. Re-upload `scorm-package.zip` to Moodle
+
+3. The content should now load correctly
+
+---
+
+### Verification Steps
+
+After uploading to Moodle:
+1. Open browser dev tools (F12)
+2. Check the Network tab for 404 errors
+3. Verify `index.html` loads the JS bundle with a relative path like `./assets/index-xxxxx.js`
+
+---
+
+### Why This Happens
+
+SCORM packages are served from a dynamic path in Moodle (e.g., `/mod/scorm/player.php?...`). Absolute paths starting with `/` resolve to the Moodle server root, not the SCORM package directory. Relative paths (starting with `./`) resolve correctly relative to `index.html` inside the package.
 
