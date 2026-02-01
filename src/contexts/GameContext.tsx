@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef, ReactNode } from "react";
 import { stateManager, SerializedState, STATE_VERSION } from "@/lib/state-manager";
 import { tabLockManager } from "@/lib/tab-lock-manager";
+import { scormAPI } from "@/lib/scorm-api";
+import { initializeAnalytics, analyticsTerminate } from "@/lib/analytics-service";
 import { 
   BADGE_DEFAULTS, 
   MCQ_SCORING, 
@@ -401,9 +403,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const lastActionRef = useRef<GameAction["type"] | null>(null);
   const isInitializedRef = useRef(false);
 
-  // Initialize StateManager and TabLockManager on mount
+  // Initialize StateManager, TabLockManager, and Analytics on mount
   useEffect(() => {
     async function init() {
+      // Initialize SCORM first
+      const scormReady = await scormAPI.initialize();
+      
+      if (scormReady) {
+        console.log('[GameProvider] SCORM initialized');
+      } else {
+        console.log('[GameProvider] SCORM not available (standalone mode)');
+      }
+      
+      // Initialize analytics AFTER SCORM (this gates xAPI calls with learner identity)
+      initializeAnalytics();
+      console.log('[GameProvider] Analytics initialized');
+      
       await stateManager.initialize();
       
       // Acquire lock for this tab
@@ -445,9 +460,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
     });
     
+    // Cleanup on unmount
     return () => {
       unsubscribe();
       tabLockManager.releaseLock();
+      analyticsTerminate();
     };
   }, []);
 
