@@ -6,7 +6,7 @@
   "title": "Adam's Journey: Wound Assessment & Hemorrhage Risk",
   "patientBaseline": {
     "name": "Adam",
-    "age": 68,
+    "age": 72,
     "diagnosis": "Recurrent squamous cell carcinoma of jaw",
     "livingSituation": "Living at home with family",
     "ppsScore": 40,
@@ -19,7 +19,7 @@
     "title": "About Adam",
     "narrative": "Adam lives at home with his family. He's a quiet man who doesn't take up much space. When things feel tense, he goes still and looks away, as if waiting for the moment to pass. His son stays close, watching carefully. His daughter-in-law fills silences with quick apologies, trying to keep the room steady.\n\nHome is both familiar and crowded, with attention always pulled toward small changes and what they might mean. The family wants to do the right thing, but they don't always agree on what \"right\" looks like.\n\nThis is where your involvement in his care begins.",
     "imageUrl": "/placeholder.svg",
-    "imageAlt": "Portrait of Adam, a 68-year-old man",
+    "imageAlt": "Portrait of Adam, a 72-year-old man",
     "caption": "Adam at home with his family"
   },
   "openingScene": {
