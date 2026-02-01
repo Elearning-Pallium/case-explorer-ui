@@ -54,42 +54,42 @@ export function PatientHeader({ patient }: PatientHeaderProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Diagnosis */}
               <div className="flex items-start gap-3 rounded-lg bg-sidebar-accent p-3">
-                <Activity className="h-5 w-5 mt-0.5 text-primary-foreground dark:text-primary" />
+                <Activity className="h-5 w-5 mt-0.5 text-primary dark:text-primary-foreground" />
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-primary-foreground/75">Diagnosis</p>
-                  <p className="text-sm font-medium text-primary-foreground">{patient.diagnosis}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-foreground/75 dark:text-primary-foreground/75">Diagnosis</p>
+                  <p className="text-sm font-medium text-foreground dark:text-primary-foreground">{patient.diagnosis}</p>
                 </div>
               </div>
 
               {/* Living Situation */}
               <div className="flex items-start gap-3 rounded-lg bg-sidebar-accent p-3">
-                <Home className="h-5 w-5 mt-0.5 text-primary-foreground dark:text-primary" />
+                <Home className="h-5 w-5 mt-0.5 text-primary dark:text-primary-foreground" />
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-primary-foreground/75">Living Situation</p>
-                  <p className="text-sm font-medium text-primary-foreground">{patient.livingSituation}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-foreground/75 dark:text-primary-foreground/75">Living Situation</p>
+                  <p className="text-sm font-medium text-foreground dark:text-primary-foreground">{patient.livingSituation}</p>
                 </div>
               </div>
 
               {/* PPS Score */}
               <div className="flex items-start gap-3 rounded-lg bg-sidebar-accent p-3">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground dark:bg-accent dark:text-accent-foreground">
                   %
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-primary-foreground/75">PPS Score</p>
-                  <p className="text-sm font-medium text-primary-foreground">{patient.ppsScore}%</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-foreground/75 dark:text-primary-foreground/75">PPS Score</p>
+                  <p className="text-sm font-medium text-foreground dark:text-primary-foreground">{patient.ppsScore}%</p>
                 </div>
               </div>
 
               {/* Additional Info */}
               {patient.additionalInfo && Object.keys(patient.additionalInfo).length > 0 && (
                 <div className="flex items-start gap-3 rounded-lg bg-sidebar-accent p-3">
-                  <Pill className="h-5 w-5 mt-0.5 text-primary-foreground dark:text-primary" />
+                  <Pill className="h-5 w-5 mt-0.5 text-primary dark:text-primary-foreground" />
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-primary-foreground/75">
+                    <p className="text-xs font-medium uppercase tracking-wide text-foreground/75 dark:text-primary-foreground/75">
                       {Object.keys(patient.additionalInfo)[0]}
                     </p>
-                    <p className="text-sm font-medium text-primary-foreground">
+                    <p className="text-sm font-medium text-foreground dark:text-primary-foreground">
                       {Object.values(patient.additionalInfo)[0]}
                     </p>
                   </div>
