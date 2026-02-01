@@ -1,78 +1,41 @@
 
+# Fix Patient Header Card Text Contrast
 
-## Fix SCORM 404 Error in Moodle
+## Problem
+The text in the patient info cards (Diagnosis, Living Situation, PPS Score, Care Context) has incorrect color contrast:
+- **Light mode**: Text is currently white on a light background (hard to read)
+- **Dark mode**: Text should be white on the dark background
 
-### Problem Identified
+## Root Cause
+The cards use `bg-sidebar-accent` which is:
+- Light mode: `hsl(200 35% 90%)` - a light grayish color
+- Dark mode: `hsl(210 50% 15%)` - a dark blue color
 
-The `index.html` file contains an **absolute path** for the main script:
+The current `text-primary-foreground` class applies white text in both modes, which only works in dark mode.
 
-```html
-<script type="module" src="/src/main.tsx"></script>
-```
+## Solution
+Update the text and icon colors to be theme-aware:
+- **Light mode**: Use dark text (`text-foreground` or explicit dark color)
+- **Dark mode**: Use white text (`dark:text-white` or `dark:text-primary-foreground`)
 
-The leading `/` creates an absolute path that doesn't work inside the Moodle SCORM player. When Moodle serves the SCORM content, it looks for `/src/main.tsx` at the server root instead of within the SCORM package directory.
+## File Changes
 
-Additionally, Vite transforms this during build - but the source file reference needs to be compatible.
+### `src/components/PatientHeader.tsx`
 
----
+Update the four info cards to use conditional dark/light text colors:
 
-### Root Cause Analysis
+**Icons** (Activity, Home, Pill):
+- Change from: `text-primary-foreground dark:text-primary`
+- Change to: `text-primary dark:text-primary-foreground`
 
-| Issue | Current | Required |
-|-------|---------|----------|
-| Script path in `index.html` | `/src/main.tsx` (absolute) | `./src/main.tsx` (relative) |
-| Vite base config | `'./'` (correct) | Already correct |
-| Build output | Uses relative paths | Should work after HTML fix |
+**Label text** (Diagnosis, Living Situation, etc.):
+- Change from: `text-primary-foreground/75`
+- Change to: `text-foreground/75 dark:text-primary-foreground/75`
 
-When Vite builds with `base: './'`, it transforms all asset references to relative paths. However, the source `index.html` must also use relative paths for the dev-to-production transformation to work correctly in SCORM contexts.
+**Value text** (the actual patient data):
+- Change from: `text-primary-foreground`
+- Change to: `text-foreground dark:text-primary-foreground`
 
----
-
-### Solution
-
-**Modify `index.html`** - Change the script source from absolute to relative:
-
-```html
-<!-- Before -->
-<script type="module" src="/src/main.tsx"></script>
-
-<!-- After -->
-<script type="module" src="./src/main.tsx"></script>
-```
-
----
-
-### Files to Modify
-
-| File | Change |
-|------|--------|
-| `index.html` | Line 17: Change `/src/main.tsx` to `./src/main.tsx` |
-
----
-
-### After the Fix
-
-1. Rebuild the SCORM package:
-   ```bash
-   npm run build:scorm
-   ```
-
-2. Re-upload `scorm-package.zip` to Moodle
-
-3. The content should now load correctly
-
----
-
-### Verification Steps
-
-After uploading to Moodle:
-1. Open browser dev tools (F12)
-2. Check the Network tab for 404 errors
-3. Verify `index.html` loads the JS bundle with a relative path like `./assets/index-xxxxx.js`
-
----
-
-### Why This Happens
-
-SCORM packages are served from a dynamic path in Moodle (e.g., `/mod/scorm/player.php?...`). Absolute paths starting with `/` resolve to the Moodle server root, not the SCORM package directory. Relative paths (starting with `./`) resolve correctly relative to `index.html` inside the package.
-
+This ensures:
+- Light mode: Dark text on light sidebar-accent background
+- Dark mode: White text on dark sidebar-accent background
