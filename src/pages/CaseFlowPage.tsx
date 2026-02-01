@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { HUD } from "@/components/HUD";
 import { PatientHeader } from "@/components/PatientHeader";
@@ -19,7 +19,8 @@ import { loadCase, loadSimulacrum, isContentLoadError, hasStubFallback } from "@
 import type { Case, JITResource, Simulacrum } from "@/lib/content-schema";
 import { stubCase, stubSimulacrum } from "@/lib/stub-data";
 import { buildBadgeRegistry } from "@/lib/badge-registry";
-import { calculateMaxCasePoints, ACTIVITY_POINTS } from "@/lib/scoring-constants";
+import { calculateMaxCasePoints, ACTIVITY_POINTS, MCQ_SCORING } from "@/lib/scoring-constants";
+import { analyticsTrackCaseStart, analyticsTrackCaseComplete } from "@/lib/analytics-service";
 
 // Map phases to JIT placements
 const PHASE_TO_PLACEMENT: Record<CaseFlowPhase, string[]> = {
@@ -41,6 +42,9 @@ export default function CaseFlowPage() {
   const [contentError, setContentError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
+
+  // Session timing for analytics
+  const caseStartTimeRef = useRef<number | null>(null);
 
   // Modal state
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
@@ -116,6 +120,42 @@ export default function CaseFlowPage() {
   const handleRetry = useCallback(() => {
     setLoadAttempt((prev) => prev + 1);
   }, []);
+
+  // Track case start when case data loads
+  useEffect(() => {
+    if (caseData && caseId) {
+      // Set start time for duration tracking
+      caseStartTimeRef.current = Date.now();
+      // Track case start in analytics
+      analyticsTrackCaseStart(caseId, caseData.title || caseId);
+    }
+  }, [caseData, caseId]);
+
+  // Handle case completion with analytics
+  const handleCaseComplete = useCallback(() => {
+    if (!caseId || !caseData) return;
+    
+    // Calculate total MCQ score and max possible
+    const totalMCQScore = state.casePoints;
+    const maxMCQScore = caseData.questions.length * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
+    
+    // Calculate session duration
+    const sessionDurationSeconds = caseStartTimeRef.current
+      ? Math.round((Date.now() - caseStartTimeRef.current) / 1000)
+      : 0;
+    
+    // Track case completion in analytics
+    analyticsTrackCaseComplete(
+      caseId,
+      caseData.title || caseId,
+      totalMCQScore,
+      maxMCQScore,
+      sessionDurationSeconds
+    );
+    
+    // Navigate to completion page
+    navigate(`/completion/${caseId}`);
+  }, [caseId, caseData, state.casePoints, navigate]);
 
   // Build available badges for gallery (only when data is loaded)
   const availableBadges = useMemo(() => {
@@ -316,7 +356,7 @@ export default function CaseFlowPage() {
             {phase === "lived-experience" && (
               <LivedExperienceSection
                 caseId={caseId || ""}
-                onContinue={() => navigate(`/completion/${caseId}`)}
+                onContinue={handleCaseComplete}
                 submittedReflections={submittedReflections}
                 onSubmitReflection={handleSubmitReflection}
               />
