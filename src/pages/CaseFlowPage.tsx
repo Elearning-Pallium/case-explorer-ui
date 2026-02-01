@@ -387,6 +387,7 @@ export default function CaseFlowPage() {
           isCompleted={isJITCompleted}
           onComplete={handleJITComplete}
           onClose={() => setShowJITPanel(false)}
+          caseId={caseId || ""}
         />
       )}
 
