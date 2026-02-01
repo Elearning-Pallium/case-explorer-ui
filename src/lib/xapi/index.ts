@@ -47,3 +47,11 @@ export { VERBS } from './xapi-verbs';
 
 // Activities (for advanced usage)
 export * from './xapi-activities';
+
+// Debug utilities (development only)
+import { attachDebugToWindow } from './xapi-debug';
+export { logXAPIStatus, attachDebugToWindow } from './xapi-debug';
+
+if (import.meta.env.DEV) {
+  attachDebugToWindow();
+}
