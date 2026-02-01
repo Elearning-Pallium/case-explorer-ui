@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { X, BookOpen, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,6 +10,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import type { JITResource } from "@/lib/content-schema";
+import { analyticsTrackJIT } from "@/lib/analytics-service";
 
 interface JITPanelProps {
   resource: JITResource;
@@ -16,6 +18,7 @@ interface JITPanelProps {
   isCompleted: boolean;
   onComplete: () => void;
   onClose: () => void;
+  caseId?: string;
 }
 
 export function JITPanel({
@@ -24,9 +27,35 @@ export function JITPanel({
   isCompleted,
   onComplete,
   onClose,
+  caseId = "",
 }: JITPanelProps) {
+  // Track when JIT was opened for duration calculation
+  const openTimeRef = useRef<number | null>(null);
+  
+  // Set open time when panel opens
+  useEffect(() => {
+    if (isOpen && !openTimeRef.current) {
+      openTimeRef.current = Date.now();
+    } else if (!isOpen) {
+      openTimeRef.current = null;
+    }
+  }, [isOpen]);
+
   const handleMarkComplete = () => {
     if (!isCompleted) {
+      // Track JIT completion with duration
+      const durationSeconds = openTimeRef.current 
+        ? Math.round((Date.now() - openTimeRef.current) / 1000)
+        : 0;
+      
+      analyticsTrackJIT(
+        caseId,
+        resource.id,
+        resource.title,
+        durationSeconds,
+        resource.points
+      );
+      
       onComplete();
     }
   };

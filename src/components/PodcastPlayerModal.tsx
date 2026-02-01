@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, CheckCircle, Clock, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Podcast } from "@/lib/content-schema";
+import { analyticsTrackPodcast } from "@/lib/analytics-service";
 
 interface PodcastPlayerModalProps {
   podcast: Podcast;
@@ -25,8 +26,12 @@ export function PodcastPlayerModal({
   onComplete,
   onClose,
 }: PodcastPlayerModalProps) {
+  // Track when podcast modal was opened
+  const openTimeRef = useRef<number>(Date.now());
+  
   // Mark as in progress when opened
   useEffect(() => {
+    openTimeRef.current = Date.now();
     if (!isCompleted && !isInProgress) {
       onStart();
     }
@@ -34,6 +39,18 @@ export function PodcastPlayerModal({
 
   const handleComplete = () => {
     if (!isCompleted) {
+      // Calculate actual view duration
+      const durationSeconds = Math.round((Date.now() - openTimeRef.current) / 1000);
+      
+      // Track podcast completion
+      analyticsTrackPodcast(
+        caseId,
+        podcast.id,
+        podcast.title,
+        durationSeconds,
+        podcast.points
+      );
+      
       onComplete();
     }
   };
