@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, AlertCircle, FileText, ChevronRight } from "lucide-react";
 import type { MCQQuestion, ChartEntry } from "@/lib/content-schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { analyticsTrackMCQSubmit } from "@/lib/analytics-service";
+import type { MCQAttemptData } from "@/lib/xapi";
 
 type MCQPhase = "stem" | "chart" | "options";
 
@@ -12,12 +14,34 @@ interface MCQComponentProps {
   chartEntries: ChartEntry[];
   onSubmit: (selectedOptions: string[], score: number) => void;
   disabled?: boolean;
+  caseId?: string;
+  caseName?: string;
 }
 
-export function MCQComponent({ question, chartEntries, onSubmit, disabled = false }: MCQComponentProps) {
+export function MCQComponent({ 
+  question, 
+  chartEntries, 
+  onSubmit, 
+  disabled = false,
+  caseId = "",
+  caseName = ""
+}: MCQComponentProps) {
   const [phase, setPhase] = useState<MCQPhase>("stem");
   const [selectedOptions, setSelectedOptions] = useState<Set<string>>(new Set());
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  
+  // Analytics timing state
+  const questionStartTimeRef = useRef<number>(Date.now());
+  const attemptCountRef = useRef<number>(1);
+  
+  // Reset timer and attempt count when question changes
+  useEffect(() => {
+    questionStartTimeRef.current = Date.now();
+    attemptCountRef.current = 1;
+    setPhase("stem");
+    setSelectedOptions(new Set());
+    setHasSubmitted(false);
+  }, [question.id]);
 
   // Filter chart entries for this question
   const questionChartEntries = chartEntries.filter(entry => 
@@ -52,6 +76,43 @@ export function MCQComponent({ question, chartEntries, onSubmit, disabled = fals
       const option = question.options.find((o) => o.id === optId);
       return sum + (option?.score || 0);
     }, 0);
+    
+    // Calculate duration
+    const durationSeconds = Math.round((Date.now() - questionStartTimeRef.current) / 1000);
+    
+    // Determine correct options (those with score === 5)
+    const correctOptionIds = question.options
+      .filter(opt => opt.score === 5)
+      .map(opt => opt.id);
+    
+    // Build analytics data
+    const attemptData: MCQAttemptData = {
+      caseId,
+      caseName,
+      questionId: question.id,
+      questionText: question.stem,
+      questionNumber: question.questionNumber,
+      options: question.options.map(opt => ({
+        id: opt.id,
+        text: opt.text,
+        score: opt.score
+      })),
+      selectedOptionIds: selectedArray,
+      correctOptionIds,
+      score: totalScore,
+      maxScore: 10,
+      attemptNumber: attemptCountRef.current,
+      durationSeconds,
+    };
+    
+    // Track the MCQ attempt
+    analyticsTrackMCQSubmit(attemptData);
+    
+    // If incorrect, increment attempt count and reset timer for potential retry
+    if (totalScore < 10) {
+      attemptCountRef.current += 1;
+      questionStartTimeRef.current = Date.now();
+    }
 
     setHasSubmitted(true);
     onSubmit(selectedArray, totalScore);

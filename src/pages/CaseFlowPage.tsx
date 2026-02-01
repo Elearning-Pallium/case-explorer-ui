@@ -336,6 +336,8 @@ export default function CaseFlowPage() {
                   question={currentQuestion}
                   chartEntries={caseData.chartEntries}
                   onSubmit={submitMCQ}
+                  caseId={caseId || ""}
+                  caseName={caseData.title || caseId || ""}
                 />
               </>
             )}
