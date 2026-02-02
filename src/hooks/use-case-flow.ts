@@ -112,12 +112,18 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
       // Increment attempt count for next try
       setCurrentAttemptCount((prev) => prev + 1);
     } else {
-      // Passing attempt: award points and correct token
-      dispatch({ type: "ADD_POINTS", points: score, category: "case" });
+      // Passing attempt: award correct token
       dispatch({ type: "ADD_CORRECT_TOKEN" });
       
-      // Also award exploratory tokens for any previous failed attempts
-      // (These are already tracked by ADD_EXPLORATORY_TOKEN calls above)
+      // Only award points if we haven't already awarded for this question
+      if (!questionsAwarded.has(currentQuestion.id)) {
+        dispatch({ type: "ADD_POINTS", points: score, category: "case" });
+        setQuestionsAwarded(prev => {
+          const newSet = new Set(prev);
+          newSet.add(currentQuestion.id);
+          return newSet;
+        });
+      }
     }
 
     // Reveal chart entries
