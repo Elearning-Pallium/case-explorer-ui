@@ -48,6 +48,8 @@ export default function CaseFlowPage() {
 
   // Ref for main content area to control scroll position
   const mainContentRef = useRef<HTMLElement>(null);
+  // Ref for feedback panel to scroll it into view
+  const feedbackPanelRef = useRef<HTMLDivElement>(null);
 
   // Modal state
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
@@ -127,13 +129,17 @@ export default function CaseFlowPage() {
     setLoadAttempt((prev) => prev + 1);
   }, []);
 
-  // Scroll main content to top when phase changes
-  // Double requestAnimationFrame ensures React render and browser paint complete
-  // before scrolling - fixes race condition where scroll fires before content renders
+  // Scroll to appropriate position when phase changes
+  // For feedback phase: scroll the ClusterFeedbackPanel into view so the Cluster header is visible
+  // For other phases: scroll main content to top
   useEffect(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        if (phase === "feedback" && feedbackPanelRef.current) {
+          feedbackPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       });
     });
   }, [phase]);
@@ -363,6 +369,7 @@ export default function CaseFlowPage() {
             {/* Feedback Phase */}
             {phase === "feedback" && currentQuestion && (
               <ClusterFeedbackPanel
+                ref={feedbackPanelRef}
                 feedback={currentQuestion.clusterFeedback[lastCluster]}
                 cluster={lastCluster}
                 questionId={currentQuestion.id}
