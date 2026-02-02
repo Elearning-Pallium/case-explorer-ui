@@ -63,6 +63,7 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
     setRevealedChartEntries(CHART_REVEAL.INITIAL_ENTRIES);
     setLastSelectedOptions([]);
     setCurrentAttemptCount(1);
+    setQuestionsAwarded(new Set());
   }, [caseId]);
 
   // Computed value
