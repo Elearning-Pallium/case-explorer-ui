@@ -6,6 +6,45 @@ import {
 } from "./mcq-validation";
 import { buildContentUrl } from "./base-url";
 
+// Normalize relative asset URLs so SCORM/LMS deployments resolve case media correctly.
+const ABSOLUTE_URL_PATTERN = /^(https?:)?\/\//i;
+
+function normalizeAssetUrl(url?: string): string | undefined {
+  if (!url) return url;
+  if (url.startsWith("data:") || url.startsWith("blob:") || ABSOLUTE_URL_PATTERN.test(url)) {
+    return url;
+  }
+  return buildContentUrl(url);
+}
+
+function normalizeCaseAssets(caseData: Case): Case {
+  return {
+    ...caseData,
+    personInContext: {
+      ...caseData.personInContext,
+      imageUrl: normalizeAssetUrl(caseData.personInContext.imageUrl),
+    },
+    openingScene: {
+      ...caseData.openingScene,
+      mediaUrl: normalizeAssetUrl(caseData.openingScene.mediaUrl),
+    },
+    patientPerspective: caseData.patientPerspective
+      ? {
+          ...caseData.patientPerspective,
+          imageUrl: normalizeAssetUrl(caseData.patientPerspective.imageUrl),
+        }
+      : undefined,
+    chartEntries: caseData.chartEntries.map((entry) => ({
+      ...entry,
+      imageUrl: normalizeAssetUrl(entry.imageUrl),
+    })),
+    ipInsights: caseData.ipInsights.map((perspective) => ({
+      ...perspective,
+      imageUrl: normalizeAssetUrl(perspective.imageUrl),
+    })),
+  };
+}
+
 /**
  * Content load result - environment-aware
  * - success: true → valid data loaded
@@ -125,9 +164,11 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
       );
     });
 
+    const normalizedCase = normalizeCaseAssets(parseResult.data);
+
     return { 
       success: true, 
-      data: parseResult.data,
+      data: normalizedCase,
       ...(schemaWarning && { schemaWarning })
     };
   } catch (error) {
