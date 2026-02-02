@@ -8,7 +8,10 @@ import {
   calculateMaxCasePoints,
   calculateClusterFromScore,
   calculateSimulacrumPoints,
+  getIncorrectOptions,
+  isPassingMCQScore,
 } from "../scoring-constants";
+import type { MCQOption } from "../content-schema";
 
 describe("Scoring Constants", () => {
   describe("MCQ_SCORING", () => {
@@ -159,6 +162,37 @@ describe("Scoring Constants", () => {
       expect(calculateSimulacrumPoints(2)).toBe(0);
       expect(calculateSimulacrumPoints(1)).toBe(0);
       expect(calculateSimulacrumPoints(0)).toBe(0);
+    });
+  });
+
+  describe("isPassingMCQScore", () => {
+    it("returns true for perfect score", () => {
+      expect(isPassingMCQScore(10)).toBe(true);
+    });
+
+    it("returns false for non-perfect scores", () => {
+      expect(isPassingMCQScore(7)).toBe(false);
+      expect(isPassingMCQScore(0)).toBe(false);
+    });
+  });
+
+  describe("getIncorrectOptions", () => {
+    const options: MCQOption[] = [
+      { id: "opt-a", label: "A", text: "Option A", score: 5 },
+      { id: "opt-b", label: "B", text: "Option B", score: 1 },
+      { id: "opt-c", label: "C", text: "Option C", score: 2 },
+      { id: "opt-d", label: "D", text: "Option D", score: 1 },
+      { id: "opt-e", label: "E", text: "Option E", score: 5 },
+    ];
+
+    it("returns only selected options with score=1", () => {
+      const incorrect = getIncorrectOptions(options, ["opt-b", "opt-c", "opt-e"]);
+      expect(incorrect.map((opt) => opt.id)).toEqual(["opt-b"]);
+    });
+
+    it("returns empty when no score=1 selections are made", () => {
+      const incorrect = getIncorrectOptions(options, ["opt-a", "opt-c"]);
+      expect(incorrect).toEqual([]);
     });
   });
 });

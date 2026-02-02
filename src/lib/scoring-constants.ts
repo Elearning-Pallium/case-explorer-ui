@@ -1,11 +1,13 @@
 /**
  * Centralized Scoring Constants
- * 
+ *
  * Single source of truth for all scoring-related values.
  * These are GAME LOGIC constants that affect point calculations.
- * 
+ *
  * For UI/display constants, see ui-constants.ts
  */
+
+import type { MCQOption } from "@/lib/content-schema";
 
 /**
  * MCQ Scoring Configuration
@@ -114,4 +116,23 @@ export function calculateSimulacrumPoints(correctCount: number): number {
     return SIMULACRUM_SCORING.PASS_SCORE_POINTS;
   }
   return 0;
+}
+
+/**
+ * Determine if an MCQ score is a passing (perfect) score.
+ */
+export function isPassingMCQScore(score: number): boolean {
+  return score === MCQ_SCORING.MAX_POINTS_PER_QUESTION;
+}
+
+/**
+ * Identify incorrect (score=1) selected options for feedback.
+ */
+export function getIncorrectOptions(
+  options: MCQOption[],
+  selectedOptionIds: string[]
+): MCQOption[] {
+  return options.filter(
+    (option) => selectedOptionIds.includes(option.id) && option.score === 1
+  );
 }

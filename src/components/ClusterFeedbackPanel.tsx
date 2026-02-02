@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Check, Lightbulb, Target, Brain, Search, Shield, AlertTriangle } from "lucide-react";
-import type { ClusterAFeedback, ClusterBFeedback, ClusterCFeedback } from "@/lib/content-schema";
+import type { ClusterAFeedback, ClusterBFeedback, ClusterCFeedback, MCQOption } from "@/lib/content-schema";
 import { useGame } from "@/contexts/GameContext";
+import { analyticsTrackExploration } from "@/lib/analytics-service";
 import {
   Accordion,
   AccordionContent,
@@ -41,6 +42,10 @@ interface ClusterFeedbackPanelProps {
   feedback: ClusterFeedbackUnion;
   cluster: "A" | "B" | "C";
   questionId: string;
+  caseId: string;
+  incorrectOptions?: MCQOption[];
+  attemptNumber?: number;
+  canContinue?: boolean;
   onAllSectionsViewed: () => void;
   onRetry?: () => void;
   onContinue?: () => void;
@@ -50,11 +55,15 @@ export function ClusterFeedbackPanel({
   feedback,
   cluster,
   questionId,
+  caseId,
+  incorrectOptions = [],
+  attemptNumber,
+  canContinue = false,
   onAllSectionsViewed,
   onRetry,
   onContinue,
 }: ClusterFeedbackPanelProps) {
-  const { dispatch } = useGame();
+  const { state, dispatch } = useGame();
   const [openSections, setOpenSections] = useState<string[]>([]);
   const [viewedSections, setViewedSections] = useState<Set<string>>(new Set());
 
@@ -113,11 +122,26 @@ export function ClusterFeedbackPanel({
   };
 
   const clusterMessage = getClusterMessage();
+  const reviewedOptionIds = state.tokens.viewedOptions;
 
   // Get content for a section based on cluster type
   const getSectionContent = (sectionKey: string): string => {
     const feedbackAny = feedback as Record<string, unknown>;
     return (feedbackAny[sectionKey] as string) || "";
+  };
+
+  const handleReviewOption = (option: MCQOption) => {
+    if (reviewedOptionIds.has(option.id)) return;
+
+    dispatch({ type: "ADD_EXPLORATORY_TOKEN", optionId: option.id });
+    analyticsTrackExploration(
+      caseId,
+      questionId,
+      option.id,
+      option.text,
+      1,
+      state.tokens.exploratory + 1
+    );
   };
 
   return (
@@ -126,7 +150,49 @@ export function ClusterFeedbackPanel({
       <div className={cn("inline-flex items-center gap-2 rounded-full px-4 py-2 mb-4", clusterMessage.className)}>
         <span className="font-semibold">Cluster {cluster}:</span>
         <span>{clusterMessage.text}</span>
+        {attemptNumber && (
+          <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Attempt {attemptNumber}
+          </span>
+        )}
       </div>
+
+      {incorrectOptions.length > 0 && (
+        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            Incorrect option selected
+          </div>
+          <div className="mt-3 space-y-3">
+            {incorrectOptions.map((option) => {
+              const isReviewed = reviewedOptionIds.has(option.id);
+
+              return (
+                <div
+                  key={option.id}
+                  className="flex flex-col gap-3 rounded-md border border-destructive/20 bg-background/70 p-3 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">
+                      Option {option.label}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{option.text}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleReviewOption(option)}
+                    disabled={isReviewed}
+                    className="shrink-0"
+                  >
+                    {isReviewed ? "Reviewed" : "Review misconception"}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Progress Counter */}
       <div className="mb-4">
@@ -196,12 +262,12 @@ export function ClusterFeedbackPanel({
 
       {/* Action Buttons */}
       <div className="mt-6 flex items-center justify-end gap-3">
-        {onRetry && (
-        <Button variant="outline" onClick={onRetry} disabled={!allSectionsViewed}>
-            Retry/Explore Question
+        {onRetry && !canContinue && (
+          <Button variant="outline" onClick={onRetry} disabled={!allSectionsViewed}>
+            Try Again
           </Button>
         )}
-        {onContinue && (
+        {onContinue && canContinue && (
           <Button 
             onClick={onContinue} 
             disabled={!allSectionsViewed}

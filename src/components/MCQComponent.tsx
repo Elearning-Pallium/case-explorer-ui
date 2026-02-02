@@ -13,6 +13,7 @@ interface MCQComponentProps {
   question: MCQQuestion;
   chartEntries: ChartEntry[];
   onSubmit: (selectedOptions: string[], score: number) => void;
+  attemptNumber: number;
   disabled?: boolean;
   caseId?: string;
   caseName?: string;
@@ -22,6 +23,7 @@ export function MCQComponent({
   question, 
   chartEntries, 
   onSubmit, 
+  attemptNumber,
   disabled = false,
   caseId = "",
   caseName = ""
@@ -32,16 +34,14 @@ export function MCQComponent({
   
   // Analytics timing state
   const questionStartTimeRef = useRef<number>(Date.now());
-  const attemptCountRef = useRef<number>(1);
   
   // Reset timer and attempt count when question changes
   useEffect(() => {
     questionStartTimeRef.current = Date.now();
-    attemptCountRef.current = 1;
     setPhase("stem");
     setSelectedOptions(new Set());
     setHasSubmitted(false);
-  }, [question.id]);
+  }, [question.id, attemptNumber]);
 
   // Filter chart entries for this question
   const questionChartEntries = chartEntries.filter(entry => 
@@ -101,18 +101,12 @@ export function MCQComponent({
       correctOptionIds,
       score: totalScore,
       maxScore: 10,
-      attemptNumber: attemptCountRef.current,
+      attemptNumber,
       durationSeconds,
     };
     
     // Track the MCQ attempt
     analyticsTrackMCQSubmit(attemptData);
-    
-    // If incorrect, increment attempt count and reset timer for potential retry
-    if (totalScore < 10) {
-      attemptCountRef.current += 1;
-      questionStartTimeRef.current = Date.now();
-    }
 
     setHasSubmitted(true);
     onSubmit(selectedArray, totalScore);

@@ -19,7 +19,12 @@ import { loadCase, loadSimulacrum, isContentLoadError, hasStubFallback } from "@
 import type { Case, JITResource, Simulacrum } from "@/lib/content-schema";
 import { stubCase, stubSimulacrum } from "@/lib/stub-data";
 import { buildBadgeRegistry } from "@/lib/badge-registry";
-import { calculateMaxCasePoints, ACTIVITY_POINTS, MCQ_SCORING } from "@/lib/scoring-constants";
+import {
+  calculateMaxCasePoints,
+  ACTIVITY_POINTS,
+  MCQ_SCORING,
+  getIncorrectOptions,
+} from "@/lib/scoring-constants";
 import { analyticsTrackCaseStart, analyticsTrackCaseComplete } from "@/lib/analytics-service";
 
 // Map phases to JIT placements
@@ -57,6 +62,10 @@ export default function CaseFlowPage() {
     currentQuestion,
     lastCluster,
     revealedChartEntries,
+    lastSelectedOptions,
+    currentAttemptNumber,
+    lastAttemptNumber,
+    canContinue,
     startCase,
     submitMCQ,
     continueFeedback,
@@ -336,6 +345,7 @@ export default function CaseFlowPage() {
                   question={currentQuestion}
                   chartEntries={caseData.chartEntries}
                   onSubmit={submitMCQ}
+                  attemptNumber={currentAttemptNumber}
                   caseId={caseId || ""}
                   caseName={caseData.title || caseId || ""}
                 />
@@ -348,9 +358,16 @@ export default function CaseFlowPage() {
                 feedback={currentQuestion.clusterFeedback[lastCluster]}
                 cluster={lastCluster}
                 questionId={currentQuestion.id}
+                caseId={caseId || ""}
+                incorrectOptions={getIncorrectOptions(
+                  currentQuestion.options,
+                  lastSelectedOptions
+                )}
+                attemptNumber={lastAttemptNumber}
+                canContinue={canContinue}
                 onAllSectionsViewed={onFeedbackComplete}
-                onRetry={retryQuestion}
-                onContinue={continueFeedback}
+                onRetry={!canContinue ? retryQuestion : undefined}
+                onContinue={canContinue ? continueFeedback : undefined}
               />
             )}
 
