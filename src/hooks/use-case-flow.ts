@@ -133,7 +133,7 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
 
     // Move to feedback
     setPhase("feedback");
-  }, [currentQuestion, caseData, dispatch, calculateCluster, currentAttemptCount]);
+  }, [currentQuestion, caseData, dispatch, calculateCluster, currentAttemptCount, questionsAwarded]);
 
   const continueFeedback = useCallback(() => {
     if (!caseData) return;
