@@ -16,6 +16,7 @@ interface MCQComponentProps {
   disabled?: boolean;
   caseId?: string;
   caseName?: string;
+  attemptNumber?: number;
 }
 
 export function MCQComponent({ 
@@ -24,7 +25,8 @@ export function MCQComponent({
   onSubmit, 
   disabled = false,
   caseId = "",
-  caseName = ""
+  caseName = "",
+  attemptNumber = 1,
 }: MCQComponentProps) {
   const [phase, setPhase] = useState<MCQPhase>("stem");
   const [selectedOptions, setSelectedOptions] = useState<Set<string>>(new Set());
@@ -32,16 +34,16 @@ export function MCQComponent({
   
   // Analytics timing state
   const questionStartTimeRef = useRef<number>(Date.now());
-  const attemptCountRef = useRef<number>(1);
+  const attemptCountRef = useRef<number>(attemptNumber);
   
   // Reset timer and attempt count when question changes
   useEffect(() => {
     questionStartTimeRef.current = Date.now();
-    attemptCountRef.current = 1;
+    attemptCountRef.current = attemptNumber;
     setPhase("stem");
     setSelectedOptions(new Set());
     setHasSubmitted(false);
-  }, [question.id]);
+  }, [question.id, attemptNumber]);
 
   // Filter chart entries for this question
   const questionChartEntries = chartEntries.filter(entry => 

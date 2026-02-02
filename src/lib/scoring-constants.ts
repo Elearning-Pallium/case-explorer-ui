@@ -1,9 +1,11 @@
+import type { MCQOption } from "./content-schema";
+
 /**
  * Centralized Scoring Constants
- * 
+ *
  * Single source of truth for all scoring-related values.
  * These are GAME LOGIC constants that affect point calculations.
- * 
+ *
  * For UI/display constants, see ui-constants.ts
  */
 
@@ -13,10 +15,24 @@
 export const MCQ_SCORING = {
   /** Maximum points per MCQ question (5+5 for correct combination) */
   MAX_POINTS_PER_QUESTION: 10,
+  /** Minimum score to pass (must select both correct options) */
+  PASS_SCORE: 10,
   /** Number of options per case MCQ question (A-E) */
   OPTIONS_PER_CASE_QUESTION: 5,
   /** Number of options per simulacrum MCQ question (A-D) */
   OPTIONS_PER_SIMULACRUM_QUESTION: 4,
+} as const;
+
+/**
+ * MCQ Option Scores
+ */
+export const OPTION_SCORES = {
+  /** Fully correct clinical reasoning */
+  CORRECT: 5,
+  /** Partially correct, room to refine */
+  PARTIAL: 2,
+  /** Misconception / boundary issue */
+  INCORRECT: 1,
 } as const;
 
 /**
@@ -114,4 +130,26 @@ export function calculateSimulacrumPoints(correctCount: number): number {
     return SIMULACRUM_SCORING.PASS_SCORE_POINTS;
   }
   return 0;
+}
+
+/**
+ * Check if an MCQ score is passing (allows progression)
+ */
+export function isPassingScore(score: number): boolean {
+  return score >= MCQ_SCORING.PASS_SCORE;
+}
+
+/**
+ * Find the incorrect option (score === 1) from selected options
+ * Returns null if no incorrect option was selected
+ */
+export function findIncorrectOption(selectedOptions: MCQOption[]): MCQOption | null {
+  return selectedOptions.find((opt) => opt.score === OPTION_SCORES.INCORRECT) || null;
+}
+
+/**
+ * Check if selected options include an incorrect choice (score === 1)
+ */
+export function hasIncorrectOption(selectedOptions: MCQOption[]): boolean {
+  return selectedOptions.some((opt) => opt.score === OPTION_SCORES.INCORRECT);
 }

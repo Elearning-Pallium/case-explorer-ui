@@ -144,7 +144,9 @@ export function analyticsTrackCaseComplete(
  * Track MCQ answer submission
  */
 export function analyticsTrackMCQSubmit(data: MCQAttemptData): void {
-  console.log(`[Analytics] MCQ answered: ${data.questionId}, score: ${data.score}/${data.maxScore}`);
+  console.log(
+    `[Analytics] MCQ answered: ${data.questionId}, attempt: ${data.attemptNumber}, score: ${data.score}/${data.maxScore}`
+  );
   queueOrEmit('mcqAnswered', [data], () => {
     trackMCQAnswered(data);
   });

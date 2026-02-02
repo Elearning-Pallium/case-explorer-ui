@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Check, Lightbulb, Target, Brain, Search, Shield, AlertTriangle } from "lucide-react";
-import type { ClusterAFeedback, ClusterBFeedback, ClusterCFeedback } from "@/lib/content-schema";
+import { Check, Lightbulb, Target, Brain, Search, Shield, AlertTriangle, type LucideIcon } from "lucide-react";
+import type { ClusterAFeedback, ClusterBFeedback, ClusterCFeedback, MCQOption } from "@/lib/content-schema";
 import { useGame } from "@/contexts/GameContext";
 import {
   Accordion,
@@ -13,21 +13,25 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 // Section definitions per cluster type
-const clusterASections = [
+type FeedbackSection =
+  | { id: string; label: string; icon: LucideIcon; key: string }
+  | { id: string; label: string; icon: LucideIcon; content: string };
+
+const clusterASections: FeedbackSection[] = [
   { id: "rationale", label: "Rationale", icon: Lightbulb, key: "rationale" as const },
   { id: "outcomes", label: "Known Outcomes", icon: Target, key: "knownOutcomes" as const },
   { id: "pattern", label: "Thinking Pattern Insight", icon: Brain, key: "thinkingPatternInsight" as const },
   { id: "trace", label: "Reasoning Trace", icon: Search, key: "reasoningTrace" as const },
 ];
 
-const clusterBSections = [
+const clusterBSections: FeedbackSection[] = [
   { id: "rationale", label: "Rationale", icon: Lightbulb, key: "rationale" as const },
   { id: "consequences", label: "Likely Consequences", icon: AlertTriangle, key: "likelyConsequences" as const },
   { id: "pattern", label: "Thinking Pattern Insight", icon: Brain, key: "thinkingPatternInsight" as const },
   { id: "trace", label: "Reasoning Trace", icon: Search, key: "reasoningTrace" as const },
 ];
 
-const clusterCSections = [
+const clusterCSections: FeedbackSection[] = [
   { id: "boundary", label: "Boundary Explanation", icon: AlertTriangle, key: "boundaryExplanation" as const },
   { id: "detrimental", label: "Likely Detrimental Outcomes", icon: Target, key: "likelyDetrimentalOutcomes" as const },
   { id: "pattern", label: "Thinking Pattern Insight", icon: Brain, key: "thinkingPatternInsight" as const },
@@ -44,6 +48,9 @@ interface ClusterFeedbackPanelProps {
   onAllSectionsViewed: () => void;
   onRetry?: () => void;
   onContinue?: () => void;
+  incorrectOption?: MCQOption | null;
+  canContinue?: boolean;
+  attemptNumber?: number;
 }
 
 export function ClusterFeedbackPanel({
@@ -53,17 +60,32 @@ export function ClusterFeedbackPanel({
   onAllSectionsViewed,
   onRetry,
   onContinue,
+  incorrectOption,
+  canContinue = true,
+  attemptNumber,
 }: ClusterFeedbackPanelProps) {
   const { dispatch } = useGame();
   const [openSections, setOpenSections] = useState<string[]>([]);
   const [viewedSections, setViewedSections] = useState<Set<string>>(new Set());
 
   // Get sections based on cluster type
-  const sections = cluster === "A" 
+  const baseSections = cluster === "A" 
     ? clusterASections 
     : cluster === "B" 
       ? clusterBSections 
       : clusterCSections;
+
+  const sections = incorrectOption
+    ? [
+        {
+          id: "misconception",
+          label: "Selected Misconception",
+          icon: AlertTriangle,
+          content: `You selected option ${incorrectOption.label}: ${incorrectOption.text}`,
+        },
+        ...baseSections,
+      ]
+    : baseSections;
 
   const allSectionsViewed = viewedSections.size === sections.length;
   const progressPercent = (viewedSections.size / sections.length) * 100;
@@ -132,9 +154,16 @@ export function ClusterFeedbackPanel({
       <div className="mb-4">
         <div className="flex items-center justify-between text-sm mb-2">
           <span className="text-muted-foreground">Sections viewed</span>
-          <span className="font-semibold">{viewedSections.size}/{sections.length}</span>
+          <span className="font-semibold">
+            {viewedSections.size}/{sections.length}
+          </span>
         </div>
         <Progress value={progressPercent} className="h-2" />
+        {attemptNumber !== undefined && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Attempt {attemptNumber}
+          </p>
+        )}
       </div>
 
       {/* Feedback Accordion - Multiple sections can stay open */}
@@ -147,7 +176,9 @@ export function ClusterFeedbackPanel({
         {sections.map((section) => {
           const isViewed = viewedSections.has(section.id);
           const Icon = section.icon;
-          const content = getSectionContent(section.key);
+          const content = "content" in section
+            ? section.content
+            : getSectionContent(section.key);
 
           return (
             <AccordionItem
@@ -196,14 +227,14 @@ export function ClusterFeedbackPanel({
 
       {/* Action Buttons */}
       <div className="mt-6 flex items-center justify-end gap-3">
-        {onRetry && (
-        <Button variant="outline" onClick={onRetry} disabled={!allSectionsViewed}>
-            Retry/Explore Question
+        {onRetry && !canContinue && (
+          <Button variant="outline" onClick={onRetry} disabled={!allSectionsViewed}>
+            Try Again
           </Button>
         )}
-        {onContinue && (
-          <Button 
-            onClick={onContinue} 
+        {onContinue && canContinue && (
+          <Button
+            onClick={onContinue}
             disabled={!allSectionsViewed}
             className="bg-accent hover:bg-accent/90"
           >

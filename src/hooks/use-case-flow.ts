@@ -7,8 +7,9 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useGame } from "@/contexts/GameContext";
+import { isPassingScore, findIncorrectOption } from "@/lib/scoring-constants";
 import { CHART_REVEAL } from "@/lib/ui-constants";
-import type { Case, MCQQuestion } from "@/lib/content-schema";
+import type { Case, MCQQuestion, MCQOption } from "@/lib/content-schema";
 
 export type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
 
@@ -25,6 +26,10 @@ interface UseCaseFlowReturn {
   lastScore: number;
   lastCluster: "A" | "B" | "C";
   revealedChartEntries: number;
+  lastSelectedOptions: MCQOption[];
+  currentAttemptCount: number;
+  canContinue: boolean;
+  incorrectOption: MCQOption | null;
   
   // Actions
   startCase: () => void;
@@ -45,6 +50,8 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
   const [revealedChartEntries, setRevealedChartEntries] = useState<number>(
     CHART_REVEAL.INITIAL_ENTRIES
   );
+  const [lastSelectedOptions, setLastSelectedOptions] = useState<MCQOption[]>([]);
+  const [currentAttemptCount, setCurrentAttemptCount] = useState(1);
 
   // CRITICAL: Reset all state when caseId changes
   useEffect(() => {
@@ -53,6 +60,8 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
     setLastScore(0);
     setLastCluster("C");
     setRevealedChartEntries(CHART_REVEAL.INITIAL_ENTRIES);
+    setLastSelectedOptions([]);
+    setCurrentAttemptCount(1);
   }, [caseId]);
 
   // Computed value
@@ -67,8 +76,15 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
     if (!currentQuestion || !caseData) return;
     
     const cluster = calculateCluster(score);
+    const isPassing = isPassingScore(score);
+    
+    const selectedOptionObjects = selectedOptions
+      .map((optId) => currentQuestion.options.find((opt) => opt.id === optId))
+      .filter((opt): opt is MCQOption => opt !== undefined);
+    
     setLastScore(score);
     setLastCluster(cluster);
+    setLastSelectedOptions(selectedOptionObjects);
 
     // Record attempt
     dispatch({
@@ -79,21 +95,28 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
         score,
         cluster,
         timestamp: new Date(),
+        attemptNumber: currentAttemptCount,
       },
     });
 
-    // Add points
-    dispatch({ type: "ADD_POINTS", points: score, category: "case" });
-
-    // Add correct token if perfect score
-    if (score === 10) {
+    // Award exploratory token for non-passing attempts
+    // (Correct token only awarded on passing attempt)
+    if (!isPassing) {
+      // Track exploratory tokens for selected options in failed attempt
+      selectedOptions.forEach((optId) => {
+        dispatch({ type: "ADD_EXPLORATORY_TOKEN", optionId: optId });
+      });
+      
+      // Increment attempt count for next try
+      setCurrentAttemptCount((prev) => prev + 1);
+    } else {
+      // Passing attempt: award points and correct token
+      dispatch({ type: "ADD_POINTS", points: score, category: "case" });
       dispatch({ type: "ADD_CORRECT_TOKEN" });
+      
+      // Also award exploratory tokens for any previous failed attempts
+      // (These are already tracked by ADD_EXPLORATORY_TOKEN calls above)
     }
-
-    // Track exploratory tokens
-    selectedOptions.forEach((optId) => {
-      dispatch({ type: "ADD_EXPLORATORY_TOKEN", optionId: optId });
-    });
 
     // Reveal chart entries
     setRevealedChartEntries((prev) => 
@@ -102,10 +125,18 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
 
     // Move to feedback
     setPhase("feedback");
-  }, [currentQuestion, caseData, dispatch, calculateCluster]);
+  }, [currentQuestion, caseData, dispatch, calculateCluster, currentAttemptCount]);
 
   const continueFeedback = useCallback(() => {
     if (!caseData) return;
+    
+    if (!isPassingScore(lastScore)) {
+      console.warn("[useCaseFlow] Cannot continue without passing score");
+      return;
+    }
+    
+    setCurrentAttemptCount(1);
+    setLastSelectedOptions([]);
     
     if (currentQuestionIndex < caseData.questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
@@ -113,7 +144,7 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
     } else {
       setPhase("lived-experience");
     }
-  }, [caseData, currentQuestionIndex]);
+  }, [caseData, currentQuestionIndex, lastScore]);
 
   const retryQuestion = useCallback(() => {
     setPhase("mcq");
@@ -130,6 +161,10 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
     lastScore,
     lastCluster,
     revealedChartEntries,
+    lastSelectedOptions,
+    currentAttemptCount,
+    canContinue: isPassingScore(lastScore),
+    incorrectOption: findIncorrectOption(lastSelectedOptions),
     startCase,
     submitMCQ,
     continueFeedback,
