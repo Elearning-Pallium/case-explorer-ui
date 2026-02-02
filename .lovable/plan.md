@@ -1,92 +1,81 @@
 
-# Fix Scroll-to-Top Timing Issue
+# Scroll to Cluster Feedback Header
 
-## Problem Identified
-The current scroll-to-top implementation fires when the `phase` state changes, but React hasn't finished rendering the new content yet. This causes a race condition where:
-1. Phase changes (e.g., "mcq" → "feedback")
-2. `useEffect` fires immediately and scrolls
-3. React then renders the new content (ClusterFeedbackPanel)
-4. The user ends up somewhere in the middle of the page
+## Problem
+The current scroll-to-top targets the `<main>` element, which includes empty space above the ClusterFeedbackPanel. When a learner submits an MCQ and transitions to the feedback phase, they can't see the "Cluster C: Review the feedback..." header without scrolling up.
 
 ## Solution
-Delay the scroll until after React has finished rendering the new content. There are two approaches:
+Instead of scrolling the main container to its top, scroll the ClusterFeedbackPanel element into view using `scrollIntoView()`. This requires:
 
-### Approach A: Use `requestAnimationFrame` (Recommended)
-Wait for the next browser paint cycle before scrolling, ensuring the new DOM is rendered:
+1. **Add a ref to ClusterFeedbackPanel** - Create a `forwardRef` wrapper so the parent can reference the panel
+2. **Pass ref from CaseFlowPage** - Create a ref in the parent and pass it to ClusterFeedbackPanel
+3. **Scroll to the panel on phase change** - When phase becomes "feedback", scroll the ClusterFeedbackPanel into view
 
-```typescript
-useEffect(() => {
-  if (mainContentRef.current) {
-    // Wait for next paint cycle to ensure new content is rendered
-    requestAnimationFrame(() => {
-      mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    });
+## Technical Details
+
+### File 1: `src/components/ClusterFeedbackPanel.tsx`
+- Convert component to use `forwardRef` to accept a ref from the parent
+- Attach the ref to the outer `<div>` container (the card with the Cluster badge)
+
+### File 2: `src/pages/CaseFlowPage.tsx`
+- Add a new ref: `feedbackPanelRef = useRef<HTMLDivElement>(null)`
+- Modify the scroll effect to:
+  - When phase is "feedback": scroll `feedbackPanelRef` into view
+  - For other phases: scroll main content to top as before
+- Pass the ref to `<ClusterFeedbackPanel ref={feedbackPanelRef} ... />`
+
+## Implementation
+
+### ClusterFeedbackPanel.tsx changes:
+```tsx
+import { forwardRef } from "react";
+
+export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPanelProps>(
+  function ClusterFeedbackPanel({ feedback, cluster, ... }, ref) {
+    // ... existing code ...
+    
+    return (
+      <div ref={ref} className="rounded-xl border bg-card p-6 shadow-soft-lg animate-scale-in">
+        {/* Cluster Badge - THIS is what the user needs to see */}
+        ...
+      </div>
+    );
   }
-}, [phase]);
+);
 ```
 
-### Approach B: Use `setTimeout` with minimal delay
-A small timeout (0ms) pushes the scroll to the end of the event queue:
+### CaseFlowPage.tsx changes:
+```tsx
+// Add new ref for feedback panel
+const feedbackPanelRef = useRef<HTMLDivElement>(null);
 
-```typescript
+// Update scroll effect
 useEffect(() => {
-  if (mainContentRef.current) {
-    setTimeout(() => {
-      mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 0);
-  }
-}, [phase]);
-```
-
-### Approach C: Double `requestAnimationFrame` (Most Reliable)
-For complex React renders, use two `requestAnimationFrame` calls to ensure both the virtual DOM reconciliation and browser paint are complete:
-
-```typescript
-useEffect(() => {
-  // Double rAF ensures React render + browser paint are complete
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      if (phase === "feedback" && feedbackPanelRef.current) {
+        // Scroll feedback panel into view with some top padding
+        feedbackPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // For other phases, scroll main to top
+        mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     });
   });
 }, [phase]);
+
+// In the JSX, pass ref to ClusterFeedbackPanel
+{phase === "feedback" && currentQuestion && (
+  <ClusterFeedbackPanel
+    ref={feedbackPanelRef}
+    feedback={...}
+    ...
+  />
+)}
 ```
 
-## Recommendation
-**Approach C (Double rAF)** is the most reliable for React apps because:
-- First `requestAnimationFrame`: Waits for React to commit the DOM changes
-- Second `requestAnimationFrame`: Waits for the browser to complete the paint
-
-## File Changes
-
-### `src/pages/CaseFlowPage.tsx`
-Update lines 130-135:
-
-**From:**
-```typescript
-useEffect(() => {
-  if (mainContentRef.current) {
-    mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-}, [phase]);
-```
-
-**To:**
-```typescript
-useEffect(() => {
-  // Double requestAnimationFrame ensures React render and browser paint complete
-  // before scrolling - fixes race condition where scroll fires before content renders
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  });
-}, [phase]);
-```
-
-## Why This Fixes the Issue
-1. When phase changes, React schedules a re-render
-2. The `useEffect` runs, but now waits for two animation frames
-3. By the second frame, the new content (ClusterFeedbackPanel) is fully painted
-4. The scroll then targets the correct fully-rendered content
-5. User lands at the very top of the feedback section
+## Why This Works
+- `scrollIntoView({ block: 'start' })` scrolls the element to the top of the viewport
+- The double `requestAnimationFrame` ensures the panel is rendered before scrolling
+- The learner will see the "Cluster C:" badge immediately upon phase transition
+- Other phase transitions still scroll to the top of main content as before
