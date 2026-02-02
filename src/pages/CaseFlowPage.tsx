@@ -46,6 +46,9 @@ export default function CaseFlowPage() {
   // Session timing for analytics
   const caseStartTimeRef = useRef<number | null>(null);
 
+  // Ref for main content area to control scroll position
+  const mainContentRef = useRef<HTMLElement>(null);
+
   // Modal state
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [showJITPanel, setShowJITPanel] = useState(false);
@@ -123,6 +126,13 @@ export default function CaseFlowPage() {
   const handleRetry = useCallback(() => {
     setLoadAttempt((prev) => prev + 1);
   }, []);
+
+  // Scroll main content to top when phase changes
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [phase]);
 
   // Track case start when case data loads
   useEffect(() => {
@@ -301,7 +311,7 @@ export default function CaseFlowPage() {
         />
 
         {/* Main Content Area (Center) */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main ref={mainContentRef} className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto space-y-6">
             {/* Intro Phase */}
             {phase === "intro" && (
