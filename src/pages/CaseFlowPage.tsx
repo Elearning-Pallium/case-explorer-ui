@@ -128,10 +128,14 @@ export default function CaseFlowPage() {
   }, []);
 
   // Scroll main content to top when phase changes
+  // Double requestAnimationFrame ensures React render and browser paint complete
+  // before scrolling - fixes race condition where scroll fires before content renders
   useEffect(() => {
-    if (mainContentRef.current) {
-      mainContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
   }, [phase]);
 
   // Track case start when case data loads
