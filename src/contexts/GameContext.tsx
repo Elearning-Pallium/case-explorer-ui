@@ -24,6 +24,7 @@ export interface MCQAttempt {
   score: number;
   cluster: "A" | "B" | "C";
   timestamp: Date;
+  attemptNumber?: number;
 }
 
 export interface TokenProgress {

@@ -62,6 +62,9 @@ export default function CaseFlowPage() {
     continueFeedback,
     retryQuestion,
     onFeedbackComplete,
+    canContinue,
+    incorrectOption,
+    currentAttemptCount,
   } = useCaseFlow({ caseData, caseId: caseId || "" });
 
   // Load case and simulacrum content with environment-aware error handling
@@ -338,6 +341,7 @@ export default function CaseFlowPage() {
                   onSubmit={submitMCQ}
                   caseId={caseId || ""}
                   caseName={caseData.title || caseId || ""}
+                  attemptNumber={currentAttemptCount}
                 />
               </>
             )}
@@ -351,6 +355,9 @@ export default function CaseFlowPage() {
                 onAllSectionsViewed={onFeedbackComplete}
                 onRetry={retryQuestion}
                 onContinue={continueFeedback}
+                incorrectOption={incorrectOption}
+                canContinue={canContinue}
+                attemptNumber={currentAttemptCount}
               />
             )}
 
