@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Check, Lightbulb, Target, Brain, Search, Shield, AlertTriangle, type LucideIcon } from "lucide-react";
 import type { ClusterAFeedback, ClusterBFeedback, ClusterCFeedback, MCQOption } from "@/lib/content-schema";
 import { useGame } from "@/contexts/GameContext";
@@ -53,17 +53,18 @@ interface ClusterFeedbackPanelProps {
   attemptNumber?: number;
 }
 
-export function ClusterFeedbackPanel({
-  feedback,
-  cluster,
-  questionId,
-  onAllSectionsViewed,
-  onRetry,
-  onContinue,
-  incorrectOption,
-  canContinue = true,
-  attemptNumber,
-}: ClusterFeedbackPanelProps) {
+export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPanelProps>(
+  function ClusterFeedbackPanel({
+    feedback,
+    cluster,
+    questionId,
+    onAllSectionsViewed,
+    onRetry,
+    onContinue,
+    incorrectOption,
+    canContinue = true,
+    attemptNumber,
+  }, ref) {
   const { dispatch } = useGame();
   const [openSections, setOpenSections] = useState<string[]>([]);
   const [viewedSections, setViewedSections] = useState<Set<string>>(new Set());
@@ -143,7 +144,7 @@ export function ClusterFeedbackPanel({
   };
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-soft-lg animate-scale-in">
+    <div ref={ref} className="rounded-xl border bg-card p-6 shadow-soft-lg animate-scale-in">
       {/* Cluster Badge */}
       <div className={cn("inline-flex items-center gap-2 rounded-full px-4 py-2 mb-4", clusterMessage.className)}>
         <span className="font-semibold">Cluster {cluster}:</span>
@@ -250,4 +251,4 @@ export function ClusterFeedbackPanel({
       )}
     </div>
   );
-}
+});
