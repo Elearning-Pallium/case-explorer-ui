@@ -21,6 +21,44 @@ export type ContentLoadResult<T> =
   | ContentLoadErrorWithStub<T>
   | ContentLoadErrorNoStub;
 
+const ABSOLUTE_URL_PATTERN = /^(https?:)?\/\//i;
+
+function normalizeAssetUrl(url?: string): string | undefined {
+  if (!url) return url;
+  if (url.startsWith("data:") || url.startsWith("blob:") || ABSOLUTE_URL_PATTERN.test(url)) {
+    return url;
+  }
+  return buildContentUrl(url);
+}
+
+function normalizeCaseAssets(caseData: Case): Case {
+  return {
+    ...caseData,
+    personInContext: {
+      ...caseData.personInContext,
+      imageUrl: normalizeAssetUrl(caseData.personInContext.imageUrl),
+    },
+    openingScene: {
+      ...caseData.openingScene,
+      mediaUrl: normalizeAssetUrl(caseData.openingScene.mediaUrl),
+    },
+    patientPerspective: caseData.patientPerspective
+      ? {
+          ...caseData.patientPerspective,
+          imageUrl: normalizeAssetUrl(caseData.patientPerspective.imageUrl),
+        }
+      : undefined,
+    chartEntries: caseData.chartEntries.map((entry) => ({
+      ...entry,
+      imageUrl: normalizeAssetUrl(entry.imageUrl),
+    })),
+    ipInsights: caseData.ipInsights.map((perspective) => ({
+      ...perspective,
+      imageUrl: normalizeAssetUrl(perspective.imageUrl),
+    })),
+  };
+}
+
 /**
  * Type guard to check if result is an error (not success)
  */
@@ -89,7 +127,7 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
       );
       
       if (isDev) {
-        return { success: false, error, useStub: true, data: stubCase };
+        return { success: false, error, useStub: true, data: normalizeCaseAssets(stubCase) };
       }
       return { success: false, error, useStub: false, data: null };
     }
@@ -125,9 +163,11 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
       );
     });
 
+    const normalizedData = normalizeCaseAssets(parseResult.data);
+
     return { 
       success: true, 
-      data: parseResult.data,
+      data: normalizedData,
       ...(schemaWarning && { schemaWarning })
     };
   } catch (error) {
@@ -135,7 +175,7 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
     console.error(`[Content Loader] Failed to load case ${caseId}:`, message);
     
     if (isDev) {
-      return { success: false, error: message, useStub: true, data: stubCase };
+      return { success: false, error: message, useStub: true, data: normalizeCaseAssets(stubCase) };
     }
     return { success: false, error: message, useStub: false, data: null };
   }
