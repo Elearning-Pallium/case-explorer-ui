@@ -52,6 +52,7 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
   );
   const [lastSelectedOptions, setLastSelectedOptions] = useState<MCQOption[]>([]);
   const [currentAttemptCount, setCurrentAttemptCount] = useState(1);
+  const [questionsAwarded, setQuestionsAwarded] = useState<Set<string>>(new Set());
 
   // CRITICAL: Reset all state when caseId changes
   useEffect(() => {
