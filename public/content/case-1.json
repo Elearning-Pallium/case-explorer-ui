@@ -143,15 +143,30 @@
           "thinkingPatternInsight": "This reflects anticipatory framing. Clinicians use it when uncertainty is present but signals are accumulating. It keeps options open rather than waiting for crisis.",
           "reasoningTrace": "You notice ongoing oozing, family vigilance, and limited function. With no emergency history, you widen the frame to include added support now."
         },
-        "B": {
-          "type": "B",
+        "B1": {
+          "type": "B1",
           "rationale": "This approach recognizes bleeding as concerning but keeps attention on immediate control rather than broader readiness. It pauses integration rather than actively excluding it.",
           "likelyConsequences": "Planning may be delayed until fear escalates again. Families may remain uncertain about next steps.",
           "thinkingPatternInsight": "This reflects containment-first reasoning. It often shows up when clinicians want stability before opening bigger conversations.",
           "reasoningTrace": "You attend to the wound and visible calm but leave wider care framing for later."
         },
-        "C": {
-          "type": "C",
+        "B2": {
+          "type": "B2",
+          "rationale": "This approach recognizes bleeding as concerning but keeps attention on immediate control rather than broader readiness. It pauses integration rather than actively excluding it.",
+          "likelyConsequences": "Planning may be delayed until fear escalates again. Families may remain uncertain about next steps.",
+          "thinkingPatternInsight": "This reflects containment-first reasoning. It often shows up when clinicians want stability before opening bigger conversations.",
+          "reasoningTrace": "You attend to the wound and visible calm but leave wider care framing for later."
+        },
+        "C1": {
+          "type": "C1",
+          "boundaryExplanation": "This line of reasoning treats visible bleeding as proof that escalation is required, narrowing options too early in a situation where stability still exists.",
+          "likelyDetrimentalOutcomes": "Family fear may intensify, increasing likelihood of unnecessary hospital transfer.",
+          "thinkingPatternInsight": "This reflects catastrophe anchoring. Salient visual cues can override broader context under pressure.",
+          "reasoningTrace": "You focus on blood as danger and assume hospital care is the safest response.",
+          "safetyReframe": "Pause and reassess how much uncertainty is actually resolved versus how much remains open."
+        },
+        "C2": {
+          "type": "C2",
           "boundaryExplanation": "This line of reasoning treats visible bleeding as proof that escalation is required, narrowing options too early in a situation where stability still exists.",
           "likelyDetrimentalOutcomes": "Family fear may intensify, increasing likelihood of unnecessary hospital transfer.",
           "thinkingPatternInsight": "This reflects catastrophe anchoring. Salient visual cues can override broader context under pressure.",
@@ -206,15 +221,30 @@
           "thinkingPatternInsight": "This reflects relational awareness. Clinicians tune into non-verbal cues and group dynamics to calibrate how to proceed.",
           "reasoningTrace": "You recognize family readiness signals, Adam's silence as possible consent, and the opportunity to start planning without forcing disclosure."
         },
-        "B": {
-          "type": "B",
+        "B1": {
+          "type": "B1",
           "rationale": "This approach offers reassurance but may close the door on a conversation the family is trying to open. It stabilizes the moment without expanding the care frame.",
           "likelyConsequences": "The family may feel unheard. Anxiety may persist or resurface at a less opportune time.",
           "thinkingPatternInsight": "This reflects reassurance seeking. It can soothe in the short term but may delay needed conversations.",
           "reasoningTrace": "You prioritize calm over opening, which may not match the family's actual readiness."
         },
-        "C": {
-          "type": "C",
+        "B2": {
+          "type": "B2",
+          "rationale": "This approach offers reassurance but may close the door on a conversation the family is trying to open. It stabilizes the moment without expanding the care frame.",
+          "likelyConsequences": "The family may feel unheard. Anxiety may persist or resurface at a less opportune time.",
+          "thinkingPatternInsight": "This reflects reassurance seeking. It can soothe in the short term but may delay needed conversations.",
+          "reasoningTrace": "You prioritize calm over opening, which may not match the family's actual readiness."
+        },
+        "C1": {
+          "type": "C1",
+          "boundaryExplanation": "This approach puts Adam on the spot in a way that may feel confrontational or shaming, especially given his withdrawn posture and silence.",
+          "likelyDetrimentalOutcomes": "Adam may shut down further. Family dynamics may become strained. Trust in the care team could erode.",
+          "thinkingPatternInsight": "This reflects directness without attunement. It prioritizes agenda over relational safety.",
+          "reasoningTrace": "You focus on Adam as the decision-maker without reading his current cues.",
+          "safetyReframe": "Consider whether Adam's silence is consent, resistance, or simply uncertainty—and how to honor all three."
+        },
+        "C2": {
+          "type": "C2",
           "boundaryExplanation": "This approach puts Adam on the spot in a way that may feel confrontational or shaming, especially given his withdrawn posture and silence.",
           "likelyDetrimentalOutcomes": "Adam may shut down further. Family dynamics may become strained. Trust in the care team could erode.",
           "thinkingPatternInsight": "This reflects directness without attunement. It prioritizes agenda over relational safety.",
@@ -269,15 +299,30 @@
           "thinkingPatternInsight": "This reflects proactive integration. Clinicians recognize that waiting for 'the right time' often means missing the window entirely.",
           "reasoningTrace": "You identify the gap, understand palliative care's role, and move toward action while keeping the family informed."
         },
-        "B": {
-          "type": "B",
+        "B1": {
+          "type": "B1",
           "rationale": "This approach acknowledges the gap but defers action to another team. It may delay needed support and leave the family without resources.",
           "likelyConsequences": "Palliative involvement may come too late. The family may face crises without adequate preparation.",
           "thinkingPatternInsight": "This reflects system deference. It assumes another team will take responsibility without checking.",
           "reasoningTrace": "You note the gap but wait for someone else to act, which may not happen."
         },
-        "C": {
-          "type": "C",
+        "B2": {
+          "type": "B2",
+          "rationale": "This approach acknowledges the gap but defers action to another team. It may delay needed support and leave the family without resources.",
+          "likelyConsequences": "Palliative involvement may come too late. The family may face crises without adequate preparation.",
+          "thinkingPatternInsight": "This reflects system deference. It assumes another team will take responsibility without checking.",
+          "reasoningTrace": "You note the gap but wait for someone else to act, which may not happen."
+        },
+        "C1": {
+          "type": "C1",
+          "boundaryExplanation": "This perpetuates the myth that palliative care is only for end-of-life. It misinforms the family and delays beneficial support.",
+          "likelyDetrimentalOutcomes": "The family may refuse palliative care when it is eventually offered, believing it signals 'giving up.'",
+          "thinkingPatternInsight": "This reflects outdated framing. Palliative care has evolved to support patients at any stage of serious illness.",
+          "reasoningTrace": "You apply a dated definition that no longer reflects best practice.",
+          "safetyReframe": "Consider what palliative care actually offers and how it might help Adam and his family right now."
+        },
+        "C2": {
+          "type": "C2",
           "boundaryExplanation": "This perpetuates the myth that palliative care is only for end-of-life. It misinforms the family and delays beneficial support.",
           "likelyDetrimentalOutcomes": "The family may refuse palliative care when it is eventually offered, believing it signals 'giving up.'",
           "thinkingPatternInsight": "This reflects outdated framing. Palliative care has evolved to support patients at any stage of serious illness.",
@@ -332,15 +377,30 @@
           "thinkingPatternInsight": "This reflects anticipatory planning. Clinicians prepare for foreseeable crises rather than reacting when they occur.",
           "reasoningTrace": "You recognize the hemorrhage risk, honor the home preference, and move toward preparation rather than avoidance."
         },
-        "B": {
-          "type": "B",
+        "B1": {
+          "type": "B1",
           "rationale": "This approach prioritizes wound management but delays the critical conversation about hemorrhage preparedness. It may leave the family unprepared.",
           "likelyConsequences": "If hemorrhage occurs before the next visit, the family will face it without support or guidance.",
           "thinkingPatternInsight": "This reflects deferral under uncertainty. It avoids the difficult conversation in favor of routine care.",
           "reasoningTrace": "You stay within the wound care frame and postpone risk planning."
         },
-        "C": {
-          "type": "C",
+        "B2": {
+          "type": "B2",
+          "rationale": "This approach prioritizes wound management but delays the critical conversation about hemorrhage preparedness. It may leave the family unprepared.",
+          "likelyConsequences": "If hemorrhage occurs before the next visit, the family will face it without support or guidance.",
+          "thinkingPatternInsight": "This reflects deferral under uncertainty. It avoids the difficult conversation in favor of routine care.",
+          "reasoningTrace": "You stay within the wound care frame and postpone risk planning."
+        },
+        "C1": {
+          "type": "C1",
+          "boundaryExplanation": "This approach prioritizes hospital access over the patient's clearly stated home preference. It may conflict with Adam's values and goals.",
+          "likelyDetrimentalOutcomes": "Adam may die during transport or in an unfamiliar hospital setting, contrary to his wishes. Family distress may increase.",
+          "thinkingPatternInsight": "This reflects risk aversion that overrides patient preference. It assumes hospital care is always safer.",
+          "reasoningTrace": "You focus on medical intervention availability rather than alignment with goals.",
+          "safetyReframe": "Consider what 'safe' means to Adam—is it emergency surgery or dying peacefully at home?"
+        },
+        "C2": {
+          "type": "C2",
           "boundaryExplanation": "This approach prioritizes hospital access over the patient's clearly stated home preference. It may conflict with Adam's values and goals.",
           "likelyDetrimentalOutcomes": "Adam may die during transport or in an unfamiliar hospital setting, contrary to his wishes. Family distress may increase.",
           "thinkingPatternInsight": "This reflects risk aversion that overrides patient preference. It assumes hospital care is always safer.",

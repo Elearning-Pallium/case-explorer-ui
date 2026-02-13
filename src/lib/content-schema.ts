@@ -73,18 +73,37 @@ export const ClusterAFeedbackSchema = z.object({
   reasoningTrace: z.string(),
 });
 
-// Cluster B feedback (Partial-Credit Reasoning) - 4 sections
-export const ClusterBFeedbackSchema = z.object({
-  type: z.literal("B"),
+// Cluster B1 feedback (Partial-Credit, higher) - 4 sections
+export const ClusterB1FeedbackSchema = z.object({
+  type: z.literal("B1"),
   rationale: z.string(),
   likelyConsequences: z.string(),
   thinkingPatternInsight: z.string(),
   reasoningTrace: z.string(),
 });
 
-// Cluster C feedback (Misconception) - 5 sections
-export const ClusterCFeedbackSchema = z.object({
-  type: z.literal("C"),
+// Cluster B2 feedback (Partial-Credit, lower) - 4 sections
+export const ClusterB2FeedbackSchema = z.object({
+  type: z.literal("B2"),
+  rationale: z.string(),
+  likelyConsequences: z.string(),
+  thinkingPatternInsight: z.string(),
+  reasoningTrace: z.string(),
+});
+
+// Cluster C1 feedback (Misconception, higher) - 5 sections
+export const ClusterC1FeedbackSchema = z.object({
+  type: z.literal("C1"),
+  boundaryExplanation: z.string(),
+  likelyDetrimentalOutcomes: z.string(),
+  thinkingPatternInsight: z.string(),
+  reasoningTrace: z.string(),
+  safetyReframe: z.string(),
+});
+
+// Cluster C2 feedback (Misconception, lower) - 5 sections
+export const ClusterC2FeedbackSchema = z.object({
+  type: z.literal("C2"),
   boundaryExplanation: z.string(),
   likelyDetrimentalOutcomes: z.string(),
   thinkingPatternInsight: z.string(),
@@ -95,8 +114,10 @@ export const ClusterCFeedbackSchema = z.object({
 // Union of all cluster feedback types
 export const ClusterFeedbackSchema = z.union([
   ClusterAFeedbackSchema,
-  ClusterBFeedbackSchema,
-  ClusterCFeedbackSchema,
+  ClusterB1FeedbackSchema,
+  ClusterB2FeedbackSchema,
+  ClusterC1FeedbackSchema,
+  ClusterC2FeedbackSchema,
 ]);
 
 // MCQ question with phased reveal support
@@ -108,8 +129,10 @@ export const MCQQuestionSchema = z.object({
   options: z.array(MCQOptionSchema).length(5),
   clusterFeedback: z.object({
     A: ClusterAFeedbackSchema,
-    B: ClusterBFeedbackSchema,
-    C: ClusterCFeedbackSchema,
+    B1: ClusterB1FeedbackSchema,
+    B2: ClusterB2FeedbackSchema,
+    C1: ClusterC1FeedbackSchema,
+    C2: ClusterC2FeedbackSchema,
   }),
   correctCombination: z.array(z.string()).length(2), // IDs of correct options
 });
@@ -172,8 +195,10 @@ export type OpeningScene = z.infer<typeof OpeningSceneSchema>;
 export type PatientPerspective = z.infer<typeof PatientPerspectiveSchema>;
 export type MCQOption = z.infer<typeof MCQOptionSchema>;
 export type ClusterAFeedback = z.infer<typeof ClusterAFeedbackSchema>;
-export type ClusterBFeedback = z.infer<typeof ClusterBFeedbackSchema>;
-export type ClusterCFeedback = z.infer<typeof ClusterCFeedbackSchema>;
+export type ClusterB1Feedback = z.infer<typeof ClusterB1FeedbackSchema>;
+export type ClusterB2Feedback = z.infer<typeof ClusterB2FeedbackSchema>;
+export type ClusterC1Feedback = z.infer<typeof ClusterC1FeedbackSchema>;
+export type ClusterC2Feedback = z.infer<typeof ClusterC2FeedbackSchema>;
 export type ClusterFeedback = z.infer<typeof ClusterFeedbackSchema>;
 export type MCQQuestion = z.infer<typeof MCQQuestionSchema>;
 export type IPPerspective = z.infer<typeof IPPerspectiveSchema>;

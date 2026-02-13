@@ -76,7 +76,7 @@ export interface SerializedState {
     questionId: string;
     selectedOptions: string[];
     score: number;
-    cluster: 'A' | 'B' | 'C';
+    cluster: string;
     timestamp: string;
   }>;
   

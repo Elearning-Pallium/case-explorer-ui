@@ -211,8 +211,8 @@ export default function CompletionPage() {
                   className={cn(
                     "flex h-10 w-10 items-center justify-center rounded-full font-semibold text-sm",
                     attempt.cluster === "A" && "bg-success text-success-foreground",
-                    attempt.cluster === "B" && "bg-warning text-warning-foreground",
-                    attempt.cluster === "C" && "bg-destructive text-destructive-foreground"
+                    (attempt.cluster === "B1" || attempt.cluster === "B2") && "bg-warning text-warning-foreground",
+                    (attempt.cluster === "C1" || attempt.cluster === "C2") && "bg-destructive text-destructive-foreground"
                   )}
                   title={`Q${i + 1}: Cluster ${attempt.cluster} (${attempt.score} pts)`}
                 >

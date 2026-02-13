@@ -5,7 +5,8 @@ import { scormAPI } from "@/lib/scorm-api";
 import { initializeAnalytics, analyticsTerminate } from "@/lib/analytics-service";
 import { 
   MCQ_SCORING, 
-  calculateClusterFromScore 
+  calculateClusterFromScore,
+  type ClusterType,
 } from "@/lib/scoring-constants";
 
 // Types for game state
@@ -14,7 +15,7 @@ export interface MCQAttempt {
   questionId: string;
   selectedOptions: string[];
   score: number;
-  cluster: "A" | "B" | "C";
+  cluster: ClusterType;
   timestamp: Date;
   attemptNumber?: number;
 }
@@ -285,14 +286,14 @@ interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
   // Helper functions
-  calculateCluster: (score: number) => "A" | "B" | "C";
+  calculateCluster: (score: number) => ClusterType;
   getMaxPossiblePoints: (questionCount: number) => number;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
 
 // Helper functions
-function calculateCluster(score: number): "A" | "B" | "C" {
+function calculateCluster(score: number): ClusterType {
   return calculateClusterFromScore(score);
 }
 
@@ -347,6 +348,7 @@ function deserializeState(saved: SerializedState): Partial<GameState> {
     },
     mcqAttempts: (saved.mcqAttempts || []).map((a) => ({
       ...a,
+      cluster: a.cluster as ClusterType,
       timestamp: new Date(a.timestamp),
     })),
     viewedPerspectives: new Set(saved.viewedPerspectives || []),

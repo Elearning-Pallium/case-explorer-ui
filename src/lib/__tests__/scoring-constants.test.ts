@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   MCQ_SCORING,
   ACTIVITY_POINTS,
-  CLUSTER_SCORES,
+  CLUSTER_MAP,
   calculateMaxCasePoints,
   calculateClusterFromScore,
 } from "../scoring-constants";
@@ -36,20 +36,19 @@ describe("Scoring Constants", () => {
     });
   });
 
-
-
-
-  describe("CLUSTER_SCORES", () => {
-    it("has A cluster at 10", () => {
-      expect(CLUSTER_SCORES.A).toBe(10);
+  describe("CLUSTER_MAP", () => {
+    it("maps 10 to A", () => {
+      expect(CLUSTER_MAP[10]).toBe("A");
     });
 
-    it("has B cluster scores as [7, 4]", () => {
-      expect(CLUSTER_SCORES.B).toEqual([7, 4]);
+    it("maps 7 to B1 and 4 to B2", () => {
+      expect(CLUSTER_MAP[7]).toBe("B1");
+      expect(CLUSTER_MAP[4]).toBe("B2");
     });
 
-    it("has C cluster scores as [6, 3, 2]", () => {
-      expect(CLUSTER_SCORES.C).toEqual([6, 3, 2]);
+    it("maps 6 to C1 and 3 to C2", () => {
+      expect(CLUSTER_MAP[6]).toBe("C1");
+      expect(CLUSTER_MAP[3]).toBe("C2");
     });
   });
 
@@ -86,23 +85,28 @@ describe("Scoring Constants", () => {
       expect(calculateClusterFromScore(10)).toBe("A");
     });
 
-    it("returns B for partial credit scores (7, 4)", () => {
-      expect(calculateClusterFromScore(7)).toBe("B");
-      expect(calculateClusterFromScore(4)).toBe("B");
+    it("returns B1 for score 7", () => {
+      expect(calculateClusterFromScore(7)).toBe("B1");
     });
 
-    it("returns C for misconception scores (6, 3, 2)", () => {
-      expect(calculateClusterFromScore(6)).toBe("C");
-      expect(calculateClusterFromScore(3)).toBe("C");
-      expect(calculateClusterFromScore(2)).toBe("C");
+    it("returns B2 for score 4", () => {
+      expect(calculateClusterFromScore(4)).toBe("B2");
     });
 
-    it("returns C for unexpected scores", () => {
-      expect(calculateClusterFromScore(0)).toBe("C");
-      expect(calculateClusterFromScore(1)).toBe("C");
-      expect(calculateClusterFromScore(5)).toBe("C");
-      expect(calculateClusterFromScore(8)).toBe("C");
-      expect(calculateClusterFromScore(9)).toBe("C");
+    it("returns C1 for score 6", () => {
+      expect(calculateClusterFromScore(6)).toBe("C1");
+    });
+
+    it("returns C2 for score 3", () => {
+      expect(calculateClusterFromScore(3)).toBe("C2");
+    });
+
+    it("returns C2 for unexpected scores", () => {
+      expect(calculateClusterFromScore(0)).toBe("C2");
+      expect(calculateClusterFromScore(1)).toBe("C2");
+      expect(calculateClusterFromScore(5)).toBe("C2");
+      expect(calculateClusterFromScore(8)).toBe("C2");
+      expect(calculateClusterFromScore(9)).toBe("C2");
     });
   });
 });
