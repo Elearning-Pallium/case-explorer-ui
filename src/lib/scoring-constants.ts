@@ -19,8 +19,6 @@ export const MCQ_SCORING = {
   PASS_SCORE: 10,
   /** Number of options per case MCQ question (A-E) */
   OPTIONS_PER_CASE_QUESTION: 5,
-  /** Number of options per simulacrum MCQ question (A-D) */
-  OPTIONS_PER_SIMULACRUM_QUESTION: 4,
 } as const;
 
 /**
@@ -47,20 +45,6 @@ export const ACTIVITY_POINTS = {
   JIT_DEFAULT: 2,
   /** Default points for completing a podcast (can be overridden in content) */
   PODCAST_DEFAULT: 1,
-} as const;
-
-/**
- * Simulacrum Scoring
- */
-export const SIMULACRUM_SCORING = {
-  /** Points awarded for perfect score (4/4 correct) */
-  PERFECT_SCORE_POINTS: 15,
-  /** Points awarded for passing score (3/4 correct) */
-  PASS_SCORE_POINTS: 10,
-  /** Minimum correct answers for perfect score */
-  PERFECT_THRESHOLD: 4,
-  /** Minimum correct answers for passing score */
-  PASS_THRESHOLD: 3,
 } as const;
 
 /**
@@ -117,19 +101,6 @@ export function calculateClusterFromScore(score: number): "A" | "B" | "C" {
   if (score === CLUSTER_SCORES.A) return "A";
   if (CLUSTER_SCORES.B.includes(score)) return "B";
   return "C";
-}
-
-/**
- * Calculate simulacrum points based on correct answers
- */
-export function calculateSimulacrumPoints(correctCount: number): number {
-  if (correctCount >= SIMULACRUM_SCORING.PERFECT_THRESHOLD) {
-    return SIMULACRUM_SCORING.PERFECT_SCORE_POINTS;
-  }
-  if (correctCount >= SIMULACRUM_SCORING.PASS_THRESHOLD) {
-    return SIMULACRUM_SCORING.PASS_SCORE_POINTS;
-  }
-  return 0;
 }
 
 /**

@@ -1,8 +1,7 @@
-import { CaseSchema, SimulacrumSchema, CURRENT_SCHEMA_VERSION, type Case, type Simulacrum } from "./content-schema";
-import { stubCase, stubSimulacrum } from "./stub-data";
+import { CaseSchema, CURRENT_SCHEMA_VERSION, type Case } from "./content-schema";
+import { stubCase } from "./stub-data";
 import { 
   validateMCQOptionCount, 
-  validateSimulacrumQuestionCount 
 } from "./mcq-validation";
 import { buildContentUrl } from "./base-url";
 
@@ -177,79 +176,6 @@ export async function loadCase(caseId: string): Promise<ContentLoadResult<Case>>
     
     if (isDev) {
       return { success: false, error: message, useStub: true, data: stubCase };
-    }
-    return { success: false, error: message, useStub: false, data: null };
-  }
-}
-
-/**
- * Load and validate simulacrum content from JSON file
- * - DEV: Falls back to stub data if file is missing or invalid
- * - PROD: Returns error state for explicit error UI
- */
-export async function loadSimulacrum(levelId: string): Promise<ContentLoadResult<Simulacrum>> {
-  const isDev = import.meta.env.DEV;
-  
-  try {
-    const url = buildContentUrl(`content/simulacrum-${levelId}.json`);
-    console.log(`[Content Loader] Fetching simulacrum from: ${url}`);
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      const error = `Simulacrum file not found: ${levelId}`;
-      console.warn(
-        `[Content Loader] ${error} - ${isDev ? "using stub data" : "no fallback in production"}`
-      );
-      
-      if (isDev) {
-        return { success: false, error, useStub: true, data: stubSimulacrum };
-      }
-      return { success: false, error, useStub: false, data: null };
-    }
-
-    const rawData = await response.json();
-    
-    // Check schema version
-    const schemaWarning = validateSchemaVersion(rawData, `simulacrum-${levelId}`);
-    
-    const parseResult = SimulacrumSchema.safeParse(rawData);
-
-    if (!parseResult.success) {
-      const errorMessages = parseResult.error.errors
-        .map((e) => `${e.path.join(".")}: ${e.message}`)
-        .join("; ");
-      
-      const error = `Invalid simulacrum data: ${errorMessages}`;
-      console.error(`[Content Loader] Schema validation failed for simulacrum ${levelId}:`, errorMessages);
-      
-      if (isDev) {
-        return { success: false, error, useStub: true, data: stubSimulacrum };
-      }
-      return { success: false, error, useStub: false, data: null };
-    }
-
-    // Validate simulacrum structure (dev only, logs once per load)
-    parseResult.data.options.forEach((option) => {
-      // Validate question count per option
-      validateSimulacrumQuestionCount(option.id, option.questions.length);
-      
-      // Validate option count per question
-      option.questions.forEach((question) => {
-        validateMCQOptionCount(question.id, question.options.length, 'simulacrum');
-      });
-    });
-
-    return { 
-      success: true, 
-      data: parseResult.data,
-      ...(schemaWarning && { schemaWarning })
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error(`[Content Loader] Failed to load simulacrum ${levelId}:`, message);
-    
-    if (isDev) {
-      return { success: false, error: message, useStub: true, data: stubSimulacrum };
     }
     return { success: false, error: message, useStub: false, data: null };
   }

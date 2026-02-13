@@ -1,28 +1,26 @@
 /**
  * Badge Registry
  * 
- * Dynamic badge generation based on case and simulacrum configuration.
+ * Dynamic badge generation based on case configuration.
  * Replaces hard-coded badge arrays with config-driven definitions.
  * 
  * Badge ID Patterns:
  * - Case standard: "{caseId}-standard" (e.g., "case-1-standard")
  * - Case premium: "{caseId}-premium" (e.g., "case-1-premium")
- * - Simulacrum: "simulacrum-{optionId}" (e.g., "simulacrum-sim-1")
  * - Explorer: "explorer-{caseId}" (e.g., "explorer-case-1")
  */
 
-import type { Case, Simulacrum, SimulacrumOption } from "./content-schema";
+import type { Case } from "./content-schema";
 
 export interface BadgeDefinition {
   id: string;
   name: string;
   description: string;
-  type: "case" | "premium" | "simulacrum";
+  type: "case" | "premium";
   unlockCondition: string;
   // Optional metadata for dynamic threshold display
   threshold?: number;
   caseId?: string;
-  simulacrumId?: string;
 }
 
 /**
@@ -31,19 +29,6 @@ export interface BadgeDefinition {
 function extractCaseNumber(caseId: string): number {
   const match = caseId.match(/case-(\d+)/);
   return match ? parseInt(match[1], 10) : 1;
-}
-
-/**
- * Derive meaningful badge name from simulacrum option
- */
-function deriveSimulacrumBadgeName(option: SimulacrumOption): string {
-  // Map focus areas to meaningful badge names
-  const focusToName: Record<string, string> = {
-    "Anticipatory planning and crisis response": "Crisis Response Expert",
-    "Communication and shared decision-making": "Communication Champion",
-    "Assessing and supporting family caregivers": "Family Support Specialist",
-  };
-  return focusToName[option.focus] || `${option.title} Expert`;
 }
 
 /**
@@ -77,20 +62,6 @@ export function generateCaseBadges(caseConfig: Case): [BadgeDefinition, BadgeDef
 }
 
 /**
- * Generate badge definitions for simulacrum options
- */
-export function generateSimulacrumBadges(simulacrum: Simulacrum): BadgeDefinition[] {
-  return simulacrum.options.map((option) => ({
-    id: `simulacrum-${option.id}`,
-    name: deriveSimulacrumBadgeName(option),
-    description: `Mastered ${option.title.toLowerCase()} simulacrum`,
-    type: "simulacrum" as const,
-    unlockCondition: `Score 4/4 on ${option.title}`,
-    simulacrumId: option.id,
-  }));
-}
-
-/**
  * Generate explorer badge definition for a case
  */
 export function generateExplorerBadge(caseConfig: Case): BadgeDefinition {
@@ -108,15 +79,13 @@ export function generateExplorerBadge(caseConfig: Case): BadgeDefinition {
 }
 
 /**
- * Build complete badge collection from loaded case and simulacrum configs
+ * Build complete badge collection from loaded case configs
  * 
  * @param cases - Array of loaded case configurations
- * @param simulacra - Array of loaded simulacrum configurations
  * @returns Complete list of all possible badges
  */
 export function buildBadgeRegistry(
   cases: Case[],
-  simulacra: Simulacrum[]
 ): BadgeDefinition[] {
   const badges: BadgeDefinition[] = [];
   
@@ -124,11 +93,6 @@ export function buildBadgeRegistry(
   for (const caseConfig of cases) {
     const [standard, premium] = generateCaseBadges(caseConfig);
     badges.push(standard, premium);
-  }
-  
-  // Generate simulacrum badges
-  for (const sim of simulacra) {
-    badges.push(...generateSimulacrumBadges(sim));
   }
   
   // Generate explorer badges (one per case)
@@ -146,7 +110,6 @@ export function groupBadgesByType(badges: BadgeDefinition[]): Record<BadgeDefini
   return {
     case: badges.filter((b) => b.type === "case"),
     premium: badges.filter((b) => b.type === "premium"),
-    simulacrum: badges.filter((b) => b.type === "simulacrum"),
   };
 }
 

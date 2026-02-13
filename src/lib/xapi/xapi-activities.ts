@@ -141,16 +141,4 @@ export function podcastActivity(
   };
 }
 
-/**
- * Simulacrum assessment activity
- */
-export function simulacrumActivity(levelId: string) {
-  const baseIRI = getBaseIRI();
-  return {
-    id: `${baseIRI}/simulacrum/${levelId}`,
-    definition: {
-      type: ACTIVITY_TYPES.ASSESSMENT,
-      name: { 'en-US': `Simulacrum Level ${levelId}` },
-    },
-  };
-}
+

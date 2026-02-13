@@ -60,7 +60,6 @@ export interface SerializedState {
   // Scoring
   totalPoints: number;
   casePoints: number;
-  simulacrumPoints: number;
   ipInsightsPoints: number;
   
   // Tokens (serialized)
@@ -76,7 +75,7 @@ export interface SerializedState {
     name: string;
     description: string;
     earnedAt?: string;
-    type: 'case' | 'premium' | 'simulacrum';
+    type: 'case' | 'premium';
   }>;
   
   // Attempt history (may be truncated)
@@ -473,7 +472,6 @@ export class StateManager {
       
       totalPoints: state.totalPoints,
       casePoints: state.casePoints,
-      simulacrumPoints: state.simulacrumPoints,
       ipInsightsPoints: state.ipInsightsPoints,
       
       tokens: state.tokens,
@@ -505,7 +503,6 @@ export class StateManager {
       
       totalPoints: state.totalPoints,
       casePoints: state.casePoints,
-      simulacrumPoints: state.simulacrumPoints,
       ipInsightsPoints: state.ipInsightsPoints,
       
       tokens: {

@@ -168,32 +168,6 @@ export const CaseSchema = z.object({
   }),
 });
 
-// Simulacrum schema
-export const SimulacrumOptionSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  focus: z.string(),
-  patientName: z.string(),
-  duration: z.string(),
-  questions: z.array(z.object({
-    id: z.string(),
-    stem: z.string(),
-    options: z.array(z.object({
-      id: z.string(),
-      label: z.string(),
-      text: z.string(),
-      isCorrect: z.boolean(),
-    })).length(4),
-  })).length(4),
-});
-
-export const SimulacrumSchema = z.object({
-  schemaVersion: z.literal("1.2"),
-  contentType: z.literal("simulacrum"),
-  levelId: z.string(),
-  options: z.array(SimulacrumOptionSchema).length(3),
-});
-
 // Type exports
 export type ChartEntry = z.infer<typeof ChartEntrySchema>;
 export type PersonInContext = z.infer<typeof PersonInContextSchema>;
@@ -210,5 +184,3 @@ export type IPPerspective = z.infer<typeof IPPerspectiveSchema>;
 export type JITResource = z.infer<typeof JITResourceSchema>;
 export type Podcast = z.infer<typeof PodcastSchema>;
 export type Case = z.infer<typeof CaseSchema>;
-export type SimulacrumOption = z.infer<typeof SimulacrumOptionSchema>;
-export type Simulacrum = z.infer<typeof SimulacrumSchema>;

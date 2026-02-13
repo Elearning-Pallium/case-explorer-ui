@@ -2,12 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   MCQ_SCORING,
   ACTIVITY_POINTS,
-  SIMULACRUM_SCORING,
   BADGE_DEFAULTS,
   CLUSTER_SCORES,
   calculateMaxCasePoints,
   calculateClusterFromScore,
-  calculateSimulacrumPoints,
 } from "../scoring-constants";
 
 describe("Scoring Constants", () => {
@@ -18,10 +16,6 @@ describe("Scoring Constants", () => {
 
     it("has correct options per case question", () => {
       expect(MCQ_SCORING.OPTIONS_PER_CASE_QUESTION).toBe(5);
-    });
-
-    it("has correct options per simulacrum question", () => {
-      expect(MCQ_SCORING.OPTIONS_PER_SIMULACRUM_QUESTION).toBe(4);
     });
   });
 
@@ -40,24 +34,6 @@ describe("Scoring Constants", () => {
 
     it("has correct podcast default points", () => {
       expect(ACTIVITY_POINTS.PODCAST_DEFAULT).toBe(1);
-    });
-  });
-
-  describe("SIMULACRUM_SCORING", () => {
-    it("has correct perfect score points", () => {
-      expect(SIMULACRUM_SCORING.PERFECT_SCORE_POINTS).toBe(15);
-    });
-
-    it("has correct pass score points", () => {
-      expect(SIMULACRUM_SCORING.PASS_SCORE_POINTS).toBe(10);
-    });
-
-    it("has correct perfect threshold", () => {
-      expect(SIMULACRUM_SCORING.PERFECT_THRESHOLD).toBe(4);
-    });
-
-    it("has correct pass threshold", () => {
-      expect(SIMULACRUM_SCORING.PASS_THRESHOLD).toBe(3);
     });
   });
 
@@ -87,13 +63,11 @@ describe("Scoring Constants", () => {
 
   describe("calculateMaxCasePoints", () => {
     it("calculates max for 4-question case (Adam: 48 pts)", () => {
-      // 4 MCQs × 10 + 2 IP + 2 JIT + 2 reflections + 2 podcasts = 48
       const max = calculateMaxCasePoints(4, 2, 2, 2);
       expect(max).toBe(48);
     });
 
     it("calculates max with no optional activities", () => {
-      // 4 MCQs × 10 + 2 IP + 0 + 2 reflections + 0 = 44
       const max = calculateMaxCasePoints(4, 0, 0, 2);
       expect(max).toBe(44);
     });
@@ -105,13 +79,11 @@ describe("Scoring Constants", () => {
     });
 
     it("calculates max for 5-question case", () => {
-      // 5 MCQs × 10 + 2 IP + 3 JIT + 2 reflections + 4 podcasts = 61
       const max = calculateMaxCasePoints(5, 3, 4, 2);
       expect(max).toBe(61);
     });
 
     it("handles zero questions edge case", () => {
-      // 0 MCQs × 10 + 2 IP + 0 + 2 reflections + 0 = 4
       const max = calculateMaxCasePoints(0, 0, 0, 2);
       expect(max).toBe(4);
     });
@@ -139,26 +111,6 @@ describe("Scoring Constants", () => {
       expect(calculateClusterFromScore(5)).toBe("C");
       expect(calculateClusterFromScore(8)).toBe("C");
       expect(calculateClusterFromScore(9)).toBe("C");
-    });
-  });
-
-  describe("calculateSimulacrumPoints", () => {
-    it("returns 15 for perfect (4/4)", () => {
-      expect(calculateSimulacrumPoints(4)).toBe(15);
-    });
-
-    it("returns 15 for more than perfect (edge case)", () => {
-      expect(calculateSimulacrumPoints(5)).toBe(15);
-    });
-
-    it("returns 10 for pass (3/4)", () => {
-      expect(calculateSimulacrumPoints(3)).toBe(10);
-    });
-
-    it("returns 0 for fail (< 3)", () => {
-      expect(calculateSimulacrumPoints(2)).toBe(0);
-      expect(calculateSimulacrumPoints(1)).toBe(0);
-      expect(calculateSimulacrumPoints(0)).toBe(0);
     });
   });
 });

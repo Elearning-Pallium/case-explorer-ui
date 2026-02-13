@@ -1,14 +1,13 @@
 import { describe, it, expect } from "vitest";
 import {
   generateCaseBadges,
-  generateSimulacrumBadges,
   generateExplorerBadge,
   buildBadgeRegistry,
   groupBadgesByType,
   getBadgeById,
   type BadgeDefinition,
 } from "../badge-registry";
-import type { Case, Simulacrum } from "../content-schema";
+import type { Case } from "../content-schema";
 
 // Mock case configuration
 const mockCase: Partial<Case> = {
@@ -16,16 +15,6 @@ const mockCase: Partial<Case> = {
   title: "Adam's Journey",
   badgeThresholds: { standard: 28, premium: 40 },
   questions: [{}, {}, {}, {}] as Case["questions"], // 4 questions
-};
-
-// Mock simulacrum configuration
-const mockSimulacrum: Partial<Simulacrum> = {
-  levelId: "level-1",
-  options: [
-    { id: "sim-pain", title: "Pain Management", focus: "Anticipatory planning and crisis response", patientName: "Adam", duration: "5 min", questions: [] },
-    { id: "sim-nausea", title: "Nausea & Vomiting", focus: "Communication and shared decision-making", patientName: "Adam", duration: "5 min", questions: [] },
-    { id: "sim-goals", title: "Goals of Care", focus: "Assessing and supporting family caregivers", patientName: "Adam", duration: "5 min", questions: [] },
-  ] as Simulacrum["options"],
 };
 
 describe("Badge Registry", () => {
@@ -68,36 +57,6 @@ describe("Badge Registry", () => {
     });
   });
 
-  describe("generateSimulacrumBadges", () => {
-    it("generates badges for each simulacrum option", () => {
-      const badges = generateSimulacrumBadges(mockSimulacrum as Simulacrum);
-
-      expect(badges).toHaveLength(3);
-      expect(badges[0].id).toBe("simulacrum-sim-pain");
-      expect(badges[0].type).toBe("simulacrum");
-      expect(badges[0].simulacrumId).toBe("sim-pain");
-    });
-
-    it("derives meaningful badge names from focus areas", () => {
-      const badges = generateSimulacrumBadges(mockSimulacrum as Simulacrum);
-
-      expect(badges[0].name).toBe("Crisis Response Expert");
-      expect(badges[1].name).toBe("Communication Champion");
-      expect(badges[2].name).toBe("Family Support Specialist");
-    });
-
-    it("falls back to title-based name for unknown focus", () => {
-      const customSim = {
-        options: [
-          { id: "sim-x", title: "Special Topic", focus: "Unknown Focus Area", patientName: "Test", duration: "5 min", questions: [] },
-        ],
-      };
-      const badges = generateSimulacrumBadges(customSim as unknown as Simulacrum);
-
-      expect(badges[0].name).toBe("Special Topic Expert");
-    });
-  });
-
   describe("generateExplorerBadge", () => {
     it("generates explorer badge for a case", () => {
       const badge = generateExplorerBadge(mockCase as Case);
@@ -117,11 +76,11 @@ describe("Badge Registry", () => {
   });
 
   describe("buildBadgeRegistry", () => {
-    it("generates correct badge count for MVP (1 case, 1 simulacrum)", () => {
-      const badges = buildBadgeRegistry([mockCase as Case], [mockSimulacrum as Simulacrum]);
+    it("generates correct badge count for MVP (1 case)", () => {
+      const badges = buildBadgeRegistry([mockCase as Case]);
 
-      // 1 case × 2 (standard + premium) + 1 explorer + 3 simulacrum = 6
-      expect(badges).toHaveLength(6);
+      // 1 case × 2 (standard + premium) + 1 explorer = 3
+      expect(badges).toHaveLength(3);
     });
 
     it("generates correct badge count for Level 1 (5 cases)", () => {
@@ -131,41 +90,26 @@ describe("Badge Registry", () => {
         questions: [{}, {}, {}, {}],
       }));
 
-      const badges = buildBadgeRegistry(mockCases as Case[], [mockSimulacrum as Simulacrum]);
+      const badges = buildBadgeRegistry(mockCases as Case[]);
 
-      // 5 cases × 2 (standard + premium) + 5 explorer + 3 simulacrum = 18
-      expect(badges).toHaveLength(18);
-    });
-
-    it("generates correct badge count for full game (25 cases, 5 simulacra)", () => {
-      const mockCases = Array.from({ length: 25 }, (_, i) => ({
-        caseId: `case-${i + 1}`,
-        badgeThresholds: { standard: 28, premium: 40 },
-        questions: [{}, {}, {}, {}],
-      }));
-      const mockSimulacra = Array.from({ length: 5 }, () => mockSimulacrum);
-
-      const badges = buildBadgeRegistry(mockCases as Case[], mockSimulacra as Simulacrum[]);
-
-      // 25 cases × 2 + 25 explorer + (5 × 3) simulacrum = 50 + 25 + 15 = 90
-      expect(badges).toHaveLength(90);
+      // 5 cases × 2 (standard + premium) + 5 explorer = 15
+      expect(badges).toHaveLength(15);
     });
   });
 
   describe("groupBadgesByType", () => {
     it("groups badges correctly by type", () => {
-      const badges = buildBadgeRegistry([mockCase as Case], [mockSimulacrum as Simulacrum]);
+      const badges = buildBadgeRegistry([mockCase as Case]);
       const grouped = groupBadgesByType(badges);
 
       expect(grouped.case).toHaveLength(1);
       expect(grouped.premium).toHaveLength(2); // 1 case premium + 1 explorer
-      expect(grouped.simulacrum).toHaveLength(3);
     });
   });
 
   describe("getBadgeById", () => {
     it("finds badge by ID", () => {
-      const badges = buildBadgeRegistry([mockCase as Case], [mockSimulacrum as Simulacrum]);
+      const badges = buildBadgeRegistry([mockCase as Case]);
       const badge = getBadgeById(badges, "case-1-standard");
 
       expect(badge).toBeDefined();
@@ -173,7 +117,7 @@ describe("Badge Registry", () => {
     });
 
     it("returns undefined for non-existent ID", () => {
-      const badges = buildBadgeRegistry([mockCase as Case], [mockSimulacrum as Simulacrum]);
+      const badges = buildBadgeRegistry([mockCase as Case]);
       const badge = getBadgeById(badges, "non-existent");
 
       expect(badge).toBeUndefined();
