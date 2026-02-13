@@ -1,4 +1,4 @@
-import type { Case, Simulacrum } from "./content-schema";
+import type { Case } from "./content-schema";
 
 // Real content for Case 01 - Adam's Case (Wound Assessment & Hemorrhage Risk)
 // Based on Case_01_6C_MCQs_v1-2.docx
@@ -113,36 +113,11 @@ export const stubCase: Case = {
       stem: "After examining the wound, you notice the family watching closely as the dressing darkens with slow oozing. Adam sits quietly, eyes down, while his son and daughter-in-law hover nearby. The tension in the room is palpable. What do you focus on now?",
       chartEntryIds: ["chart-1-1", "chart-1-2", "chart-1-3"],
       options: [
-        {
-          id: "q1-a",
-          label: "A",
-          text: "Frame the current bleeding as a manageable symptom while opening space to introduce broader palliative support alongside ongoing care.",
-          score: 5,
-        },
-        {
-          id: "q1-b",
-          label: "B",
-          text: "Maintain focus on wound management today and defer any broader care discussion until bleeding fully settles.",
-          score: 2,
-        },
-        {
-          id: "q1-c",
-          label: "C",
-          text: "Emphasize the seriousness of recurrent bleeding to prepare the family for likely hospital transfer.",
-          score: 1,
-        },
-        {
-          id: "q1-d",
-          label: "D",
-          text: "Acknowledge the bleeding concern while naming that additional supportive care could be added without changing current treatment.",
-          score: 5,
-        },
-        {
-          id: "q1-e",
-          label: "E",
-          text: "Reassure the family that no further planning is needed since bleeding has not required emergency care before.",
-          score: 2,
-        },
+        { id: "q1-a", label: "A", text: "Frame the current bleeding as a manageable symptom while opening space to introduce broader palliative support alongside ongoing care.", score: 5 },
+        { id: "q1-b", label: "B", text: "Maintain focus on wound management today and defer any broader care discussion until bleeding fully settles.", score: 2 },
+        { id: "q1-c", label: "C", text: "Emphasize the seriousness of recurrent bleeding to prepare the family for likely hospital transfer.", score: 1 },
+        { id: "q1-d", label: "D", text: "Acknowledge the bleeding concern while naming that additional supportive care could be added without changing current treatment.", score: 5 },
+        { id: "q1-e", label: "E", text: "Reassure the family that no further planning is needed since bleeding has not required emergency care before.", score: 2 },
       ],
       clusterFeedback: {
         A: {
@@ -177,36 +152,11 @@ export const stubCase: Case = {
       stem: "Adam's daughter-in-law asks you directly: 'Is this going to get worse? Should we be doing something different?' Adam remains silent but shifts in his chair. His son looks away. How do you respond?",
       chartEntryIds: ["chart-2-1", "chart-2-2"],
       options: [
-        {
-          id: "q2-a",
-          label: "A",
-          text: "Acknowledge her concern and invite the family into a broader conversation about what may lie ahead, including Adam if he wishes to participate.",
-          score: 5,
-        },
-        {
-          id: "q2-b",
-          label: "B",
-          text: "Reassure her that the current care plan is adequate and that changes are not needed at this time.",
-          score: 2,
-        },
-        {
-          id: "q2-c",
-          label: "C",
-          text: "Redirect the conversation to Adam and ask him directly whether he wants to discuss his prognosis now.",
-          score: 1,
-        },
-        {
-          id: "q2-d",
-          label: "D",
-          text: "Validate the daughter-in-law's anxiety while gently naming that planning ahead could reduce uncertainty for everyone.",
-          score: 5,
-        },
-        {
-          id: "q2-e",
-          label: "E",
-          text: "Defer the question until the wound care visit is complete, then schedule a follow-up specifically for care planning.",
-          score: 2,
-        },
+        { id: "q2-a", label: "A", text: "Acknowledge her concern and invite the family into a broader conversation about what may lie ahead, including Adam if he wishes to participate.", score: 5 },
+        { id: "q2-b", label: "B", text: "Reassure her that the current care plan is adequate and that changes are not needed at this time.", score: 2 },
+        { id: "q2-c", label: "C", text: "Redirect the conversation to Adam and ask him directly whether he wants to discuss his prognosis now.", score: 1 },
+        { id: "q2-d", label: "D", text: "Validate the daughter-in-law's anxiety while gently naming that planning ahead could reduce uncertainty for everyone.", score: 5 },
+        { id: "q2-e", label: "E", text: "Defer the question until the wound care visit is complete, then schedule a follow-up specifically for care planning.", score: 2 },
       ],
       clusterFeedback: {
         A: {
@@ -241,36 +191,11 @@ export const stubCase: Case = {
       stem: "During the visit, you learn that no palliative care consultation has been documented despite Adam's declining function and complex symptoms. The family seems unaware of what additional support might be available. What is your next step?",
       chartEntryIds: ["chart-3-1", "chart-3-2"],
       options: [
-        {
-          id: "q3-a",
-          label: "A",
-          text: "Explain what palliative care offers and suggest initiating a referral to provide added support alongside current oncology care.",
-          score: 5,
-        },
-        {
-          id: "q3-b",
-          label: "B",
-          text: "Document the gap but wait for the oncology team to initiate palliative involvement when they feel it is appropriate.",
-          score: 2,
-        },
-        {
-          id: "q3-c",
-          label: "C",
-          text: "Inform the family that palliative care is typically introduced when active treatment ends, so it may not be needed yet.",
-          score: 1,
-        },
-        {
-          id: "q3-d",
-          label: "D",
-          text: "Explore the family's understanding of Adam's trajectory and gently introduce palliative care as a way to enhance comfort and planning.",
-          score: 5,
-        },
-        {
-          id: "q3-e",
-          label: "E",
-          text: "Suggest that the family request a palliative care referral from the oncologist at their next scheduled appointment.",
-          score: 2,
-        },
+        { id: "q3-a", label: "A", text: "Explain what palliative care offers and suggest initiating a referral to provide added support alongside current oncology care.", score: 5 },
+        { id: "q3-b", label: "B", text: "Document the gap but wait for the oncology team to initiate palliative involvement when they feel it is appropriate.", score: 2 },
+        { id: "q3-c", label: "C", text: "Inform the family that palliative care is typically introduced when active treatment ends, so it may not be needed yet.", score: 1 },
+        { id: "q3-d", label: "D", text: "Explore the family's understanding of Adam's trajectory and gently introduce palliative care as a way to enhance comfort and planning.", score: 5 },
+        { id: "q3-e", label: "E", text: "Suggest that the family request a palliative care referral from the oncologist at their next scheduled appointment.", score: 2 },
       ],
       clusterFeedback: {
         A: {
@@ -305,36 +230,11 @@ export const stubCase: Case = {
       stem: "After completing your assessment, you recognize that Adam is at risk for a significant hemorrhage event given the tumor's proximity to major vessels. The family has expressed a wish for Adam to remain at home. What do you prioritize now?",
       chartEntryIds: ["chart-4-1", "chart-4-2"],
       options: [
-        {
-          id: "q4-a",
-          label: "A",
-          text: "Initiate a discussion about preparing for potential hemorrhage, including what comfort measures would be available at home.",
-          score: 5,
-        },
-        {
-          id: "q4-b",
-          label: "B",
-          text: "Arrange for hospital transfer to ensure Adam has access to emergency surgical intervention if needed.",
-          score: 1,
-        },
-        {
-          id: "q4-c",
-          label: "C",
-          text: "Focus on optimizing wound care and reassess hemorrhage risk at the next scheduled visit.",
-          score: 2,
-        },
-        {
-          id: "q4-d",
-          label: "D",
-          text: "Work with the team to prepare a hemorrhage kit and ensure the family understands what to expect and how to respond.",
-          score: 5,
-        },
-        {
-          id: "q4-e",
-          label: "E",
-          text: "Recommend that the family keep emergency contact numbers handy and call 911 if significant bleeding occurs.",
-          score: 2,
-        },
+        { id: "q4-a", label: "A", text: "Initiate a discussion about preparing for potential hemorrhage, including what comfort measures would be available at home.", score: 5 },
+        { id: "q4-b", label: "B", text: "Arrange for hospital transfer to ensure Adam has access to emergency surgical intervention if needed.", score: 1 },
+        { id: "q4-c", label: "C", text: "Focus on optimizing wound care and reassess hemorrhage risk at the next scheduled visit.", score: 2 },
+        { id: "q4-d", label: "D", text: "Work with the team to prepare a hemorrhage kit and ensure the family understands what to expect and how to respond.", score: 5 },
+        { id: "q4-e", label: "E", text: "Recommend that the family keep emergency contact numbers handy and call 911 if significant bleeding occurs.", score: 2 },
       ],
       clusterFeedback: {
         A: {
@@ -432,163 +332,7 @@ export const stubCase: Case = {
     },
   ],
   badgeThresholds: {
-    standard: 28, // 4 questions × 7 points minimum to pass
-    premium: 40,  // 4 questions × 10 points for perfect score
+    standard: 28,
+    premium: 40,
   },
-};
-
-// Stub Simulacrum data
-export const stubSimulacrum: Simulacrum = {
-  schemaVersion: "1.2",
-  contentType: "simulacrum",
-  levelId: "level-1",
-  options: [
-    {
-      id: "sim-1",
-      title: "Hemorrhage Management Principles",
-      focus: "Anticipatory planning and crisis response",
-      patientName: "Mr. Williams",
-      duration: "5 min",
-      questions: [
-        {
-          id: "sim1-q1",
-          stem: "What is the primary goal of a hemorrhage kit in home palliative care?",
-          options: [
-            { id: "a", label: "A", text: "To stop the bleeding completely", isCorrect: false },
-            { id: "b", label: "B", text: "To provide comfort and reduce distress during a bleed", isCorrect: true },
-            { id: "c", label: "C", text: "To prepare for emergency transport to hospital", isCorrect: false },
-            { id: "d", label: "D", text: "To document the bleeding event for legal purposes", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim1-q2",
-          stem: "Which medication is typically included in a hemorrhage kit for sedation?",
-          options: [
-            { id: "a", label: "A", text: "Haloperidol", isCorrect: false },
-            { id: "b", label: "B", text: "Midazolam", isCorrect: true },
-            { id: "c", label: "C", text: "Ondansetron", isCorrect: false },
-            { id: "d", label: "D", text: "Dexamethasone", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim1-q3",
-          stem: "Why are dark-colored towels recommended in a hemorrhage kit?",
-          options: [
-            { id: "a", label: "A", text: "They are more absorbent than white towels", isCorrect: false },
-            { id: "b", label: "B", text: "They reduce the visual impact of blood for patient and family", isCorrect: true },
-            { id: "c", label: "C", text: "They are easier to clean after the event", isCorrect: false },
-            { id: "d", label: "D", text: "They are required by home care regulations", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim1-q4",
-          stem: "When should goals of care regarding hemorrhage be discussed?",
-          options: [
-            { id: "a", label: "A", text: "Only after the first bleeding episode", isCorrect: false },
-            { id: "b", label: "B", text: "When hemorrhage is imminent", isCorrect: false },
-            { id: "c", label: "C", text: "Proactively, before a crisis occurs", isCorrect: true },
-            { id: "d", label: "D", text: "After the patient is no longer able to participate", isCorrect: false },
-          ],
-        },
-      ],
-    },
-    {
-      id: "sim-2",
-      title: "Goals of Care Conversations",
-      focus: "Communication and shared decision-making",
-      patientName: "Mrs. Chen",
-      duration: "5 min",
-      questions: [
-        {
-          id: "sim2-q1",
-          stem: "What is the most important first step in a goals of care conversation?",
-          options: [
-            { id: "a", label: "A", text: "Explaining all treatment options available", isCorrect: false },
-            { id: "b", label: "B", text: "Understanding the patient's values and priorities", isCorrect: true },
-            { id: "c", label: "C", text: "Discussing prognosis in detail", isCorrect: false },
-            { id: "d", label: "D", text: "Reviewing the medical chart thoroughly", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim2-q2",
-          stem: "How should a clinician respond when a patient says they want 'everything done'?",
-          options: [
-            { id: "a", label: "A", text: "Immediately arrange for aggressive interventions", isCorrect: false },
-            { id: "b", label: "B", text: "Explore what 'everything' means to the patient", isCorrect: true },
-            { id: "c", label: "C", text: "Explain why aggressive treatment isn't recommended", isCorrect: false },
-            { id: "d", label: "D", text: "Document the request and move on", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim2-q3",
-          stem: "Which statement best reflects a patient-centered approach to care planning?",
-          options: [
-            { id: "a", label: "A", text: "'Based on your condition, I recommend hospice care.'", isCorrect: false },
-            { id: "b", label: "B", text: "'What matters most to you as we plan your care?'", isCorrect: true },
-            { id: "c", label: "C", text: "'Your family thinks you should focus on comfort.'", isCorrect: false },
-            { id: "d", label: "D", text: "'Most patients in your situation choose palliative care.'", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim2-q4",
-          stem: "When is it appropriate to revisit goals of care?",
-          options: [
-            { id: "a", label: "A", text: "Only when the patient requests it", isCorrect: false },
-            { id: "b", label: "B", text: "When there is a significant change in clinical status", isCorrect: true },
-            { id: "c", label: "C", text: "At each scheduled appointment", isCorrect: false },
-            { id: "d", label: "D", text: "Only at the time of initial diagnosis", isCorrect: false },
-          ],
-        },
-      ],
-    },
-    {
-      id: "sim-3",
-      title: "Family Caregiver Support",
-      focus: "Assessing and supporting family caregivers",
-      patientName: "The Thompson Family",
-      duration: "5 min",
-      questions: [
-        {
-          id: "sim3-q1",
-          stem: "What is the most common unmet need among family caregivers in palliative care?",
-          options: [
-            { id: "a", label: "A", text: "Financial assistance", isCorrect: false },
-            { id: "b", label: "B", text: "Information and communication", isCorrect: true },
-            { id: "c", label: "C", text: "Transportation support", isCorrect: false },
-            { id: "d", label: "D", text: "Meal preparation help", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim3-q2",
-          stem: "Which sign might indicate caregiver burnout?",
-          options: [
-            { id: "a", label: "A", text: "Asking detailed questions about medications", isCorrect: false },
-            { id: "b", label: "B", text: "Expressing frustration or withdrawal from care activities", isCorrect: true },
-            { id: "c", label: "C", text: "Requesting additional home care visits", isCorrect: false },
-            { id: "d", label: "D", text: "Taking notes during clinical discussions", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim3-q3",
-          stem: "How can healthcare providers best support anticipatory grief in caregivers?",
-          options: [
-            { id: "a", label: "A", text: "Avoid discussing death to prevent distress", isCorrect: false },
-            { id: "b", label: "B", text: "Normalize grief reactions and provide space for expression", isCorrect: true },
-            { id: "c", label: "C", text: "Focus only on practical care tasks", isCorrect: false },
-            { id: "d", label: "D", text: "Refer immediately to bereavement services", isCorrect: false },
-          ],
-        },
-        {
-          id: "sim3-q4",
-          stem: "What should be included in preparing a family for a potential home death?",
-          options: [
-            { id: "a", label: "A", text: "Instructions to call 911 immediately", isCorrect: false },
-            { id: "b", label: "B", text: "Information about what to expect and who to call", isCorrect: true },
-            { id: "c", label: "C", text: "Recommendation to transfer to hospital in final days", isCorrect: false },
-            { id: "d", label: "D", text: "Assurance that death will not occur at home", isCorrect: false },
-          ],
-        },
-      ],
-    },
-  ],
 };

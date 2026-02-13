@@ -1,4 +1,4 @@
-import { Star, Lock, Trophy, Award, Sparkles } from "lucide-react";
+import { Star, Lock, Trophy, Sparkles } from "lucide-react";
 import type { BadgeInfo } from "@/contexts/GameContext";
 import type { BadgeDefinition } from "@/lib/badge-registry";
 import { groupBadgesByType } from "@/lib/badge-registry";
@@ -14,13 +14,11 @@ interface BadgeGalleryModalProps {
 const typeIcons: Record<BadgeInfo["type"], React.ComponentType<{ className?: string }>> = {
   case: Trophy,
   premium: Sparkles,
-  simulacrum: Award,
 };
 
 const typeColors: Record<BadgeInfo["type"], string> = {
   case: "bg-primary text-primary-foreground",
   premium: "bg-accent text-accent-foreground",
-  simulacrum: "bg-success text-success-foreground",
 };
 
 export function BadgeGalleryModal({ earnedBadges, availableBadges, onClose }: BadgeGalleryModalProps) {
@@ -52,7 +50,7 @@ export function BadgeGalleryModal({ earnedBadges, availableBadges, onClose }: Ba
             ([type, badges]) => {
               const Icon = typeIcons[type];
               const colorClass = typeColors[type];
-              const typeLabel = type === "case" ? "Case Badges" : type === "premium" ? "Premium Badges" : "Simulacrum Badges";
+              const typeLabel = type === "case" ? "Case Badges" : "Premium Badges";
 
               return (
                 <div key={type}>

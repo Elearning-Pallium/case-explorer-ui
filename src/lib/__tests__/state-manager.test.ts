@@ -37,7 +37,6 @@ function createTestState(overrides: Partial<SerializedState> = {}): SerializedSt
     currentQuestion: 1,
     totalPoints: 0,
     casePoints: 0,
-    simulacrumPoints: 0,
     ipInsightsPoints: 0,
     tokens: {
       correct: 0,

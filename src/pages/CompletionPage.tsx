@@ -9,11 +9,11 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { PodcastListSection } from "@/components/PodcastListSection";
 import { useGame } from "@/contexts/GameContext";
-import { loadCase, loadSimulacrum, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
+import { loadCase, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
 import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
-import { generateCaseBadges, buildBadgeRegistry } from "@/lib/badge-registry";
+import { generateCaseBadges } from "@/lib/badge-registry";
 import { cn } from "@/lib/utils";
-import type { Case, Simulacrum } from "@/lib/content-schema";
+import type { Case } from "@/lib/content-schema";
 
 export default function CompletionPage() {
   const { caseId } = useParams<{ caseId: string }>();
@@ -21,24 +21,20 @@ export default function CompletionPage() {
   const { state, dispatch, canEarnStandardBadge, canEarnPremiumBadge } = useGame();
   
   const [caseData, setCaseData] = useState<Case | null>(null);
-  const [simulacrumData, setSimulacrumData] = useState<Simulacrum | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [showCelebration, setShowCelebration] = useState(true);
 
-  // Load case and simulacrum data with error handling
+  // Load case data with error handling
   useEffect(() => {
     async function load() {
       if (!caseId) return;
       setIsLoading(true);
       setContentError(null);
       
-      const [caseResult, simResult] = await Promise.all([
-        loadCase(caseId),
-        loadSimulacrum("level-1"),
-      ]);
+      const caseResult = await loadCase(caseId);
       
       // Handle case load result
       if (isContentLoadError(caseResult)) {
@@ -55,17 +51,6 @@ export default function CompletionPage() {
         setCaseData(caseResult.data);
       }
       
-      // Handle simulacrum load result
-      if (isContentLoadError(simResult)) {
-        if (hasStubFallback(simResult)) {
-          setSimulacrumData(simResult.data);
-        } else {
-          setSimulacrumData(null);
-        }
-      } else {
-        setSimulacrumData(simResult.data);
-      }
-      
       setIsLoading(false);
     }
     load();
@@ -79,9 +64,10 @@ export default function CompletionPage() {
 
   // Build available badges for gallery (only when data is loaded)
   const availableBadges = useMemo(() => {
-    if (!caseData || !simulacrumData) return [];
-    return buildBadgeRegistry([caseData], [simulacrumData]);
-  }, [caseData, simulacrumData]);
+    if (!caseData) return [];
+    const [standard, premium] = generateCaseBadges(caseData);
+    return [standard, premium];
+  }, [caseData]);
 
   // Award badges on mount using dynamic thresholds
   useEffect(() => {
@@ -285,14 +271,8 @@ export default function CompletionPage() {
               <Progress value={state.ipInsightsPoints > 0 ? 100 : 0} className="h-2" />
             </div>
 
-            {/* Simulacrum Points */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm">Simulacrum</span>
-                <span className="font-semibold">{state.simulacrumPoints} pts</span>
-              </div>
-              <Progress value={state.simulacrumPoints > 0 ? 100 : 0} className="h-2" />
-            </div>
+
+
 
             {/* Total */}
             <div className="pt-4 border-t">
@@ -380,16 +360,8 @@ export default function CompletionPage() {
             <CardTitle>Next Steps</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {state.simulacrumPoints === 0 && (
-              <Button
-                onClick={() => navigate("/simulacrum")}
-                className="w-full bg-accent hover:bg-accent/90"
-                size="lg"
-              >
-                Complete Simulacrum Quiz
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            )}
+
+
             
             <Button
               onClick={() => setShowBadgeGallery(true)}

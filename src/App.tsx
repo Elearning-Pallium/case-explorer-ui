@@ -6,7 +6,6 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { GameProvider } from "@/contexts/GameContext";
 import LandingPage from "./pages/LandingPage";
 import CaseFlowPage from "./pages/CaseFlowPage";
-import SimulacrumPage from "./pages/SimulacrumPage";
 import CompletionPage from "./pages/CompletionPage";
 import NotFound from "./pages/NotFound";
 
@@ -22,7 +21,6 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/case/:caseId" element={<CaseFlowPage />} />
-            <Route path="/simulacrum" element={<SimulacrumPage />} />
             <Route path="/completion/:caseId" element={<CompletionPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

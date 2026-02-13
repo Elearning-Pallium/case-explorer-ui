@@ -15,7 +15,7 @@ export interface BadgeInfo {
   name: string;
   description: string;
   earnedAt?: Date;
-  type: "case" | "premium" | "simulacrum";
+  type: "case" | "premium";
 }
 
 export interface MCQAttempt {
@@ -42,7 +42,6 @@ export interface GameState {
   // Scoring
   totalPoints: number;
   casePoints: number;
-  simulacrumPoints: number;
   ipInsightsPoints: number;
   
   // Tokens
@@ -85,7 +84,7 @@ export interface GameState {
 type GameAction =
   | { type: "SET_CURRENT_QUESTION"; questionNumber: number }
   | { type: "RECORD_MCQ_ATTEMPT"; attempt: MCQAttempt }
-  | { type: "ADD_POINTS"; points: number; category: "case" | "simulacrum" | "ipInsights" }
+  | { type: "ADD_POINTS"; points: number; category: "case" | "ipInsights" }
   | { type: "ADD_CORRECT_TOKEN" }
   | { type: "ADD_EXPLORATORY_TOKEN"; optionId: string }
   | { type: "EARN_BADGE"; badge: BadgeInfo }
@@ -98,7 +97,6 @@ type GameAction =
   | { type: "COMPLETE_PODCAST"; caseId: string; podcastId: string; points: number }
   | { type: "SET_THEME"; theme: "light" | "dark" }
   | { type: "COMPLETE_CASE" }
-  | { type: "START_SIMULACRUM" }
   | { type: "SHOW_MULTI_TAB_WARNING"; show: boolean }
   | { type: "SET_READ_ONLY"; isReadOnly: boolean }
   | { type: "RESET_GAME" }
@@ -111,7 +109,6 @@ const initialState: GameState = {
   currentQuestion: 1,
   totalPoints: 0,
   casePoints: 0,
-  simulacrumPoints: 0,
   ipInsightsPoints: 0,
   tokens: {
     correct: 0,
@@ -149,8 +146,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       switch (action.category) {
         case "case":
           return { ...state, totalPoints: newTotal, casePoints: state.casePoints + action.points };
-        case "simulacrum":
-          return { ...state, totalPoints: newTotal, simulacrumPoints: state.simulacrumPoints + action.points };
         case "ipInsights":
           return { ...state, totalPoints: newTotal, ipInsightsPoints: state.ipInsightsPoints + action.points };
         default:
@@ -277,8 +272,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         reflectedPerspectives: new Set(),
       };
 
-    case "START_SIMULACRUM":
-      return state;
+
+
 
     case "SHOW_MULTI_TAB_WARNING":
       return { ...state, showMultiTabWarning: action.show };
@@ -329,7 +324,6 @@ function serializeState(state: GameState): SerializedState {
     currentQuestion: state.currentQuestion,
     totalPoints: state.totalPoints,
     casePoints: state.casePoints,
-    simulacrumPoints: state.simulacrumPoints,
     ipInsightsPoints: state.ipInsightsPoints,
     tokens: {
       correct: state.tokens.correct,
@@ -363,7 +357,6 @@ function deserializeState(saved: SerializedState): Partial<GameState> {
     currentQuestion: saved.currentQuestion,
     totalPoints: saved.totalPoints,
     casePoints: saved.casePoints,
-    simulacrumPoints: saved.simulacrumPoints,
     ipInsightsPoints: saved.ipInsightsPoints,
     tokens: {
       correct: saved.tokens?.correct ?? 0,

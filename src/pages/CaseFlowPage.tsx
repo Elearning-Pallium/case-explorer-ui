@@ -15,10 +15,10 @@ import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
 import { useCaseFlow, type CaseFlowPhase } from "@/hooks/use-case-flow";
-import { loadCase, loadSimulacrum, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
-import type { Case, JITResource, Simulacrum } from "@/lib/content-schema";
-import { stubCase, stubSimulacrum } from "@/lib/stub-data";
-import { buildBadgeRegistry } from "@/lib/badge-registry";
+import { loadCase, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
+import type { Case, JITResource } from "@/lib/content-schema";
+import { stubCase } from "@/lib/stub-data";
+import { generateCaseBadges } from "@/lib/badge-registry";
 import { calculateMaxCasePoints, ACTIVITY_POINTS, MCQ_SCORING } from "@/lib/scoring-constants";
 import { analyticsTrackCaseStart, analyticsTrackCaseComplete } from "@/lib/analytics-service";
 
@@ -38,7 +38,6 @@ export default function CaseFlowPage() {
 
   // Content state
   const [caseData, setCaseData] = useState<Case | null>(stubCase);
-  const [simulacrumData, setSimulacrumData] = useState<Simulacrum | null>(stubSimulacrum);
   const [contentError, setContentError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -72,17 +71,14 @@ export default function CaseFlowPage() {
     currentAttemptCount,
   } = useCaseFlow({ caseData, caseId: caseId || "" });
 
-  // Load case and simulacrum content with environment-aware error handling
+  // Load case content with environment-aware error handling
   useEffect(() => {
     async function load() {
       if (!caseId) return;
       setIsLoading(true);
       setContentError(null);
       
-      const [caseResult, simResult] = await Promise.all([
-        loadCase(caseId),
-        loadSimulacrum("level-1"),
-      ]);
+      const caseResult = await loadCase(caseId);
       
       // Handle case load result using type guards
       if (isContentLoadError(caseResult)) {
@@ -102,20 +98,6 @@ export default function CaseFlowPage() {
         // Log schema warning if present
         if (caseResult.schemaWarning) {
           console.warn(`[Schema Warning] ${caseResult.schemaWarning}`);
-        }
-      }
-      
-      // Handle simulacrum load result using type guards
-      if (isContentLoadError(simResult)) {
-        if (hasStubFallback(simResult)) {
-          setSimulacrumData(simResult.data);
-        } else {
-          setSimulacrumData(null);
-        }
-      } else {
-        setSimulacrumData(simResult.data);
-        if (simResult.schemaWarning) {
-          console.warn(`[Schema Warning] ${simResult.schemaWarning}`);
         }
       }
       
@@ -182,9 +164,10 @@ export default function CaseFlowPage() {
 
   // Build available badges for gallery (only when data is loaded)
   const availableBadges = useMemo(() => {
-    if (!caseData || !simulacrumData) return [];
-    return buildBadgeRegistry([caseData], [simulacrumData]);
-  }, [caseData, simulacrumData]);
+    if (!caseData) return [];
+    const [standard, premium] = generateCaseBadges(caseData);
+    return [standard, premium];
+  }, [caseData]);
 
   // Calculate max points using centralized helper
   const jitTotalPoints = caseData?.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;

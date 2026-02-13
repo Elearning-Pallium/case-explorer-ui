@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 interface ContentErrorBoundaryProps {
   error: string;
-  contentType: "case" | "simulacrum";
+  contentType: "case";
   contentId: string;
   onRetry?: () => void;
 }

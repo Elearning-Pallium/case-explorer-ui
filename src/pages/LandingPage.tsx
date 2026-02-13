@@ -213,7 +213,7 @@ export default function LandingPage() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground font-bold">
                     3
                   </div>
-                  <p className="mt-2 text-sm font-medium text-center">Simulacrum</p>
+                  <p className="mt-2 text-sm font-medium text-center">Review & Summary</p>
                 </div>
                 
                 <div className="h-0.5 w-8 bg-border flex-shrink-0" />
