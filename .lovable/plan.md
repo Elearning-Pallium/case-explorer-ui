@@ -1,54 +1,68 @@
 
-# Rewrite `use-case-flow.ts`: 3-Run Forward-Only Case System
+
+# Update HUD to Show Dual-Track Scoring and Run Counter
 
 ## Summary
 
-Replace the current retry-per-MCQ flow with a 3-run-per-case system. Within each run, the learner answers all 4 MCQs forward-only (no retries). After completing a run, they can retry the entire case (up to 3 runs) or finish and proceed to lived-experience.
+Restructure the HUD layout to match the provided mockup: a two-line display showing "Level 1 . Case 2 of 5 . Run 1 of 3" on the first line and "Completion: 24/40 | Exploration: 12/20" on the second line. Add a `currentRunNumber` prop and remove unused percentage display.
 
 ## Changes
 
-### 1. Rewrite `src/hooks/use-case-flow.ts`
+### 1. Update HUD props (`src/components/HUD.tsx`)
 
-Complete replacement of the file with the new state machine:
+Add new prop:
+- `currentRunNumber?: number` -- the current run (1-3), only shown when provided (i.e., during active case play)
 
-- **New phase type**: `"intro" | "mcq" | "feedback" | "end-of-run" | "lived-experience" | "complete"`
-- **New state variables**: `currentRunNumber`, `currentRunScores` (tracks scores within current run)
-- **Removed**: `currentAttemptCount`, `questionsAwarded`, `canContinue`, `retryQuestion`, `continueFeedback`
-- **Added**: `advanceFromFeedback`, `retryCase`, `completeCase`, `canRetryCase`, `allPerfect`, `showCorrectAnswers`, `bestScores`
-- **`bestScores`** derived from `state.completionPoints.perMCQ` on each render (not local state)
-- **`submitMCQ`**: Records attempt, score, explored options, stores in `currentRunScores`, always advances to feedback (no pass/fail gating)
-- **`advanceFromFeedback`**: If index < 3, go to next MCQ. If index === 3, dispatch `COMPLETE_CASE_RUN` and go to `end-of-run`
-- **`retryCase`**: Increments run number, resets question index and run scores, dispatches `START_CASE_RUN`, goes to `mcq`
-- **`completeCase`**: Dispatches `COMPLETE_CASE`, goes to `lived-experience`
+The `maxPoints` prop stays (used for completion denominator).
 
-### 2. Update `src/pages/CaseFlowPage.tsx`
+Add new prop for exploration max:
+- `maxExploration?: number` -- defaults to 20 (5 options x 4 MCQs per case)
 
-- Destructure new hook return values (`advanceFromFeedback`, `retryCase`, `completeCase`, `currentRunNumber`, `canRetryCase`, `allPerfect`, `showCorrectAnswers`, `currentRunScores`, `bestScores`)
-- Remove references to `retryQuestion`, `continueFeedback`, `canContinue`, `currentAttemptCount`
-- Update `ClusterFeedbackPanel` props: replace `onRetry`/`onContinue`/`canContinue` with single `onContinue={advanceFromFeedback}` (always available)
-- Add `end-of-run` phase rendering block with retry/complete buttons
-- Pass `currentRunNumber` to MCQComponent instead of `attemptNumber`
+### 2. Restructure Left Section
 
-### 3. Update `src/components/ClusterFeedbackPanel.tsx`
+Replace current left section with a single line of breadcrumb-style indicators separated by dot separators:
 
-- Remove `onRetry`, `canContinue`, `attemptNumber` props
-- Always show the "Continue" button (no retry button at feedback level)
-- Simplify action buttons section
+```
+Level {currentLevel} . Case {n} of 5 . Run {currentRunNumber} of 3
+```
 
-### 4. Update `src/hooks/__tests__/use-case-flow.test.tsx`
+- "Run X of 3" only renders when `currentRunNumber` is provided
+- Use `Separator` dots between items
+- Remove the Badge wrapper around "Case X of 5" -- use plain text to match the clean mockup style
 
-- Rewrite tests to match the new state machine
-- Test: intro to mcq to feedback to next mcq (forward-only)
-- Test: after 4th MCQ feedback, advance goes to end-of-run
-- Test: retryCase resets to MCQ 1 with incremented run number
-- Test: completeCase goes to lived-experience
-- Test: canRetryCase logic (run < 3 AND any score < 10)
-- Test: allPerfect logic (all 4 scores === 10)
+### 3. Restructure Center Section
+
+Replace current center points display with:
+
+```
+Completion: {completionTotal}/{maxPoints}  |  Exploration: {explorationTotal}/{maxExploration}
+```
+
+- Remove the percentage display `({pointsPercentage}%)`
+- Remove the Trophy and Zap icons to match the clean text-only mockup
+- Use a vertical separator between the two metrics
+- Keep `hidden md:flex` responsive behavior for exploration on small screens
+
+### 4. Update CaseFlowPage.tsx
+
+Pass `currentRunNumber` to HUD:
+
+```typescript
+<HUD
+  maxPoints={maxPoints}
+  currentRunNumber={currentRunNumber}
+  ...existing props
+/>
+```
+
+### 5. No removals needed
+
+The current HUD already has no badge display, no simulacrum points, no old single-track points, and no references to `state.badges`, `state.totalPoints`, `state.casePoints`, or `state.tokens`. These were already cleaned up in prior refactors.
 
 ## Technical Details
 
-- The `isPassingScore` import is no longer needed in use-case-flow (all MCQs advance regardless of score)
-- `findIncorrectOption` is still used for displaying the incorrect option in feedback
-- `CHART_REVEAL` constants still control chart entry reveal per MCQ
-- `START_CASE_RUN` is dispatched on `startCase` (run 1) and `retryCase` (runs 2-3)
-- The `end-of-run` phase is new UI that will need a simple rendering block in CaseFlowPage showing run summary, best scores, and retry/complete buttons
+- The `currentRunNumber` comes from `useCaseFlow` hook, already destructured in CaseFlowPage (line 60)
+- `maxExploration` defaults to 20 (4 MCQs x 5 options each) -- can be overridden if case data differs
+- The case number is parsed from `state.currentCase` via `.replace("case-", "")`
+- No new dependencies required
+
