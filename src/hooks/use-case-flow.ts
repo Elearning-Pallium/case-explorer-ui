@@ -88,7 +88,7 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
     return scores;
   }, [caseData, caseId, state.completionPoints.perMCQ]);
 
-  const canRetryCase = currentRunNumber < 3 && Object.values(bestScores).some(s => s < MCQ_SCORING.MAX_POINTS_PER_QUESTION);
+  const canRetryCase = currentRunNumber < 3;
   const allPerfect = Object.values(bestScores).length === totalQuestions && Object.values(bestScores).every(s => s === MCQ_SCORING.MAX_POINTS_PER_QUESTION);
   const showCorrectAnswers = phase === "end-of-run" && currentRunNumber === 3 && !allPerfect;
 

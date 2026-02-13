@@ -254,6 +254,7 @@ export default function CaseFlowPage() {
       <HUD 
         caseId={caseId || ""}
         currentRunNumber={currentRunNumber}
+        hasJITResources={(caseData?.jitResources?.length ?? 0) > 0}
         activeJIT={activeJIT}
         isJITCompleted={isJITCompleted}
         onJITClick={() => setShowJITPanel(true)}
@@ -345,6 +346,7 @@ export default function CaseFlowPage() {
             {/* End of Run Phase */}
             {phase === "end-of-run" && (
               <EndOfRunSummary
+                caseId={caseId || ""}
                 currentRunNumber={currentRunNumber}
                 questions={caseData.questions}
                 currentRunScores={currentRunScores}
