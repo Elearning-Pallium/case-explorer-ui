@@ -35,7 +35,7 @@ export default function LandingPage() {
             <div className="hidden md:flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1.5">
                 <Trophy className="h-4 w-4 text-accent" />
-                <span>{state.totalPoints} pts</span>
+                <span>{state.completionPoints.total} pts</span>
               </div>
             </div>
             <ThemeToggle />
@@ -69,16 +69,16 @@ export default function LandingPage() {
                   <div className="text-xs text-muted-foreground">Current Level</div>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-secondary">
-                  <div className="text-2xl font-bold text-accent">{state.totalPoints}</div>
-                  <div className="text-xs text-muted-foreground">Total Points</div>
+                <div className="text-2xl font-bold text-accent">{state.completionPoints.total}</div>
+                  <div className="text-xs text-muted-foreground">Completion Pts</div>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-secondary">
-                  <div className="text-2xl font-bold text-success">{state.tokens.correct}</div>
-                  <div className="text-xs text-muted-foreground">Correct Tokens</div>
+                  <div className="text-2xl font-bold text-success">{state.explorationPoints.total}</div>
+                  <div className="text-xs text-muted-foreground">Exploration Pts</div>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-secondary">
-                  <div className="text-2xl font-bold text-warning">{state.tokens.correct}</div>
-                  <div className="text-xs text-muted-foreground">Correct Tokens</div>
+                  <div className="text-2xl font-bold text-warning">{Object.keys(state.caseRuns).length}</div>
+                  <div className="text-xs text-muted-foreground">Cases Started</div>
                 </div>
               </div>
             </CardContent>

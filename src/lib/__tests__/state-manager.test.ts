@@ -35,15 +35,9 @@ function createTestState(overrides: Partial<SerializedState> = {}): SerializedSt
     currentLevel: 1,
     currentCase: 'case-1',
     currentQuestion: 1,
-    totalPoints: 0,
-    casePoints: 0,
-    ipInsightsPoints: 0,
-    tokens: {
-      correct: 0,
-      exploratory: 0,
-      viewedOptions: [],
-    },
-    
+    completionPoints: { perMCQ: {}, total: 0 },
+    explorationPoints: { perMCQ: {}, total: 0 },
+    caseRuns: {},
     mcqAttempts: [],
     theme: 'light',
     ...overrides,
@@ -61,8 +55,6 @@ describe('StateManager', () => {
 
   describe('Size Reduction Tests', () => {
     it('should compress and decompress state correctly via LZ-String', () => {
-      // LZ-String base64 may not reduce size for very small payloads,
-      // but should work for typical game states with history
       const state = createTestState({
         mcqAttempts: Array(10).fill(null).map((_, i) => ({
           questionId: `q-${i}`,
@@ -75,11 +67,9 @@ describe('StateManager', () => {
       const json = JSON.stringify(state);
       const compressed = LZString.compressToBase64(json);
       
-      // Should be reversible
       const decompressed = LZString.decompressFromBase64(compressed);
       expect(decompressed).toBe(json);
       
-      // Typical data with repetition should compress
       expect(compressed.length).toBeLessThan(json.length);
     });
 
@@ -106,7 +96,6 @@ describe('StateManager', () => {
         },
       });
 
-      // Access private methods via type casting for testing
       const manager = stateManager as unknown as {
         reduceLevel1: (s: SerializedState) => SerializedState;
         reduceLevel2: (s: SerializedState) => SerializedState;
@@ -121,7 +110,6 @@ describe('StateManager', () => {
       const size2 = LZString.compressToBase64(JSON.stringify(level2)).length;
       const size3 = LZString.compressToBase64(JSON.stringify(level3)).length;
 
-      // Each level should be progressively smaller
       expect(size2).toBeLessThan(size1);
       expect(size3).toBeLessThan(size2);
     });
@@ -145,7 +133,7 @@ describe('StateManager', () => {
       expect(reduced.mcqAttempts.length).toBe(10);
     });
 
-    it('should clear attempts and viewedOptions in Level 3 reduction', () => {
+    it('should clear attempts in Level 3 reduction', () => {
       const state = createTestState({
         mcqAttempts: Array(10).fill(null).map((_, i) => ({
           questionId: `q-${i}`,
@@ -154,11 +142,6 @@ describe('StateManager', () => {
           cluster: 'B' as const,
           timestamp: new Date().toISOString(),
         })),
-        tokens: {
-          correct: 5,
-          exploratory: 10,
-          viewedOptions: ['opt-1', 'opt-2', 'opt-3'],
-        },
       });
 
       const manager = stateManager as unknown as {
@@ -167,17 +150,13 @@ describe('StateManager', () => {
 
       const reduced = manager.reduceLevel3(state);
       expect(reduced.mcqAttempts.length).toBe(0);
-      expect(reduced.tokens.viewedOptions.length).toBe(0);
-      // Should preserve counts
-      expect(reduced.tokens.correct).toBe(5);
-      expect(reduced.tokens.exploratory).toBe(10);
     });
   });
 
   describe('Compression Tests', () => {
     it('should compress and decompress state correctly', () => {
       const state = createTestState({
-        totalPoints: 42,
+        completionPoints: { perMCQ: { 'case1_q1': { bestScore: 10, bestRunNumber: 1, firstRunScore: 10 } }, total: 10 },
       });
 
       const json = JSON.stringify(state);
@@ -185,7 +164,7 @@ describe('StateManager', () => {
       const decompressed = LZString.decompressFromBase64(compressed);
       const restored = JSON.parse(decompressed!);
 
-      expect(restored.totalPoints).toBe(42);
+      expect(restored.completionPoints.total).toBe(10);
     });
 
     it('should handle empty state', () => {
@@ -206,63 +185,23 @@ describe('StateManager', () => {
           cluster: 'B' as const,
           timestamp: new Date().toISOString(),
         })),
-        tokens: {
-          correct: 5,
-          exploratory: 15,
-          viewedOptions: Array(15).fill(null).map((_, i) => `option-${i}`),
+        completionPoints: {
+          perMCQ: Object.fromEntries(
+            Array(8).fill(null).map((_, i) => [`case1_q${i}`, { bestScore: 10, bestRunNumber: 1, firstRunScore: 10 }])
+          ),
+          total: 80,
         },
       });
 
       const json = JSON.stringify(typicalState);
       const compressed = LZString.compressToBase64(json);
       
-      // LZ-String typically achieves 50-70% compression on JSON
       const compressionRatio = compressed.length / json.length;
       expect(compressionRatio).toBeLessThan(0.7);
     });
   });
 
   describe('Merge Tests', () => {
-    it('should union tokens correctly', () => {
-      const scormData = createTestState({
-        _timestamp: Date.now() - 1000,
-        tokens: {
-          correct: 3,
-          exploratory: 2,
-          viewedOptions: ['opt-1', 'opt-2'],
-        },
-      });
-
-      const localData = createTestState({
-        _timestamp: Date.now(),
-        tokens: {
-          correct: 2,
-          exploratory: 3,
-          viewedOptions: ['opt-2', 'opt-3', 'opt-4'],
-        },
-      });
-
-      const manager = stateManager as unknown as {
-        mergeState: (scorm: SerializedState, local: SerializedState) => {
-          state: SerializedState;
-          source: string;
-          multiTabWarning: boolean;
-        };
-      };
-
-      const result = manager.mergeState(scormData, localData);
-      
-      // Should have union of all viewedOptions
-      expect(result.state.tokens.viewedOptions).toContain('opt-1');
-      expect(result.state.tokens.viewedOptions).toContain('opt-2');
-      expect(result.state.tokens.viewedOptions).toContain('opt-3');
-      expect(result.state.tokens.viewedOptions).toContain('opt-4');
-      expect(result.state.tokens.viewedOptions.length).toBe(4);
-      
-      // Should take max correct tokens
-      expect(result.state.tokens.correct).toBe(3);
-    });
-
     it('should dedupe attempts by timestamp', () => {
       const timestamp1 = new Date('2025-01-01T10:00:00Z').toISOString();
       const timestamp2 = new Date('2025-01-01T10:01:00Z').toISOString();
@@ -279,7 +218,7 @@ describe('StateManager', () => {
       const localData = createTestState({
         _timestamp: Date.now(),
         mcqAttempts: [
-          { questionId: 'q1', selectedOptions: ['A'], score: 5, cluster: 'B', timestamp: timestamp1 }, // Duplicate
+          { questionId: 'q1', selectedOptions: ['A'], score: 5, cluster: 'B', timestamp: timestamp1 },
           { questionId: 'q1', selectedOptions: ['C'], score: 10, cluster: 'A', timestamp: timestamp3 },
         ],
       });
@@ -294,24 +233,19 @@ describe('StateManager', () => {
 
       const result = manager.mergeState(scormData, localData);
       
-      // Should have 3 unique attempts (one duplicate removed)
       expect(result.state.mcqAttempts.length).toBe(3);
-      
-      // Should be sorted by timestamp
       expect(result.state.mcqAttempts[0].timestamp).toBe(timestamp1);
       expect(result.state.mcqAttempts[2].timestamp).toBe(timestamp3);
     });
 
-    it('should use newest timestamp for scalar values', () => {
+    it('should use newest timestamp as base for scalar values', () => {
       const scormData = createTestState({
         _timestamp: Date.now() - 5000,
-        totalPoints: 100,
         currentQuestion: 3,
       });
 
       const localData = createTestState({
         _timestamp: Date.now(),
-        totalPoints: 150,
         currentQuestion: 5,
       });
 
@@ -324,22 +258,14 @@ describe('StateManager', () => {
       };
 
       const result = manager.mergeState(scormData, localData);
-      
-      // Should take values from newer (local) data, but max for points
-      expect(result.state.totalPoints).toBe(150);
       expect(result.state.currentQuestion).toBe(5);
     });
 
     it('should set multiTabWarning when timestamps are close', () => {
       const now = Date.now();
       
-      const scormData = createTestState({
-        _timestamp: now - 2000, // 2 seconds ago
-      });
-
-      const localData = createTestState({
-        _timestamp: now,
-      });
+      const scormData = createTestState({ _timestamp: now - 2000 });
+      const localData = createTestState({ _timestamp: now });
 
       const manager = stateManager as unknown as {
         mergeState: (scorm: SerializedState, local: SerializedState) => {
@@ -356,13 +282,8 @@ describe('StateManager', () => {
     it('should not set multiTabWarning when timestamps are far apart', () => {
       const now = Date.now();
       
-      const scormData = createTestState({
-        _timestamp: now - 60000, // 1 minute ago
-      });
-
-      const localData = createTestState({
-        _timestamp: now,
-      });
+      const scormData = createTestState({ _timestamp: now - 60000 });
+      const localData = createTestState({ _timestamp: now });
 
       const manager = stateManager as unknown as {
         mergeState: (scorm: SerializedState, local: SerializedState) => {
@@ -380,7 +301,9 @@ describe('StateManager', () => {
   describe('localStorage Integration', () => {
     it('should save to localStorage', async () => {
       await stateManager.initialize();
-      const state = createTestState({ totalPoints: 42 });
+      const state = createTestState({
+        completionPoints: { perMCQ: { 'c1_q1': { bestScore: 42, bestRunNumber: 1, firstRunScore: 42 } }, total: 42 },
+      });
       
       await stateManager.saveState(state);
       
@@ -388,17 +311,19 @@ describe('StateManager', () => {
       expect(saved).not.toBeNull();
       
       const parsed = JSON.parse(saved!);
-      expect(parsed.totalPoints).toBe(42);
+      expect(parsed.completionPoints.total).toBe(42);
     });
 
     it('should load from localStorage', async () => {
-      const state = createTestState({ totalPoints: 99 });
+      const state = createTestState({
+        completionPoints: { perMCQ: { 'c1_q1': { bestScore: 99, bestRunNumber: 1, firstRunScore: 99 } }, total: 99 },
+      });
       localStorage.setItem('palliative-care-game-state', JSON.stringify(state));
       
       await stateManager.initialize();
       const loaded = await stateManager.loadState();
       
-      expect(loaded.state?.totalPoints).toBe(99);
+      expect(loaded.state?.completionPoints?.total).toBe(99);
       expect(loaded.source).toBe('localStorage');
     });
 
@@ -410,14 +335,12 @@ describe('StateManager', () => {
       
       expect(loaded.state).toBeNull();
       expect(loaded.source).toBe('none');
-      
-      // Should have cleared corrupted data
       expect(localStorage.getItem('palliative-care-game-state')).toBeNull();
     });
 
     it('should reject outdated state versions', async () => {
       const oldState = createTestState();
-      oldState._stateVersion = 1; // Old version
+      oldState._stateVersion = 1;
       localStorage.setItem('palliative-care-game-state', JSON.stringify(oldState));
       
       await stateManager.initialize();

@@ -133,7 +133,7 @@ export default function CaseFlowPage() {
   const handleCaseComplete = useCallback(() => {
     if (!caseId || !caseData) return;
     
-    const totalMCQScore = state.casePoints;
+    const totalMCQScore = state.completionPoints.total;
     const maxMCQScore = caseData.questions.length * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
     
     const sessionDurationSeconds = caseStartTimeRef.current
@@ -149,7 +149,7 @@ export default function CaseFlowPage() {
     );
     
     navigate(`/completion/${caseId}`);
-  }, [caseId, caseData, state.casePoints, navigate]);
+  }, [caseId, caseData, state.completionPoints.total, navigate]);
 
   // Calculate max points using centralized helper
   const jitTotalPoints = caseData?.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;

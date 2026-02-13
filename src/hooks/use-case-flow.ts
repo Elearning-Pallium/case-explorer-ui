@@ -40,7 +40,7 @@ interface UseCaseFlowReturn {
 }
 
 export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFlowReturn {
-  const { dispatch, calculateCluster } = useGame();
+  const { state, dispatch, calculateCluster } = useGame();
   
   // Phase state - initialized to match current CaseFlowPage exactly
   const [phase, setPhase] = useState<CaseFlowPhase>("intro");
@@ -101,23 +101,20 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
       },
     });
 
-    // Award exploratory token for non-passing attempts
-    // (Correct token only awarded on passing attempt)
+    // Track explored options
+    selectedOptions.forEach((optId) => {
+      dispatch({ type: "RECORD_OPTION_EXPLORED", caseId, mcqId: currentQuestion.id, optionId: optId });
+    });
+
+    // Record MCQ score for completion points
+    const runInfo = state.caseRuns[caseId];
+    const runNumber = runInfo?.currentRun ?? 1;
+    dispatch({ type: "RECORD_MCQ_SCORE", caseId, mcqId: currentQuestion.id, score, runNumber });
+
     if (!isPassing) {
-      // Track exploratory tokens for selected options in failed attempt
-      selectedOptions.forEach((optId) => {
-        dispatch({ type: "ADD_EXPLORATORY_TOKEN", optionId: optId });
-      });
-      
-      // Increment attempt count for next try
       setCurrentAttemptCount((prev) => prev + 1);
     } else {
-      // Passing attempt: award correct token
-      dispatch({ type: "ADD_CORRECT_TOKEN" });
-      
-      // Only award points if we haven't already awarded for this question
       if (!questionsAwarded.has(currentQuestion.id)) {
-        dispatch({ type: "ADD_POINTS", points: score, category: "case" });
         setQuestionsAwarded(prev => {
           const newSet = new Set(prev);
           newSet.add(currentQuestion.id);
