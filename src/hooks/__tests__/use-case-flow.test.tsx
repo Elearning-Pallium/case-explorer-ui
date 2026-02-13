@@ -40,7 +40,7 @@ const createMockCase = (questionCount: number): Case => ({
     { id: "ip3", role: "wound_specialist" as const, title: "Wound Specialist", perspective: "Test" },
     { id: "ip4", role: "mrp" as const, title: "MRP", perspective: "Test" },
   ],
-  badgeThresholds: { standard: 35, premium: 50 },
+  
 });
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (

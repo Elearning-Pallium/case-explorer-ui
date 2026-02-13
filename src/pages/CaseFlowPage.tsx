@@ -7,7 +7,6 @@ import { PersonInContextSection } from "@/components/PersonInContextSection";
 import { MCQComponent } from "@/components/MCQComponent";
 import { ClusterFeedbackPanel } from "@/components/ClusterFeedbackPanel";
 import { IPInsightsPanel } from "@/components/IPInsightsPanel";
-import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { LivedExperienceSection } from "@/components/LivedExperienceSection";
 import { JITPanel } from "@/components/JITPanel";
 import { AllPodcastsModal } from "@/components/AllPodcastsModal";
@@ -18,7 +17,6 @@ import { useCaseFlow, type CaseFlowPhase } from "@/hooks/use-case-flow";
 import { loadCase, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
 import type { Case, JITResource } from "@/lib/content-schema";
 import { stubCase } from "@/lib/stub-data";
-import { generateCaseBadges } from "@/lib/badge-registry";
 import { calculateMaxCasePoints, ACTIVITY_POINTS, MCQ_SCORING } from "@/lib/scoring-constants";
 import { analyticsTrackCaseStart, analyticsTrackCaseComplete } from "@/lib/analytics-service";
 
@@ -51,7 +49,6 @@ export default function CaseFlowPage() {
   const feedbackPanelRef = useRef<HTMLDivElement>(null);
 
   // Modal state
-  const [showBadgeGallery, setShowBadgeGallery] = useState(false);
   const [showJITPanel, setShowJITPanel] = useState(false);
   const [showPodcastsModal, setShowPodcastsModal] = useState(false);
 
@@ -112,8 +109,6 @@ export default function CaseFlowPage() {
   }, []);
 
   // Scroll to appropriate position when phase changes
-  // For feedback phase: scroll the ClusterFeedbackPanel into view so the Cluster header is visible
-  // For other phases: scroll main content to top
   useEffect(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -129,9 +124,7 @@ export default function CaseFlowPage() {
   // Track case start when case data loads
   useEffect(() => {
     if (caseData && caseId) {
-      // Set start time for duration tracking
       caseStartTimeRef.current = Date.now();
-      // Track case start in analytics
       analyticsTrackCaseStart(caseId, caseData.title || caseId);
     }
   }, [caseData, caseId]);
@@ -140,16 +133,13 @@ export default function CaseFlowPage() {
   const handleCaseComplete = useCallback(() => {
     if (!caseId || !caseData) return;
     
-    // Calculate total MCQ score and max possible
     const totalMCQScore = state.casePoints;
     const maxMCQScore = caseData.questions.length * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
     
-    // Calculate session duration
     const sessionDurationSeconds = caseStartTimeRef.current
       ? Math.round((Date.now() - caseStartTimeRef.current) / 1000)
       : 0;
     
-    // Track case completion in analytics
     analyticsTrackCaseComplete(
       caseId,
       caseData.title || caseId,
@@ -158,16 +148,8 @@ export default function CaseFlowPage() {
       sessionDurationSeconds
     );
     
-    // Navigate to completion page
     navigate(`/completion/${caseId}`);
   }, [caseId, caseData, state.casePoints, navigate]);
-
-  // Build available badges for gallery (only when data is loaded)
-  const availableBadges = useMemo(() => {
-    if (!caseData) return [];
-    const [standard, premium] = generateCaseBadges(caseData);
-    return [standard, premium];
-  }, [caseData]);
 
   // Calculate max points using centralized helper
   const jitTotalPoints = caseData?.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
@@ -179,7 +161,7 @@ export default function CaseFlowPage() {
     2 // reflection questions
   ) : 0;
 
-  // Get submitted reflections for current case (safe access for existing localStorage data)
+  // Get submitted reflections for current case
   const submittedReflections = state.learnerReflections?.[caseId || ""] || {};
 
   // Handle reflection submission
@@ -252,7 +234,7 @@ export default function CaseFlowPage() {
     );
   }
 
-  // Production error state - show error boundary
+  // Production error state
   if (!isLoading && contentError && !caseData) {
     return (
       <ContentErrorBoundary
@@ -264,7 +246,6 @@ export default function CaseFlowPage() {
     );
   }
 
-  // Guard: ensure caseData is loaded before rendering main content
   if (!caseData) {
     return null;
   }
@@ -274,7 +255,6 @@ export default function CaseFlowPage() {
       {/* HUD */}
       <HUD 
         maxPoints={maxPoints} 
-        showBadgeGallery={() => setShowBadgeGallery(true)}
         activeJIT={activeJIT}
         isJITCompleted={isJITCompleted}
         onJITClick={() => setShowJITPanel(true)}
@@ -380,15 +360,6 @@ export default function CaseFlowPage() {
         {/* IP Insights Panel (Right) */}
         <IPInsightsPanel perspectives={caseData.ipInsights} />
       </div>
-
-      {/* Badge Gallery Modal */}
-      {showBadgeGallery && (
-        <BadgeGalleryModal
-          earnedBadges={state.badges}
-          availableBadges={availableBadges}
-          onClose={() => setShowBadgeGallery(false)}
-        />
-      )}
 
       {/* JIT Panel */}
       {activeJIT && (

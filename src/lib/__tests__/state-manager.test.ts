@@ -43,7 +43,7 @@ function createTestState(overrides: Partial<SerializedState> = {}): SerializedSt
       exploratory: 0,
       viewedOptions: [],
     },
-    badges: [],
+    
     mcqAttempts: [],
     theme: 'light',
     ...overrides,
@@ -178,9 +178,6 @@ describe('StateManager', () => {
     it('should compress and decompress state correctly', () => {
       const state = createTestState({
         totalPoints: 42,
-        badges: [
-          { id: 'badge-1', name: 'Test Badge', description: 'A test', type: 'case' },
-        ],
       });
 
       const json = JSON.stringify(state);
@@ -189,7 +186,6 @@ describe('StateManager', () => {
       const restored = JSON.parse(decompressed!);
 
       expect(restored.totalPoints).toBe(42);
-      expect(restored.badges[0].id).toBe('badge-1');
     });
 
     it('should handle empty state', () => {

@@ -162,10 +162,6 @@ export const CaseSchema = z.object({
   ipInsights: z.array(IPPerspectiveSchema).length(4),
   jitResources: z.array(JITResourceSchema).optional(),
   podcasts: z.array(PodcastSchema).optional(),
-  badgeThresholds: z.object({
-    standard: z.number(),
-    premium: z.number(),
-  }),
 });
 
 // Type exports

@@ -10,10 +10,7 @@
 /**
  * HUD Display Settings
  */
-export const HUD_DISPLAY = {
-  /** Maximum badge stars shown in HUD (visual limit, not game limit) */
-  MAX_BADGES_SHOWN: 5,
-} as const;
+export const HUD_DISPLAY = {} as const;
 
 /**
  * Chart Reveal Behavior

@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   MCQ_SCORING,
   ACTIVITY_POINTS,
-  BADGE_DEFAULTS,
   CLUSTER_SCORES,
   calculateMaxCasePoints,
   calculateClusterFromScore,
@@ -37,15 +36,8 @@ describe("Scoring Constants", () => {
     });
   });
 
-  describe("BADGE_DEFAULTS", () => {
-    it("has standard threshold of 35", () => {
-      expect(BADGE_DEFAULTS.STANDARD_THRESHOLD).toBe(35);
-    });
 
-    it("has premium threshold of 50", () => {
-      expect(BADGE_DEFAULTS.PREMIUM_THRESHOLD).toBe(50);
-    });
-  });
+
 
   describe("CLUSTER_SCORES", () => {
     it("has A cluster at 10", () => {

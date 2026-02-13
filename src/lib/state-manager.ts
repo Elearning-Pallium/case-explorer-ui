@@ -69,14 +69,7 @@ export interface SerializedState {
     viewedOptions: string[];
   };
   
-  // Badges
-  badges: Array<{
-    id: string;
-    name: string;
-    description: string;
-    earnedAt?: string;
-    type: 'case' | 'premium';
-  }>;
+  
   
   // Attempt history (may be truncated)
   mcqAttempts: Array<{
@@ -255,14 +248,7 @@ export class StateManager {
       })
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     
-    // Merge badges (union by id)
-    const badgeIds = new Set<string>();
-    const mergedBadges = [...(base.badges || []), ...(other.badges || [])]
-      .filter((badge) => {
-        if (badgeIds.has(badge.id)) return false;
-        badgeIds.add(badge.id);
-        return true;
-      });
+    
     
     // Merge JIT resources (union)
     const mergedJit: Record<string, string[]> = {};
@@ -301,8 +287,6 @@ export class StateManager {
         exploratory: mergedViewedOptions.size,
         viewedOptions: Array.from(mergedViewedOptions),
       },
-      mcqAttempts: mergedAttempts,
-      badges: mergedBadges,
       jitResourcesRead: mergedJit,
       podcastsCompleted: mergedPodcastsCompleted,
       // Take highest scores
@@ -475,7 +459,6 @@ export class StateManager {
       ipInsightsPoints: state.ipInsightsPoints,
       
       tokens: state.tokens,
-      badges: state.badges,
       
       // Limit attempts to last 10
       mcqAttempts: (state.mcqAttempts || []).slice(-10),
@@ -511,7 +494,6 @@ export class StateManager {
         viewedOptions: [], // Clear to save space
       },
       
-      badges: state.badges,
       mcqAttempts: [], // Clear history
       
       theme: state.theme,
