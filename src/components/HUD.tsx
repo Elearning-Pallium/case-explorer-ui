@@ -1,4 +1,4 @@
-import { Trophy, Zap, BookOpen, CheckCircle, Headphones, Eye } from "lucide-react";
+import { BookOpen, CheckCircle, Headphones, Eye } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,8 @@ import type { JITResource } from "@/lib/content-schema";
 
 interface HUDProps {
   maxPoints: number;
+  currentRunNumber?: number;
+  maxExploration?: number;
   activeJIT?: JITResource | null;
   isJITCompleted?: boolean;
   onJITClick?: () => void;
@@ -18,6 +20,8 @@ interface HUDProps {
 
 export function HUD({ 
   maxPoints, 
+  currentRunNumber,
+  maxExploration = 20,
   activeJIT,
   isJITCompleted,
   onJITClick,
@@ -30,38 +34,27 @@ export function HUD({
   
   const completionTotal = state.completionPoints.total;
   const explorationTotal = state.explorationPoints.total;
-  const pointsPercentage = maxPoints > 0 ? Math.round((completionTotal / maxPoints) * 100) : 0;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-soft">
-      <div className="container flex h-14 items-center justify-between gap-4 px-4">
-        {/* Left: Case & Level */}
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="bg-accent text-accent-foreground font-semibold">
-            Case {state.currentCase.replace("case-", "")} of 5
-          </Badge>
-          <span className="text-sm font-medium opacity-90">
-            Level {state.currentLevel}
-          </span>
-        </div>
-
-        {/* Center: Points & Progress */}
-        <div className="flex items-center gap-6">
-          {/* Completion Points */}
-          <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-accent" />
-            <span className="font-semibold">
-              {completionTotal}/{maxPoints} pts
-            </span>
-            <span className="text-sm opacity-75">({pointsPercentage}%)</span>
+      <div className="container flex h-auto min-h-[3.5rem] items-center justify-between gap-4 px-4 py-1.5">
+        {/* Left: Level · Case · Run + Scores */}
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5 text-sm font-medium">
+            <span>Level {state.currentLevel}</span>
+            <span className="opacity-50">·</span>
+            <span>Case {state.currentCase.replace("case-", "")} of 5</span>
+            {currentRunNumber != null && (
+              <>
+                <span className="opacity-50">·</span>
+                <span>Run {currentRunNumber} of 3</span>
+              </>
+            )}
           </div>
-
-          {/* Exploration Points */}
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-1.5" title="Exploration points">
-              <Zap className="h-4 w-4 text-warning" />
-              <span className="text-sm font-medium">{explorationTotal} explored</span>
-            </div>
+          <div className="flex items-center gap-1.5 text-xs opacity-80">
+            <span>Completion: {completionTotal}/{maxPoints}</span>
+            <span className="opacity-50">|</span>
+            <span className="hidden md:inline">Exploration: {explorationTotal}/{maxExploration}</span>
           </div>
         </div>
 
