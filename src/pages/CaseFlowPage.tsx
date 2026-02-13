@@ -253,6 +253,7 @@ export default function CaseFlowPage() {
       {/* HUD */}
       <HUD 
         maxPoints={maxPoints} 
+        currentRunNumber={currentRunNumber}
         activeJIT={activeJIT}
         isJITCompleted={isJITCompleted}
         onJITClick={() => setShowJITPanel(true)}
