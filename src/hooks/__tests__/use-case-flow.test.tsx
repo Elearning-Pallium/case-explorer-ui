@@ -5,7 +5,7 @@ import { GameProvider } from "@/contexts/GameContext";
 import type { Case } from "@/lib/content-schema";
 import { CHART_REVEAL } from "@/lib/ui-constants";
 
-// Minimal mock case for testing
+// Minimal mock case for testing (4 questions to match MCQS_PER_CASE)
 const createMockCase = (questionCount: number): Case => ({
   schemaVersion: "1.2",
   contentType: "case",
@@ -42,7 +42,6 @@ const createMockCase = (questionCount: number): Case => ({
     { id: "ip3", role: "wound_specialist" as const, title: "Wound Specialist", perspective: "Test" },
     { id: "ip4", role: "mrp" as const, title: "MRP", perspective: "Test" },
   ],
-  
 });
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -53,42 +52,33 @@ describe("useCaseFlow", () => {
   describe("Initial State", () => {
     it("starts in intro phase", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       expect(result.current.phase).toBe("intro");
     });
 
-    it("initializes lastCluster to C2", () => {
+    it("initializes currentRunNumber to 1", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
-      expect(result.current.lastCluster).toBe("C2");
+      expect(result.current.currentRunNumber).toBe(1);
     });
 
     it("initializes revealedChartEntries from CHART_REVEAL constant", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       expect(result.current.revealedChartEntries).toBe(CHART_REVEAL.INITIAL_ENTRIES);
     });
-
-    it("provides currentQuestion from caseData", () => {
-      const mockCase = createMockCase(2);
-      const { result } = renderHook(
-        () => useCaseFlow({ caseData: mockCase, caseId: "case-1" }),
-        { wrapper }
-      );
-      expect(result.current.currentQuestion).toEqual(mockCase.questions[0]);
-    });
   });
 
-  describe("Phase Transitions", () => {
+  describe("Forward-Only Phase Transitions", () => {
     it("transitions intro -> mcq on startCase", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       act(() => result.current.startCase());
@@ -97,7 +87,7 @@ describe("useCaseFlow", () => {
 
     it("transitions mcq -> feedback on submitMCQ", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       act(() => result.current.startCase());
@@ -105,68 +95,130 @@ describe("useCaseFlow", () => {
       expect(result.current.phase).toBe("feedback");
     });
 
-    it("transitions feedback -> mcq on continueFeedback (not last question)", () => {
+    it("advances to next MCQ on advanceFromFeedback (not last question)", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       act(() => result.current.startCase());
       act(() => result.current.submitMCQ(["opt-0"], 7));
-      act(() => result.current.continueFeedback());
+      act(() => result.current.advanceFromFeedback());
       expect(result.current.phase).toBe("mcq");
       expect(result.current.currentQuestionIndex).toBe(1);
     });
 
-    it("transitions feedback -> lived-experience on continueFeedback (last question)", () => {
+    it("goes to end-of-run after last question feedback", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
-      // Go through both questions
       act(() => result.current.startCase());
-      act(() => result.current.submitMCQ(["opt-0"], 7));
-      act(() => result.current.continueFeedback());
-      act(() => result.current.submitMCQ(["opt-1"], 10));
-      act(() => result.current.continueFeedback());
-      expect(result.current.phase).toBe("lived-experience");
+      // Answer all 4 questions
+      for (let i = 0; i < 4; i++) {
+        act(() => result.current.submitMCQ(["opt-0"], 7));
+        if (i < 3) {
+          act(() => result.current.advanceFromFeedback());
+        }
+      }
+      act(() => result.current.advanceFromFeedback());
+      expect(result.current.phase).toBe("end-of-run");
     });
 
-    it("transitions feedback -> mcq on retryQuestion", () => {
+    it("does NOT have a retryQuestion function", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
+        { wrapper }
+      );
+      expect((result.current as any).retryQuestion).toBeUndefined();
+    });
+  });
+
+  describe("Run Retry", () => {
+    it("retryCase resets to MCQ 1 with incremented run", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       act(() => result.current.startCase());
-      act(() => result.current.submitMCQ(["opt-0"], 7));
-      act(() => result.current.retryQuestion());
+      for (let i = 0; i < 4; i++) {
+        act(() => result.current.submitMCQ(["opt-0"], 7));
+        act(() => result.current.advanceFromFeedback());
+      }
+      expect(result.current.phase).toBe("end-of-run");
+      act(() => result.current.retryCase());
       expect(result.current.phase).toBe("mcq");
+      expect(result.current.currentRunNumber).toBe(2);
+      expect(result.current.currentQuestionIndex).toBe(0);
+    });
+  });
+
+  describe("Case Completion", () => {
+    it("completeCase goes to lived-experience", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
+        { wrapper }
+      );
+      act(() => result.current.startCase());
+      for (let i = 0; i < 4; i++) {
+        act(() => result.current.submitMCQ(["opt-0"], 7));
+        act(() => result.current.advanceFromFeedback());
+      }
+      act(() => result.current.completeCase());
+      expect(result.current.phase).toBe("lived-experience");
+    });
+  });
+
+  describe("canRetryCase and allPerfect", () => {
+    it("canRetryCase is true when run < 3 and not all perfect", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
+        { wrapper }
+      );
+      act(() => result.current.startCase());
+      for (let i = 0; i < 4; i++) {
+        act(() => result.current.submitMCQ(["opt-0"], 7));
+        act(() => result.current.advanceFromFeedback());
+      }
+      expect(result.current.canRetryCase).toBe(true);
+    });
+
+    it("allPerfect is true when all 4 scores are 10", () => {
+      const { result } = renderHook(
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
+        { wrapper }
+      );
+      act(() => result.current.startCase());
+      for (let i = 0; i < 4; i++) {
+        act(() => result.current.submitMCQ(["opt-0", "opt-1"], 10));
+        act(() => result.current.advanceFromFeedback());
+      }
+      expect(result.current.allPerfect).toBe(true);
+      expect(result.current.canRetryCase).toBe(false);
     });
   });
 
   describe("Case Change Reset", () => {
     it("resets to intro phase when caseId changes", () => {
       const { result, rerender } = renderHook(
-        ({ caseId }) => useCaseFlow({ caseData: createMockCase(2), caseId }),
+        ({ caseId }) => useCaseFlow({ caseData: createMockCase(4), caseId }),
         { wrapper, initialProps: { caseId: "case-1" } }
       );
       
-      // Progress to feedback
       act(() => result.current.startCase());
       act(() => result.current.submitMCQ(["opt-0"], 7));
       expect(result.current.phase).toBe("feedback");
       
-      // Change case
       rerender({ caseId: "case-2" });
       expect(result.current.phase).toBe("intro");
       expect(result.current.currentQuestionIndex).toBe(0);
-      expect(result.current.lastCluster).toBe("C2");
+      expect(result.current.currentRunNumber).toBe(1);
     });
   });
 
   describe("Chart Reveal", () => {
     it("reveals additional entries after MCQ submission", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       const initial = result.current.revealedChartEntries;
@@ -174,33 +226,12 @@ describe("useCaseFlow", () => {
       act(() => result.current.submitMCQ(["opt-0"], 7));
       expect(result.current.revealedChartEntries).toBe(initial + CHART_REVEAL.ENTRIES_PER_MCQ);
     });
-
-    it("caps revealed entries at chartEntries.length", () => {
-      const mockCase = createMockCase(5); // 5 questions = 5 MCQ submissions
-      mockCase.chartEntries = Array(4).fill(null).map((_, i) => ({ id: `e${i}`, title: "Entry", content: "Content" }));
-      
-      const { result } = renderHook(
-        () => useCaseFlow({ caseData: mockCase, caseId: "case-1" }),
-        { wrapper }
-      );
-      
-      // Submit many MCQs
-      act(() => result.current.startCase());
-      act(() => result.current.submitMCQ(["opt-0"], 7));
-      act(() => result.current.continueFeedback());
-      act(() => result.current.submitMCQ(["opt-0"], 7));
-      act(() => result.current.continueFeedback());
-      act(() => result.current.submitMCQ(["opt-0"], 7));
-      
-      // Should be capped at 4
-      expect(result.current.revealedChartEntries).toBeLessThanOrEqual(4);
-    });
   });
 
   describe("Score and Cluster Tracking", () => {
     it("updates lastScore after MCQ submission", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       act(() => result.current.startCase());
@@ -208,15 +239,14 @@ describe("useCaseFlow", () => {
       expect(result.current.lastScore).toBe(10);
     });
 
-    it("updates lastCluster after MCQ submission", () => {
+    it("tracks currentRunScores within a run", () => {
       const { result } = renderHook(
-        () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
+        () => useCaseFlow({ caseData: createMockCase(4), caseId: "case-1" }),
         { wrapper }
       );
       act(() => result.current.startCase());
-      // Score 10 = Cluster A
-      act(() => result.current.submitMCQ(["opt-0", "opt-1"], 10));
-      expect(result.current.lastCluster).toBe("A");
+      act(() => result.current.submitMCQ(["opt-0"], 7));
+      expect(result.current.currentRunScores).toHaveProperty("q1", 7);
     });
   });
 });
