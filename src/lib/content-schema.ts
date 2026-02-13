@@ -181,7 +181,7 @@ export const CaseSchema = z.object({
   openingScene: OpeningSceneSchema,
   patientPerspective: PatientPerspectiveSchema.optional(),
   chartEntries: z.array(ChartEntrySchema),
-  questions: z.array(MCQQuestionSchema),
+  questions: z.array(MCQQuestionSchema).length(4),
   ipInsights: z.array(IPPerspectiveSchema).length(4),
   jitResources: z.array(JITResourceSchema).optional(),
   podcasts: z.array(PodcastSchema).optional(),

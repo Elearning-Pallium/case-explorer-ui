@@ -19,6 +19,8 @@ export const MCQ_SCORING = {
   PASS_SCORE: 10,
   /** Number of options per case MCQ question (A-E) */
   OPTIONS_PER_CASE_QUESTION: 5,
+  /** Number of MCQs per case */
+  MCQS_PER_CASE: 4,
 } as const;
 
 /**
