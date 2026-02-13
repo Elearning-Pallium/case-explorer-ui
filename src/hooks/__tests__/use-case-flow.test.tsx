@@ -29,8 +29,10 @@ const createMockCase = (questionCount: number): Case => ({
     })),
     clusterFeedback: {
       A: { type: "A" as const, rationale: "", knownOutcomes: "", thinkingPatternInsight: "", reasoningTrace: "" },
-      B: { type: "B" as const, rationale: "", likelyConsequences: "", thinkingPatternInsight: "", reasoningTrace: "" },
-      C: { type: "C" as const, boundaryExplanation: "", likelyDetrimentalOutcomes: "", thinkingPatternInsight: "", reasoningTrace: "", safetyReframe: "" },
+      B1: { type: "B1" as const, rationale: "", likelyConsequences: "", thinkingPatternInsight: "", reasoningTrace: "" },
+      B2: { type: "B2" as const, rationale: "", likelyConsequences: "", thinkingPatternInsight: "", reasoningTrace: "" },
+      C1: { type: "C1" as const, boundaryExplanation: "", likelyDetrimentalOutcomes: "", thinkingPatternInsight: "", reasoningTrace: "", safetyReframe: "" },
+      C2: { type: "C2" as const, boundaryExplanation: "", likelyDetrimentalOutcomes: "", thinkingPatternInsight: "", reasoningTrace: "", safetyReframe: "" },
     },
     correctCombination: ["opt-0", "opt-1"],
   })),
@@ -57,12 +59,12 @@ describe("useCaseFlow", () => {
       expect(result.current.phase).toBe("intro");
     });
 
-    it("initializes lastCluster to C", () => {
+    it("initializes lastCluster to C2", () => {
       const { result } = renderHook(
         () => useCaseFlow({ caseData: createMockCase(2), caseId: "case-1" }),
         { wrapper }
       );
-      expect(result.current.lastCluster).toBe("C");
+      expect(result.current.lastCluster).toBe("C2");
     });
 
     it("initializes revealedChartEntries from CHART_REVEAL constant", () => {
@@ -157,7 +159,7 @@ describe("useCaseFlow", () => {
       rerender({ caseId: "case-2" });
       expect(result.current.phase).toBe("intro");
       expect(result.current.currentQuestionIndex).toBe(0);
-      expect(result.current.lastCluster).toBe("C");
+      expect(result.current.lastCluster).toBe("C2");
     });
   });
 

@@ -48,26 +48,20 @@ export const ACTIVITY_POINTS = {
 } as const;
 
 
-/**
- * Cluster Mapping for MCQ Scores
- * Used to determine feedback cluster (A/B/C) based on score
- */
-export const CLUSTER_SCORES = {
-  /** Perfect score - Cluster A */
-  A: 10,
-  /** Partial credit scores - Cluster B */
-  B: [7, 4] as readonly number[],
-  /** Misconception scores - Cluster C */
-  C: [6, 3, 2] as readonly number[],
+export type ClusterType = "A" | "B1" | "B2" | "C1" | "C2";
+
+export const CLUSTER_MAP: Record<number, ClusterType> = {
+  10: "A",
+  7: "B1",
+  4: "B2",
+  6: "C1",
+  3: "C2",
 } as const;
 
 // ============ Helper Functions ============
 
 /**
  * Calculate max possible points for a case
- * 
- * Use this instead of hardcoding max points in components.
- * Pass the result to HUD's maxPoints prop.
  */
 export function calculateMaxCasePoints(
   questionCount: number,
@@ -85,10 +79,8 @@ export function calculateMaxCasePoints(
 /**
  * Calculate cluster from MCQ score
  */
-export function calculateClusterFromScore(score: number): "A" | "B" | "C" {
-  if (score === CLUSTER_SCORES.A) return "A";
-  if (CLUSTER_SCORES.B.includes(score)) return "B";
-  return "C";
+export function calculateClusterFromScore(score: number): ClusterType {
+  return CLUSTER_MAP[score] ?? "C2";
 }
 
 /**

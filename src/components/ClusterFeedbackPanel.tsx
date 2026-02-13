@@ -1,6 +1,7 @@
 import { useState, useEffect, forwardRef } from "react";
 import { Check, Lightbulb, Target, Brain, Search, Shield, AlertTriangle, type LucideIcon } from "lucide-react";
-import type { ClusterAFeedback, ClusterBFeedback, ClusterCFeedback, MCQOption } from "@/lib/content-schema";
+import type { ClusterAFeedback, ClusterB1Feedback, ClusterB2Feedback, ClusterC1Feedback, ClusterC2Feedback, MCQOption } from "@/lib/content-schema";
+import type { ClusterType } from "@/lib/scoring-constants";
 import { useGame } from "@/contexts/GameContext";
 import {
   Accordion,
@@ -39,11 +40,11 @@ const clusterCSections: FeedbackSection[] = [
   { id: "safety", label: "Safety Reframe", icon: Shield, key: "safetyReframe" as const },
 ];
 
-type ClusterFeedbackUnion = ClusterAFeedback | ClusterBFeedback | ClusterCFeedback;
+type ClusterFeedbackUnion = ClusterAFeedback | ClusterB1Feedback | ClusterB2Feedback | ClusterC1Feedback | ClusterC2Feedback;
 
 interface ClusterFeedbackPanelProps {
   feedback: ClusterFeedbackUnion;
-  cluster: "A" | "B" | "C";
+  cluster: ClusterType;
   questionId: string;
   onAllSectionsViewed: () => void;
   onRetry?: () => void;
@@ -72,7 +73,7 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
   // Get sections based on cluster type
   const baseSections = cluster === "A" 
     ? clusterASections 
-    : cluster === "B" 
+    : (cluster === "B1" || cluster === "B2")
       ? clusterBSections 
       : clusterCSections;
 
@@ -128,10 +129,14 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
     switch (cluster) {
       case "A":
         return { text: "Excellent reasoning!", className: "bg-success text-success-foreground" };
-      case "B":
+      case "B1":
         return { text: "Good thinking, with room to refine", className: "bg-warning text-warning-foreground" };
-      case "C":
+      case "B2":
+        return { text: "Partially correct, but key gaps remain", className: "bg-warning text-warning-foreground" };
+      case "C1":
         return { text: "Review the feedback to strengthen your approach", className: "bg-destructive text-destructive-foreground" };
+      case "C2":
+        return { text: "Significant misconceptions detected — review carefully", className: "bg-destructive text-destructive-foreground" };
     }
   };
 

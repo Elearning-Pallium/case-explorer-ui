@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useGame } from "@/contexts/GameContext";
-import { isPassingScore, findIncorrectOption } from "@/lib/scoring-constants";
+import { isPassingScore, findIncorrectOption, type ClusterType } from "@/lib/scoring-constants";
 import { CHART_REVEAL } from "@/lib/ui-constants";
 import type { Case, MCQQuestion, MCQOption } from "@/lib/content-schema";
 
@@ -24,7 +24,7 @@ interface UseCaseFlowReturn {
   currentQuestionIndex: number;
   currentQuestion: MCQQuestion | null;
   lastScore: number;
-  lastCluster: "A" | "B" | "C";
+  lastCluster: ClusterType;
   revealedChartEntries: number;
   lastSelectedOptions: MCQOption[];
   currentAttemptCount: number;
@@ -46,7 +46,7 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
   const [phase, setPhase] = useState<CaseFlowPhase>("intro");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [lastScore, setLastScore] = useState(0);
-  const [lastCluster, setLastCluster] = useState<"A" | "B" | "C">("C");
+  const [lastCluster, setLastCluster] = useState<ClusterType>("C2");
   const [revealedChartEntries, setRevealedChartEntries] = useState<number>(
     CHART_REVEAL.INITIAL_ENTRIES
   );
@@ -59,7 +59,7 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
     setPhase("intro");
     setCurrentQuestionIndex(0);
     setLastScore(0);
-    setLastCluster("C");
+    setLastCluster("C2");
     setRevealedChartEntries(CHART_REVEAL.INITIAL_ENTRIES);
     setLastSelectedOptions([]);
     setCurrentAttemptCount(1);
