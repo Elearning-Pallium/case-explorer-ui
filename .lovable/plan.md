@@ -1,81 +1,54 @@
 
-# Scroll to Cluster Feedback Header
+# Rewrite `use-case-flow.ts`: 3-Run Forward-Only Case System
 
-## Problem
-The current scroll-to-top targets the `<main>` element, which includes empty space above the ClusterFeedbackPanel. When a learner submits an MCQ and transitions to the feedback phase, they can't see the "Cluster C: Review the feedback..." header without scrolling up.
+## Summary
 
-## Solution
-Instead of scrolling the main container to its top, scroll the ClusterFeedbackPanel element into view using `scrollIntoView()`. This requires:
+Replace the current retry-per-MCQ flow with a 3-run-per-case system. Within each run, the learner answers all 4 MCQs forward-only (no retries). After completing a run, they can retry the entire case (up to 3 runs) or finish and proceed to lived-experience.
 
-1. **Add a ref to ClusterFeedbackPanel** - Create a `forwardRef` wrapper so the parent can reference the panel
-2. **Pass ref from CaseFlowPage** - Create a ref in the parent and pass it to ClusterFeedbackPanel
-3. **Scroll to the panel on phase change** - When phase becomes "feedback", scroll the ClusterFeedbackPanel into view
+## Changes
+
+### 1. Rewrite `src/hooks/use-case-flow.ts`
+
+Complete replacement of the file with the new state machine:
+
+- **New phase type**: `"intro" | "mcq" | "feedback" | "end-of-run" | "lived-experience" | "complete"`
+- **New state variables**: `currentRunNumber`, `currentRunScores` (tracks scores within current run)
+- **Removed**: `currentAttemptCount`, `questionsAwarded`, `canContinue`, `retryQuestion`, `continueFeedback`
+- **Added**: `advanceFromFeedback`, `retryCase`, `completeCase`, `canRetryCase`, `allPerfect`, `showCorrectAnswers`, `bestScores`
+- **`bestScores`** derived from `state.completionPoints.perMCQ` on each render (not local state)
+- **`submitMCQ`**: Records attempt, score, explored options, stores in `currentRunScores`, always advances to feedback (no pass/fail gating)
+- **`advanceFromFeedback`**: If index < 3, go to next MCQ. If index === 3, dispatch `COMPLETE_CASE_RUN` and go to `end-of-run`
+- **`retryCase`**: Increments run number, resets question index and run scores, dispatches `START_CASE_RUN`, goes to `mcq`
+- **`completeCase`**: Dispatches `COMPLETE_CASE`, goes to `lived-experience`
+
+### 2. Update `src/pages/CaseFlowPage.tsx`
+
+- Destructure new hook return values (`advanceFromFeedback`, `retryCase`, `completeCase`, `currentRunNumber`, `canRetryCase`, `allPerfect`, `showCorrectAnswers`, `currentRunScores`, `bestScores`)
+- Remove references to `retryQuestion`, `continueFeedback`, `canContinue`, `currentAttemptCount`
+- Update `ClusterFeedbackPanel` props: replace `onRetry`/`onContinue`/`canContinue` with single `onContinue={advanceFromFeedback}` (always available)
+- Add `end-of-run` phase rendering block with retry/complete buttons
+- Pass `currentRunNumber` to MCQComponent instead of `attemptNumber`
+
+### 3. Update `src/components/ClusterFeedbackPanel.tsx`
+
+- Remove `onRetry`, `canContinue`, `attemptNumber` props
+- Always show the "Continue" button (no retry button at feedback level)
+- Simplify action buttons section
+
+### 4. Update `src/hooks/__tests__/use-case-flow.test.tsx`
+
+- Rewrite tests to match the new state machine
+- Test: intro to mcq to feedback to next mcq (forward-only)
+- Test: after 4th MCQ feedback, advance goes to end-of-run
+- Test: retryCase resets to MCQ 1 with incremented run number
+- Test: completeCase goes to lived-experience
+- Test: canRetryCase logic (run < 3 AND any score < 10)
+- Test: allPerfect logic (all 4 scores === 10)
 
 ## Technical Details
 
-### File 1: `src/components/ClusterFeedbackPanel.tsx`
-- Convert component to use `forwardRef` to accept a ref from the parent
-- Attach the ref to the outer `<div>` container (the card with the Cluster badge)
-
-### File 2: `src/pages/CaseFlowPage.tsx`
-- Add a new ref: `feedbackPanelRef = useRef<HTMLDivElement>(null)`
-- Modify the scroll effect to:
-  - When phase is "feedback": scroll `feedbackPanelRef` into view
-  - For other phases: scroll main content to top as before
-- Pass the ref to `<ClusterFeedbackPanel ref={feedbackPanelRef} ... />`
-
-## Implementation
-
-### ClusterFeedbackPanel.tsx changes:
-```tsx
-import { forwardRef } from "react";
-
-export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPanelProps>(
-  function ClusterFeedbackPanel({ feedback, cluster, ... }, ref) {
-    // ... existing code ...
-    
-    return (
-      <div ref={ref} className="rounded-xl border bg-card p-6 shadow-soft-lg animate-scale-in">
-        {/* Cluster Badge - THIS is what the user needs to see */}
-        ...
-      </div>
-    );
-  }
-);
-```
-
-### CaseFlowPage.tsx changes:
-```tsx
-// Add new ref for feedback panel
-const feedbackPanelRef = useRef<HTMLDivElement>(null);
-
-// Update scroll effect
-useEffect(() => {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (phase === "feedback" && feedbackPanelRef.current) {
-        // Scroll feedback panel into view with some top padding
-        feedbackPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        // For other phases, scroll main to top
-        mainContentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    });
-  });
-}, [phase]);
-
-// In the JSX, pass ref to ClusterFeedbackPanel
-{phase === "feedback" && currentQuestion && (
-  <ClusterFeedbackPanel
-    ref={feedbackPanelRef}
-    feedback={...}
-    ...
-  />
-)}
-```
-
-## Why This Works
-- `scrollIntoView({ block: 'start' })` scrolls the element to the top of the viewport
-- The double `requestAnimationFrame` ensures the panel is rendered before scrolling
-- The learner will see the "Cluster C:" badge immediately upon phase transition
-- Other phase transitions still scroll to the top of main content as before
+- The `isPassingScore` import is no longer needed in use-case-flow (all MCQs advance regardless of score)
+- `findIncorrectOption` is still used for displaying the incorrect option in feedback
+- `CHART_REVEAL` constants still control chart entry reveal per MCQ
+- `START_CASE_RUN` is dispatched on `startCase` (run 1) and `retryCase` (runs 2-3)
+- The `end-of-run` phase is new UI that will need a simple rendering block in CaseFlowPage showing run summary, best scores, and retry/complete buttons
