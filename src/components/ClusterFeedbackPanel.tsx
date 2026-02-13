@@ -47,11 +47,8 @@ interface ClusterFeedbackPanelProps {
   cluster: ClusterType;
   questionId: string;
   onAllSectionsViewed: () => void;
-  onRetry?: () => void;
   onContinue?: () => void;
   incorrectOption?: MCQOption | null;
-  canContinue?: boolean;
-  attemptNumber?: number;
 }
 
 export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPanelProps>(
@@ -60,11 +57,8 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
     cluster,
     questionId,
     onAllSectionsViewed,
-    onRetry,
     onContinue,
     incorrectOption,
-    canContinue = true,
-    attemptNumber,
   }, ref) {
   const { dispatch } = useGame();
   const [openSections, setOpenSections] = useState<string[]>([]);
@@ -165,11 +159,6 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
           </span>
         </div>
         <Progress value={progressPercent} className="h-2" />
-        {attemptNumber !== undefined && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Attempt {attemptNumber}
-          </p>
-        )}
       </div>
 
       {/* Feedback Accordion - Multiple sections can stay open */}
@@ -233,12 +222,7 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
 
       {/* Action Buttons */}
       <div className="mt-6 flex items-center justify-end gap-3">
-        {onRetry && !canContinue && (
-          <Button variant="outline" onClick={onRetry} disabled={!allSectionsViewed}>
-            Try Again
-          </Button>
-        )}
-        {onContinue && canContinue && (
+        {onContinue && (
           <Button
             onClick={onContinue}
             disabled={!allSectionsViewed}

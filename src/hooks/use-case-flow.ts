@@ -1,17 +1,20 @@
 /**
- * useCaseFlow - Phase state machine for case progression
+ * useCaseFlow - 3-Run Forward-Only Case State Machine
  * 
- * Manages the intro -> mcq -> feedback -> lived-experience flow
- * with automatic reset when caseId changes.
+ * Within each run, the learner answers all MCQs forward-only (no retries).
+ * After completing a run, they can retry the entire case (up to 3 runs)
+ * or finish and proceed to lived-experience.
+ * 
+ * Phase flow: intro → mcq → feedback → mcq → ... → end-of-run → (retry | lived-experience)
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useGame } from "@/contexts/GameContext";
-import { isPassingScore, findIncorrectOption, type ClusterType } from "@/lib/scoring-constants";
+import { findIncorrectOption, MCQ_SCORING, type ClusterType } from "@/lib/scoring-constants";
 import { CHART_REVEAL } from "@/lib/ui-constants";
 import type { Case, MCQQuestion, MCQOption } from "@/lib/content-schema";
 
-export type CaseFlowPhase = "intro" | "mcq" | "feedback" | "lived-experience" | "complete";
+export type CaseFlowPhase = "intro" | "mcq" | "feedback" | "end-of-run" | "lived-experience" | "complete";
 
 interface UseCaseFlowOptions {
   caseData: Case | null;
@@ -21,69 +24,88 @@ interface UseCaseFlowOptions {
 interface UseCaseFlowReturn {
   // State
   phase: CaseFlowPhase;
+  currentRunNumber: number;
   currentQuestionIndex: number;
   currentQuestion: MCQQuestion | null;
   lastScore: number;
   lastCluster: ClusterType;
   revealedChartEntries: number;
   lastSelectedOptions: MCQOption[];
-  currentAttemptCount: number;
-  canContinue: boolean;
   incorrectOption: MCQOption | null;
-  
+
+  // Run summary data
+  currentRunScores: Record<string, number>;
+  bestScores: Record<string, number>;
+  canRetryCase: boolean;
+  allPerfect: boolean;
+  showCorrectAnswers: boolean;
+
   // Actions
   startCase: () => void;
   submitMCQ: (selectedOptions: string[], score: number) => void;
-  continueFeedback: () => void;
-  retryQuestion: () => void;
+  advanceFromFeedback: () => void;
+  retryCase: () => void;
+  completeCase: () => void;
   onFeedbackComplete: () => void;
 }
 
 export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFlowReturn {
   const { state, dispatch, calculateCluster } = useGame();
-  
-  // Phase state - initialized to match current CaseFlowPage exactly
+
   const [phase, setPhase] = useState<CaseFlowPhase>("intro");
+  const [currentRunNumber, setCurrentRunNumber] = useState<number>(1);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [lastScore, setLastScore] = useState(0);
   const [lastCluster, setLastCluster] = useState<ClusterType>("C2");
-  const [revealedChartEntries, setRevealedChartEntries] = useState<number>(
-    CHART_REVEAL.INITIAL_ENTRIES
-  );
+  const [revealedChartEntries, setRevealedChartEntries] = useState<number>(CHART_REVEAL.INITIAL_ENTRIES);
   const [lastSelectedOptions, setLastSelectedOptions] = useState<MCQOption[]>([]);
-  const [currentAttemptCount, setCurrentAttemptCount] = useState(1);
-  const [questionsAwarded, setQuestionsAwarded] = useState<Set<string>>(new Set());
+  const [currentRunScores, setCurrentRunScores] = useState<Record<string, number>>({});
 
-  // CRITICAL: Reset all state when caseId changes
+  // Reset all state when caseId changes
   useEffect(() => {
     setPhase("intro");
+    setCurrentRunNumber(1);
     setCurrentQuestionIndex(0);
     setLastScore(0);
     setLastCluster("C2");
     setRevealedChartEntries(CHART_REVEAL.INITIAL_ENTRIES);
     setLastSelectedOptions([]);
-    setCurrentAttemptCount(1);
-    setQuestionsAwarded(new Set());
+    setCurrentRunScores({});
   }, [caseId]);
 
-  // Computed value
+  const totalQuestions = caseData?.questions.length ?? MCQ_SCORING.MCQS_PER_CASE;
   const currentQuestion = caseData?.questions[currentQuestionIndex] ?? null;
 
-  // Actions (unchanged logic from CaseFlowPage)
+  // Derive bestScores from global state
+  const bestScores = useMemo(() => {
+    if (!caseData) return {};
+    const scores: Record<string, number> = {};
+    for (const q of caseData.questions) {
+      const key = `${caseId}_${q.id}`;
+      const entry = state.completionPoints.perMCQ[key];
+      if (entry) scores[q.id] = entry.bestScore;
+    }
+    return scores;
+  }, [caseData, caseId, state.completionPoints.perMCQ]);
+
+  const canRetryCase = currentRunNumber < 3 && Object.values(bestScores).some(s => s < MCQ_SCORING.MAX_POINTS_PER_QUESTION);
+  const allPerfect = Object.values(bestScores).length === totalQuestions && Object.values(bestScores).every(s => s === MCQ_SCORING.MAX_POINTS_PER_QUESTION);
+  const showCorrectAnswers = phase === "end-of-run" && currentRunNumber === 3 && !allPerfect;
+
   const startCase = useCallback(() => {
+    dispatch({ type: "START_CASE_RUN", caseId });
     setPhase("mcq");
-  }, []);
+  }, [dispatch, caseId]);
 
   const submitMCQ = useCallback((selectedOptions: string[], score: number) => {
     if (!currentQuestion || !caseData) return;
-    
+
     const cluster = calculateCluster(score);
-    const isPassing = isPassingScore(score);
-    
+
     const selectedOptionObjects = selectedOptions
-      .map((optId) => currentQuestion.options.find((opt) => opt.id === optId))
+      .map(optId => currentQuestion.options.find(opt => opt.id === optId))
       .filter((opt): opt is MCQOption => opt !== undefined);
-    
+
     setLastScore(score);
     setLastCluster(cluster);
     setLastSelectedOptions(selectedOptionObjects);
@@ -97,83 +119,82 @@ export function useCaseFlow({ caseData, caseId }: UseCaseFlowOptions): UseCaseFl
         score,
         cluster,
         timestamp: new Date(),
-        attemptNumber: currentAttemptCount,
+        attemptNumber: currentRunNumber,
       },
     });
 
-    // Track explored options
-    selectedOptions.forEach((optId) => {
+    // Record score
+    dispatch({ type: "RECORD_MCQ_SCORE", caseId, mcqId: currentQuestion.id, score, runNumber: currentRunNumber });
+
+    // Record explored options
+    selectedOptions.forEach(optId => {
       dispatch({ type: "RECORD_OPTION_EXPLORED", caseId, mcqId: currentQuestion.id, optionId: optId });
     });
 
-    // Record MCQ score for completion points
-    const runInfo = state.caseRuns[caseId];
-    const runNumber = runInfo?.currentRun ?? 1;
-    dispatch({ type: "RECORD_MCQ_SCORE", caseId, mcqId: currentQuestion.id, score, runNumber });
-
-    if (!isPassing) {
-      setCurrentAttemptCount((prev) => prev + 1);
-    } else {
-      if (!questionsAwarded.has(currentQuestion.id)) {
-        setQuestionsAwarded(prev => {
-          const newSet = new Set(prev);
-          newSet.add(currentQuestion.id);
-          return newSet;
-        });
-      }
-    }
+    // Store in current run scores
+    setCurrentRunScores(prev => ({ ...prev, [currentQuestion.id]: score }));
 
     // Reveal chart entries
-    setRevealedChartEntries((prev) => 
+    setRevealedChartEntries(prev =>
       Math.min(prev + CHART_REVEAL.ENTRIES_PER_MCQ, caseData.chartEntries.length)
     );
 
-    // Move to feedback
     setPhase("feedback");
-  }, [currentQuestion, caseData, dispatch, calculateCluster, currentAttemptCount, questionsAwarded]);
+  }, [currentQuestion, caseData, dispatch, calculateCluster, caseId, currentRunNumber]);
 
-  const continueFeedback = useCallback(() => {
+  const advanceFromFeedback = useCallback(() => {
     if (!caseData) return;
-    
-    if (!isPassingScore(lastScore)) {
-      console.warn("[useCaseFlow] Cannot continue without passing score");
-      return;
-    }
-    
-    setCurrentAttemptCount(1);
-    setLastSelectedOptions([]);
-    
-    if (currentQuestionIndex < caseData.questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
+
+    if (currentQuestionIndex < totalQuestions - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      setLastSelectedOptions([]);
       setPhase("mcq");
     } else {
-      setPhase("lived-experience");
+      // Last question — complete the run
+      dispatch({ type: "COMPLETE_CASE_RUN", caseId, runScores: currentRunScores });
+      setPhase("end-of-run");
     }
-  }, [caseData, currentQuestionIndex, lastScore]);
+  }, [caseData, currentQuestionIndex, totalQuestions, dispatch, caseId, currentRunScores]);
 
-  const retryQuestion = useCallback(() => {
+  const retryCase = useCallback(() => {
+    setCurrentRunNumber(prev => (prev + 1) as 1 | 2 | 3);
+    setCurrentQuestionIndex(0);
+    setCurrentRunScores({});
+    setLastSelectedOptions([]);
+    setRevealedChartEntries(CHART_REVEAL.INITIAL_ENTRIES);
+    dispatch({ type: "START_CASE_RUN", caseId });
     setPhase("mcq");
-  }, []);
+  }, [dispatch, caseId]);
+
+  const completeCase = useCallback(() => {
+    dispatch({ type: "COMPLETE_CASE", caseId });
+    setPhase("lived-experience");
+  }, [dispatch, caseId]);
 
   const onFeedbackComplete = useCallback(() => {
-    // All sections viewed - currently no-op (matches existing behavior)
+    // All feedback sections viewed — currently no-op
   }, []);
 
   return {
     phase,
+    currentRunNumber,
     currentQuestionIndex,
     currentQuestion,
     lastScore,
     lastCluster,
     revealedChartEntries,
     lastSelectedOptions,
-    currentAttemptCount,
-    canContinue: isPassingScore(lastScore),
     incorrectOption: findIncorrectOption(lastSelectedOptions),
+    currentRunScores,
+    bestScores,
+    canRetryCase,
+    allPerfect,
+    showCorrectAnswers,
     startCase,
     submitMCQ,
-    continueFeedback,
-    retryQuestion,
+    advanceFromFeedback,
+    retryCase,
+    completeCase,
     onFeedbackComplete,
   };
 }

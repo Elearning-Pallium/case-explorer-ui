@@ -25,6 +25,7 @@ const PHASE_TO_PLACEMENT: Record<CaseFlowPhase, string[]> = {
   "intro": ["intro"],
   "mcq": ["mid-case"],
   "feedback": ["post-feedback"],
+  "end-of-run": ["post-case"],
   "lived-experience": ["pre-lived-experience"],
   "complete": ["post-case"],
 };
@@ -52,23 +53,28 @@ export default function CaseFlowPage() {
   const [showJITPanel, setShowJITPanel] = useState(false);
   const [showPodcastsModal, setShowPodcastsModal] = useState(false);
 
-  // Phase flow - extracted to hook
+  // Phase flow
   const {
     phase,
+    currentRunNumber,
     currentQuestion,
     lastCluster,
     revealedChartEntries,
     startCase,
     submitMCQ,
-    continueFeedback,
-    retryQuestion,
+    advanceFromFeedback,
+    retryCase,
+    completeCase,
     onFeedbackComplete,
-    canContinue,
     incorrectOption,
-    currentAttemptCount,
+    currentRunScores,
+    bestScores,
+    canRetryCase,
+    allPerfect,
+    showCorrectAnswers,
   } = useCaseFlow({ caseData, caseId: caseId || "" });
 
-  // Load case content with environment-aware error handling
+  // Load case content
   useEffect(() => {
     async function load() {
       if (!caseId) return;
@@ -77,14 +83,11 @@ export default function CaseFlowPage() {
       
       const caseResult = await loadCase(caseId);
       
-      // Handle case load result using type guards
       if (isContentLoadError(caseResult)) {
         if (hasStubFallback(caseResult)) {
-          // DEV mode: use stub with warning banner
           setCaseData(caseResult.data);
           setContentError(caseResult.error);
         } else {
-          // PROD mode: show error UI, no fallback
           setCaseData(null);
           setContentError(caseResult.error);
           setIsLoading(false);
@@ -92,7 +95,6 @@ export default function CaseFlowPage() {
         }
       } else {
         setCaseData(caseResult.data);
-        // Log schema warning if present
         if (caseResult.schemaWarning) {
           console.warn(`[Schema Warning] ${caseResult.schemaWarning}`);
         }
@@ -103,7 +105,6 @@ export default function CaseFlowPage() {
     load();
   }, [caseId, loadAttempt]);
 
-  // Retry handler for error boundary
   const handleRetry = useCallback(() => {
     setLoadAttempt((prev) => prev + 1);
   }, []);
@@ -151,20 +152,19 @@ export default function CaseFlowPage() {
     navigate(`/completion/${caseId}`);
   }, [caseId, caseData, state.completionPoints.total, navigate]);
 
-  // Calculate max points using centralized helper
+  // Calculate max points
   const jitTotalPoints = caseData?.jitResources?.reduce((sum, jit) => sum + jit.points, 0) || 0;
   const podcastTotalPoints = caseData?.podcasts?.reduce((sum, p) => sum + p.points, 0) || 0;
   const maxPoints = caseData ? calculateMaxCasePoints(
     caseData.questions.length,
     jitTotalPoints,
     podcastTotalPoints,
-    2 // reflection questions
+    2
   ) : 0;
 
   // Get submitted reflections for current case
   const submittedReflections = state.learnerReflections?.[caseId || ""] || {};
 
-  // Handle reflection submission
   const handleSubmitReflection = (questionId: string, text: string) => {
     if (caseId) {
       dispatch({
@@ -186,14 +186,12 @@ export default function CaseFlowPage() {
     ) || null;
   }, [caseData?.jitResources, phase]);
 
-  // Check if active JIT is completed
   const isJITCompleted = useMemo(() => {
     if (!activeJIT || !caseId) return false;
     const caseJits = state.jitResourcesRead?.[caseId] || [];
     return caseJits.includes(activeJIT.id);
   }, [activeJIT, caseId, state.jitResourcesRead]);
 
-  // Handle JIT completion
   const handleJITComplete = () => {
     if (activeJIT && !isJITCompleted && caseId) {
       dispatch({
@@ -214,7 +212,6 @@ export default function CaseFlowPage() {
   const totalPodcasts = allPodcasts.length;
   const completedPodcastCount = (state.podcastsCompleted?.[caseId || ""] || []).length;
 
-  // Podcast handlers
   const handleStartPodcast = (podcastCaseId: string, podcastId: string) => {
     dispatch({ type: "START_PODCAST", caseId: podcastCaseId, podcastId });
   };
@@ -234,7 +231,6 @@ export default function CaseFlowPage() {
     );
   }
 
-  // Production error state
   if (!isLoading && contentError && !caseData) {
     return (
       <ContentErrorBoundary
@@ -324,7 +320,7 @@ export default function CaseFlowPage() {
                   onSubmit={submitMCQ}
                   caseId={caseId || ""}
                   caseName={caseData.title || caseId || ""}
-                  attemptNumber={currentAttemptCount}
+                  attemptNumber={currentRunNumber}
                 />
               </>
             )}
@@ -337,19 +333,73 @@ export default function CaseFlowPage() {
                 cluster={lastCluster}
                 questionId={currentQuestion.id}
                 onAllSectionsViewed={onFeedbackComplete}
-                onRetry={retryQuestion}
-                onContinue={continueFeedback}
+                onContinue={advanceFromFeedback}
                 incorrectOption={incorrectOption}
-                canContinue={canContinue}
-                attemptNumber={currentAttemptCount}
               />
+            )}
+
+            {/* End of Run Phase */}
+            {phase === "end-of-run" && (
+              <div className="rounded-xl border bg-card p-8 shadow-soft-lg space-y-6">
+                <h2 className="text-2xl font-bold text-center">
+                  Run {currentRunNumber} Complete
+                </h2>
+
+                {allPerfect && (
+                  <p className="text-center text-success font-semibold text-lg">
+                    🎉 Perfect score on all questions!
+                  </p>
+                )}
+
+                {/* Run scores summary */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-muted-foreground">This Run</h3>
+                  {caseData.questions.map((q) => {
+                    const runScore = currentRunScores[q.id] ?? 0;
+                    const best = bestScores[q.id] ?? 0;
+                    return (
+                      <div key={q.id} className="flex items-center justify-between rounded-lg border px-4 py-2">
+                        <span className="text-sm font-medium">Q{q.questionNumber}</span>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span>This run: <strong>{runScore}</strong>/10</span>
+                          <span className="text-muted-foreground">Best: <strong>{best}</strong>/10</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {showCorrectAnswers && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    Final run complete. Review the feedback to strengthen your understanding.
+                  </p>
+                )}
+
+                <div className="flex items-center justify-center gap-4 pt-4">
+                  {canRetryCase && (
+                    <Button variant="outline" onClick={retryCase} size="lg">
+                      Retry Case (Run {currentRunNumber + 1}/3)
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => {
+                      completeCase();
+                      handleCaseComplete();
+                    }}
+                    size="lg"
+                    className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  >
+                    {canRetryCase ? "Finish & Continue" : "Continue"}
+                  </Button>
+                </div>
+              </div>
             )}
 
             {/* Lived Experience Phase */}
             {phase === "lived-experience" && (
               <LivedExperienceSection
                 caseId={caseId || ""}
-                onContinue={handleCaseComplete}
+                onContinue={() => navigate(`/completion/${caseId}`)}
                 submittedReflections={submittedReflections}
                 onSubmitReflection={handleSubmitReflection}
               />
