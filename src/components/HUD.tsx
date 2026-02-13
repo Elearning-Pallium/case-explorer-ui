@@ -11,6 +11,7 @@ interface HUDProps {
   caseId: string;
   maxPoints?: number;
   currentRunNumber?: number;
+  hasJITResources?: boolean;
   activeJIT?: JITResource | null;
   isJITCompleted?: boolean;
   onJITClick?: () => void;
@@ -23,6 +24,7 @@ interface HUDProps {
 export function HUD({ 
   caseId,
   currentRunNumber,
+  hasJITResources = false,
   activeJIT,
   isJITCompleted,
   onJITClick,
@@ -87,15 +89,16 @@ export function HUD({
           {/* Additional Resources Button */}
           <button
             onClick={onJITClick}
-            disabled={!activeJIT}
+            disabled={!hasJITResources}
             className={cn(
               "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
-              !activeJIT && "opacity-40 cursor-not-allowed bg-primary-foreground/10 text-primary-foreground/60",
+              !hasJITResources && "opacity-40 cursor-not-allowed bg-primary-foreground/10 text-primary-foreground/60",
               activeJIT && !isJITCompleted && "bg-accent text-accent-foreground animate-pulse hover:bg-accent/90",
-              activeJIT && isJITCompleted && "bg-success text-success-foreground hover:bg-success/90"
+              activeJIT && isJITCompleted && "bg-success text-success-foreground hover:bg-success/90",
+              hasJITResources && !activeJIT && !isJITCompleted && "bg-secondary text-secondary-foreground hover:bg-secondary/80"
             )}
-            title={activeJIT ? activeJIT.title : "No additional resources available"}
-            aria-label={activeJIT ? `Additional Resources: ${activeJIT.title}` : "No resources available"}
+            title={activeJIT ? activeJIT.title : "Additional resources"}
+            aria-label={activeJIT ? `Additional Resources: ${activeJIT.title}` : "Additional resources"}
           >
             {isJITCompleted ? (
               <>

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
 import { MCQ_SCORING } from "@/lib/scoring-constants";
@@ -5,6 +6,7 @@ import type { MCQQuestion, JITResource } from "@/lib/content-schema";
 import { cn } from "@/lib/utils";
 
 interface EndOfRunSummaryProps {
+  caseId: string;
   currentRunNumber: number;
   questions: MCQQuestion[];
   currentRunScores: Record<string, number>;
@@ -31,6 +33,7 @@ function getScoreBg(score: number): string {
 }
 
 export function EndOfRunSummary({
+  caseId,
   currentRunNumber,
   questions,
   currentRunScores,
@@ -46,7 +49,11 @@ export function EndOfRunSummary({
 
   const totalBest = Object.values(bestScores).reduce((sum, s) => sum + s, 0);
   const maxTotal = questions.length * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
-  const explorationTotal = state.explorationPoints?.total ?? 0;
+  const explorationTotal = useMemo(() => {
+    return Object.entries(state.explorationPoints.perMCQ)
+      .filter(([key]) => key.startsWith(`${caseId}_`))
+      .reduce((sum, [, arr]) => sum + arr.length, 0);
+  }, [state.explorationPoints.perMCQ, caseId]);
 
   // JIT resources for MCQs that scored < 10 in this run (runs 1-2 only)
   const showJITSuggestions = currentRunNumber < 3 && jitResources && jitResources.length > 0;
@@ -165,19 +172,51 @@ export function EndOfRunSummary({
       )}
 
       {/* Action Buttons */}
-      <div className="flex items-center justify-center gap-4 pt-2">
-        {canRetryCase && !allPerfect && (
-          <Button variant="outline" onClick={onRetryCase} size="lg">
-            Retry Case (Run {currentRunNumber + 1})
-          </Button>
+      <div className="flex flex-col items-center gap-3 pt-2">
+        {allPerfect ? (
+          <>
+            <Button
+              onClick={onCompleteCase}
+              size="lg"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              Complete Case
+            </Button>
+            {currentRunNumber < 3 && (
+              <>
+                <Button variant="outline" onClick={onRetryCase} size="lg">
+                  Explore More (Run {currentRunNumber + 1})
+                </Button>
+                <p className="text-xs text-muted-foreground text-center max-w-sm">
+                  Your perfect score is locked in. Use additional runs to explore other answer options and earn exploration points.
+                </p>
+              </>
+            )}
+          </>
+        ) : currentRunNumber < 3 ? (
+          <>
+            <Button
+              onClick={onRetryCase}
+              size="lg"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              Retry Case (Run {currentRunNumber + 1})
+            </Button>
+            <p className="text-xs text-muted-foreground text-center max-w-sm">
+              You have {3 - currentRunNumber} run{3 - currentRunNumber > 1 ? 's' : ''} remaining. Your best score per question is kept across all runs.
+            </p>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={onCompleteCase}
+              size="lg"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            >
+              Continue
+            </Button>
+          </>
         )}
-        <Button
-          onClick={onCompleteCase}
-          size="lg"
-          className="bg-accent hover:bg-accent/90 text-accent-foreground"
-        >
-          {allPerfect ? "Complete Case" : canRetryCase ? "Finish & Continue" : "Continue"}
-        </Button>
       </div>
 
       {showCorrectAnswers && (
