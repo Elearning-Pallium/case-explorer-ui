@@ -11,6 +11,7 @@ import { LivedExperienceSection } from "@/components/LivedExperienceSection";
 import { JITPanel } from "@/components/JITPanel";
 import { AllPodcastsModal } from "@/components/AllPodcastsModal";
 import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
+import { EndOfRunSummary } from "@/components/EndOfRunSummary";
 import { Button } from "@/components/ui/button";
 import { useGame } from "@/contexts/GameContext";
 import { useCaseFlow, type CaseFlowPhase } from "@/hooks/use-case-flow";
@@ -57,6 +58,7 @@ export default function CaseFlowPage() {
   const {
     phase,
     currentRunNumber,
+    currentQuestionIndex,
     currentQuestion,
     lastCluster,
     revealedChartEntries,
@@ -335,64 +337,27 @@ export default function CaseFlowPage() {
                 onAllSectionsViewed={onFeedbackComplete}
                 onContinue={advanceFromFeedback}
                 incorrectOption={incorrectOption}
+                isLastQuestion={currentQuestionIndex >= (caseData.questions.length - 1)}
               />
             )}
 
             {/* End of Run Phase */}
             {phase === "end-of-run" && (
-              <div className="rounded-xl border bg-card p-8 shadow-soft-lg space-y-6">
-                <h2 className="text-2xl font-bold text-center">
-                  Run {currentRunNumber} Complete
-                </h2>
-
-                {allPerfect && (
-                  <p className="text-center text-success font-semibold text-lg">
-                    🎉 Perfect score on all questions!
-                  </p>
-                )}
-
-                {/* Run scores summary */}
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-muted-foreground">This Run</h3>
-                  {caseData.questions.map((q) => {
-                    const runScore = currentRunScores[q.id] ?? 0;
-                    const best = bestScores[q.id] ?? 0;
-                    return (
-                      <div key={q.id} className="flex items-center justify-between rounded-lg border px-4 py-2">
-                        <span className="text-sm font-medium">Q{q.questionNumber}</span>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span>This run: <strong>{runScore}</strong>/10</span>
-                          <span className="text-muted-foreground">Best: <strong>{best}</strong>/10</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {showCorrectAnswers && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    Final run complete. Review the feedback to strengthen your understanding.
-                  </p>
-                )}
-
-                <div className="flex items-center justify-center gap-4 pt-4">
-                  {canRetryCase && (
-                    <Button variant="outline" onClick={retryCase} size="lg">
-                      Retry Case (Run {currentRunNumber + 1}/3)
-                    </Button>
-                  )}
-                  <Button
-                    onClick={() => {
-                      completeCase();
-                      handleCaseComplete();
-                    }}
-                    size="lg"
-                    className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                  >
-                    {canRetryCase ? "Finish & Continue" : "Continue"}
-                  </Button>
-                </div>
-              </div>
+              <EndOfRunSummary
+                currentRunNumber={currentRunNumber}
+                questions={caseData.questions}
+                currentRunScores={currentRunScores}
+                bestScores={bestScores}
+                canRetryCase={canRetryCase}
+                allPerfect={allPerfect}
+                showCorrectAnswers={showCorrectAnswers}
+                jitResources={caseData.jitResources}
+                onRetryCase={retryCase}
+                onCompleteCase={() => {
+                  completeCase();
+                  handleCaseComplete();
+                }}
+              />
             )}
 
             {/* Lived Experience Phase */}

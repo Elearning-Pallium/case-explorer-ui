@@ -49,6 +49,7 @@ interface ClusterFeedbackPanelProps {
   onAllSectionsViewed: () => void;
   onContinue?: () => void;
   incorrectOption?: MCQOption | null;
+  isLastQuestion?: boolean;
 }
 
 export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPanelProps>(
@@ -59,6 +60,7 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
     onAllSectionsViewed,
     onContinue,
     incorrectOption,
+    isLastQuestion = false,
   }, ref) {
   const { dispatch } = useGame();
   const [openSections, setOpenSections] = useState<string[]>([]);
@@ -228,7 +230,7 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
             disabled={!allSectionsViewed}
             className="bg-accent hover:bg-accent/90"
           >
-            Continue
+            {isLastQuestion ? "View Run Summary" : "Next Question"}
           </Button>
         )}
       </div>
