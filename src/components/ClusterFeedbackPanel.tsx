@@ -205,22 +205,6 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
         })}
       </Accordion>
 
-      {/* Exploratory Tokens Display */}
-      <div className="mt-4 flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Exploratory tokens:</span>
-        <div className="flex gap-1">
-          {sections.map((s) => (
-            <span
-              key={s.id}
-              className={cn(
-                "h-2 w-2 rounded-full transition-colors",
-                viewedSections.has(s.id) ? "bg-accent" : "bg-secondary"
-              )}
-            />
-          ))}
-        </div>
-        <span className="text-muted-foreground">({viewedSections.size}/{sections.length})</span>
-      </div>
 
       {/* Action Buttons */}
       <div className="mt-6 flex items-center justify-end gap-3">
