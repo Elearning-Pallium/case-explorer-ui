@@ -331,8 +331,4 @@ export const stubCase: Case = {
       points: 1,
     },
   ],
-  badgeThresholds: {
-    standard: 28,
-    premium: 40,
-  },
 };

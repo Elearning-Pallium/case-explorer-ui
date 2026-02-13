@@ -1,31 +1,27 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Trophy, Star, Zap, Target, ArrowRight, Home, Sparkles } from "lucide-react";
+import { Trophy, Zap, Target, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { BadgeGalleryModal } from "@/components/BadgeGalleryModal";
 import { PodcastListSection } from "@/components/PodcastListSection";
 import { useGame } from "@/contexts/GameContext";
 import { loadCase, isContentLoadError, hasStubFallback } from "@/lib/content-loader";
 import { ContentErrorBoundary } from "@/components/ContentErrorBoundary";
-import { generateCaseBadges } from "@/lib/badge-registry";
 import { cn } from "@/lib/utils";
 import type { Case } from "@/lib/content-schema";
 
 export default function CompletionPage() {
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
-  const { state, dispatch, canEarnStandardBadge, canEarnPremiumBadge } = useGame();
+  const { state, dispatch } = useGame();
   
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [contentError, setContentError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [showBadgeGallery, setShowBadgeGallery] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(true);
 
   // Load case data with error handling
   useEffect(() => {
@@ -36,7 +32,6 @@ export default function CompletionPage() {
       
       const caseResult = await loadCase(caseId);
       
-      // Handle case load result
       if (isContentLoadError(caseResult)) {
         if (hasStubFallback(caseResult)) {
           setCaseData(caseResult.data);
@@ -55,56 +50,6 @@ export default function CompletionPage() {
     }
     load();
   }, [caseId, loadAttempt]);
-  
-  // Generate dynamic badges from case config (only when data is loaded)
-  const caseBadges = useMemo(() => {
-    if (!caseData) return [];
-    return generateCaseBadges(caseData);
-  }, [caseData]);
-
-  // Build available badges for gallery (only when data is loaded)
-  const availableBadges = useMemo(() => {
-    if (!caseData) return [];
-    const [standard, premium] = generateCaseBadges(caseData);
-    return [standard, premium];
-  }, [caseData]);
-
-  // Award badges on mount using dynamic thresholds
-  useEffect(() => {
-    if (!caseData || caseBadges.length < 2) return;
-    
-    const [standardBadge, premiumBadge] = caseBadges;
-    const earnedPremium = canEarnPremiumBadge(caseData.badgeThresholds.premium);
-    const earnedStandard = canEarnStandardBadge(caseData.badgeThresholds.standard);
-
-    if (earnedPremium && !state.badges.find((b) => b.id === premiumBadge.id)) {
-      dispatch({
-        type: "EARN_BADGE",
-        badge: {
-          id: premiumBadge.id,
-          name: premiumBadge.name,
-          description: premiumBadge.description,
-          type: premiumBadge.type,
-        },
-      });
-    } else if (earnedStandard && !state.badges.find((b) => b.id === standardBadge.id)) {
-      dispatch({
-        type: "EARN_BADGE",
-        badge: {
-          id: standardBadge.id,
-          name: standardBadge.name,
-          description: standardBadge.description,
-          type: standardBadge.type,
-        },
-      });
-    }
-  }, [caseData, caseBadges, canEarnPremiumBadge, canEarnStandardBadge, state.badges, dispatch]);
-
-  // Dismiss celebration after delay
-  useEffect(() => {
-    const timer = setTimeout(() => setShowCelebration(false), 3000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Podcast state
   const completedPodcasts = state.podcastsCompleted?.[caseId || ""] || [];
@@ -123,20 +68,7 @@ export default function CompletionPage() {
     }
   };
 
-  // Determine earned badge using dynamic thresholds (only when data is loaded)
-  const earnedBadge = useMemo(() => {
-    if (!caseData || caseBadges.length < 2) return null;
-    const [standardBadge, premiumBadge] = caseBadges;
-    if (canEarnPremiumBadge(caseData.badgeThresholds.premium)) {
-      return { name: premiumBadge.name, type: "premium" as const, icon: Sparkles };
-    }
-    if (canEarnStandardBadge(caseData.badgeThresholds.standard)) {
-      return { name: standardBadge.name, type: "case" as const, icon: Trophy };
-    }
-    return null;
-  }, [caseData, caseBadges, canEarnPremiumBadge, canEarnStandardBadge]);
-
-  const maxCasePoints = caseData?.badgeThresholds.premium ?? 50;
+  const maxCasePoints = 50; // fallback
   const casePercentage = Math.round((state.casePoints / maxCasePoints) * 100);
 
   // Loading state
@@ -151,7 +83,7 @@ export default function CompletionPage() {
     );
   }
 
-  // Production error state - show error boundary
+  // Production error state
   if (contentError && !caseData) {
     return (
       <ContentErrorBoundary
@@ -163,30 +95,13 @@ export default function CompletionPage() {
     );
   }
 
-  // Guard: ensure caseData is loaded
   if (!caseData) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Celebration Overlay */}
-      {showCelebration && earnedBadge && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm animate-fade-in">
-          <div className="text-center animate-celebrate">
-            <div className={cn(
-              "mx-auto flex h-24 w-24 items-center justify-center rounded-full mb-6",
-              earnedBadge.type === "premium" ? "bg-accent" : "bg-primary"
-            )}>
-              <earnedBadge.icon className="h-12 w-12 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold mb-2">Badge Earned!</h2>
-            <p className="text-xl text-muted-foreground">{earnedBadge.name}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Content Error Banner (for dev mode warnings) */}
+      {/* Content Error Banner */}
       {contentError && caseData && (
         <div className="bg-warning/20 border-b border-warning px-4 py-2 text-sm text-center">
           <span className="text-warning-foreground font-medium">Note:</span>{" "}
@@ -216,34 +131,6 @@ export default function CompletionPage() {
           </p>
         </div>
 
-        {/* Badge Display */}
-        {earnedBadge && (
-          <Card className="mb-6 border-2 border-accent shadow-soft-lg overflow-hidden">
-            <div className="h-2 bg-accent" />
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "flex h-16 w-16 shrink-0 items-center justify-center rounded-full",
-                  earnedBadge.type === "premium" ? "bg-accent" : "bg-primary"
-                )}>
-                  <earnedBadge.icon className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <Badge className={cn(
-                    "mb-1",
-                    earnedBadge.type === "premium" 
-                      ? "bg-accent text-accent-foreground" 
-                      : "bg-primary text-primary-foreground"
-                  )}>
-                    {earnedBadge.type === "premium" ? "Premium Badge" : "Standard Badge"}
-                  </Badge>
-                  <h3 className="text-xl font-semibold">{earnedBadge.name}</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Points Breakdown */}
         <Card className="mb-6 shadow-soft">
           <CardHeader>
@@ -270,9 +157,6 @@ export default function CompletionPage() {
               </div>
               <Progress value={state.ipInsightsPoints > 0 ? 100 : 0} className="h-2" />
             </div>
-
-
-
 
             {/* Total */}
             <div className="pt-4 border-t">
@@ -360,19 +244,6 @@ export default function CompletionPage() {
             <CardTitle>Next Steps</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-
-
-            
-            <Button
-              onClick={() => setShowBadgeGallery(true)}
-              variant="outline"
-              className="w-full"
-              size="lg"
-            >
-              <Star className="mr-2 h-4 w-4" />
-              View Badge Gallery
-            </Button>
-
             <Button
               onClick={() => navigate("/")}
               variant="secondary"
@@ -393,15 +264,6 @@ export default function CompletionPage() {
           </CardContent>
         </Card>
       </main>
-
-      {/* Badge Gallery Modal */}
-      {showBadgeGallery && (
-        <BadgeGalleryModal
-          earnedBadges={state.badges}
-          availableBadges={availableBadges}
-          onClose={() => setShowBadgeGallery(false)}
-        />
-      )}
     </div>
   );
 }

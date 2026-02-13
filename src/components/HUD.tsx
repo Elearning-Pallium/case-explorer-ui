@@ -1,15 +1,12 @@
-import { Trophy, Star, Zap, Target, BookOpen, CheckCircle, Headphones, Eye } from "lucide-react";
+import { Trophy, Zap, Target, BookOpen, CheckCircle, Headphones, Eye } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import { ThemeToggle } from "./ThemeToggle";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { HUD_DISPLAY } from "@/lib/ui-constants";
 import type { JITResource } from "@/lib/content-schema";
 
 interface HUDProps {
-  maxPoints: number; // Required - must be calculated from case data
-  showBadgeGallery?: () => void;
+  maxPoints: number;
   activeJIT?: JITResource | null;
   isJITCompleted?: boolean;
   onJITClick?: () => void;
@@ -21,7 +18,6 @@ interface HUDProps {
 
 export function HUD({ 
   maxPoints, 
-  showBadgeGallery,
   activeJIT,
   isJITCompleted,
   onJITClick,
@@ -33,8 +29,6 @@ export function HUD({
   const { state } = useGame();
   
   const pointsPercentage = Math.round((state.totalPoints / maxPoints) * 100);
-  const earnedBadgesCount = state.badges.length;
-  const maxBadges = HUD_DISPLAY.MAX_BADGES_SHOWN;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-soft">
@@ -73,7 +67,7 @@ export function HUD({
           </div>
         </div>
 
-        {/* Right: Read-Only, JIT, Badges & Theme */}
+        {/* Right: Read-Only, JIT & Theme */}
         <div className="flex items-center gap-3">
           {/* Read-Only Mode Indicator */}
           {isReadOnly && (
@@ -144,27 +138,6 @@ export function HUD({
                 )}
               </>
             )}
-          </button>
-
-          {/* Badge Progress */}
-          <button
-            onClick={showBadgeGallery}
-            className="flex items-center gap-2 rounded-lg px-3 py-1.5 hover:bg-primary-foreground/10 transition-colors"
-            aria-label="Open badge gallery"
-          >
-            <div className="flex items-center gap-0.5">
-              {Array.from({ length: maxBadges }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={cn(
-                    "h-4 w-4 transition-all",
-                    i < earnedBadgesCount
-                      ? "text-accent fill-accent"
-                      : "text-primary-foreground/40"
-                  )}
-                />
-              ))}
-            </div>
           </button>
 
           <ThemeToggle />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, Trophy, Star, BookOpen, Clock, Users } from "lucide-react";
+import { Play, Trophy, BookOpen, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,10 +37,6 @@ export default function LandingPage() {
                 <Trophy className="h-4 w-4 text-accent" />
                 <span>{state.totalPoints} pts</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Star className="h-4 w-4 text-accent" />
-                <span>{state.badges.length} badges</span>
-              </div>
             </div>
             <ThemeToggle />
           </div>
@@ -56,7 +52,7 @@ export default function LandingPage() {
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Develop your clinical judgment through immersive case-based scenarios. 
-            Earn points, badges, and build expertise in palliative care.
+            Earn points and build expertise in palliative care.
           </p>
         </section>
 
@@ -81,8 +77,8 @@ export default function LandingPage() {
                   <div className="text-xs text-muted-foreground">Correct Tokens</div>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-secondary">
-                  <div className="text-2xl font-bold text-warning">{state.badges.length}</div>
-                  <div className="text-xs text-muted-foreground">Badges Earned</div>
+                  <div className="text-2xl font-bold text-warning">{state.tokens.correct}</div>
+                  <div className="text-xs text-muted-foreground">Correct Tokens</div>
                 </div>
               </div>
             </CardContent>
@@ -139,7 +135,7 @@ export default function LandingPage() {
                 <div className="mb-4">
                   <div className="flex items-center justify-between text-sm mb-1">
                     <span className="text-muted-foreground">Potential Points</span>
-                    <span className="font-medium">{caseData.badgeThresholds.premium} pts max</span>
+                    <span className="font-medium">{caseData.questions.length * 10} pts max</span>
                   </div>
                   <Progress value={0} className="h-2" />
                 </div>
@@ -221,9 +217,9 @@ export default function LandingPage() {
                 {/* Step 4 */}
                 <div className="flex flex-col items-center min-w-[100px]">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground font-bold">
-                    <Star className="h-5 w-5" />
+                    4
                   </div>
-                  <p className="mt-2 text-sm font-medium text-center">Badge Earned!</p>
+                  <p className="mt-2 text-sm font-medium text-center">Complete!</p>
                 </div>
               </div>
             </CardContent>

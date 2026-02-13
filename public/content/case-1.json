@@ -418,9 +418,5 @@
       "transcriptUrl": "/transcripts/episode-2.pdf",
       "points": 1
     }
-  ],
-  "badgeThresholds": {
-    "standard": 28,
-    "premium": 40
-  }
+  ]
 }

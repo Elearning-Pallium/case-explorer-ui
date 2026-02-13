@@ -4,19 +4,11 @@ import { tabLockManager } from "@/lib/tab-lock-manager";
 import { scormAPI } from "@/lib/scorm-api";
 import { initializeAnalytics, analyticsTerminate } from "@/lib/analytics-service";
 import { 
-  BADGE_DEFAULTS, 
   MCQ_SCORING, 
   calculateClusterFromScore 
 } from "@/lib/scoring-constants";
 
 // Types for game state
-export interface BadgeInfo {
-  id: string;
-  name: string;
-  description: string;
-  earnedAt?: Date;
-  type: "case" | "premium";
-}
 
 export interface MCQAttempt {
   questionId: string;
@@ -47,9 +39,8 @@ export interface GameState {
   // Tokens
   tokens: TokenProgress;
   
-  // Badges
-  badges: BadgeInfo[];
-  
+
+
   // Attempt history
   mcqAttempts: MCQAttempt[];
   
@@ -87,7 +78,7 @@ type GameAction =
   | { type: "ADD_POINTS"; points: number; category: "case" | "ipInsights" }
   | { type: "ADD_CORRECT_TOKEN" }
   | { type: "ADD_EXPLORATORY_TOKEN"; optionId: string }
-  | { type: "EARN_BADGE"; badge: BadgeInfo }
+  
   | { type: "VIEW_PERSPECTIVE"; perspectiveId: string }
   | { type: "REFLECT_PERSPECTIVE"; perspectiveId: string }
   | { type: "VIEW_FEEDBACK_SECTION"; sectionId: string }
@@ -115,7 +106,7 @@ const initialState: GameState = {
     exploratory: 0,
     viewedOptions: new Set(),
   },
-  badges: [],
+  
   mcqAttempts: [],
   viewedPerspectives: new Set(),
   reflectedPerspectives: new Set(),
@@ -175,11 +166,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
-    case "EARN_BADGE":
-      return {
-        ...state,
-        badges: [...state.badges, { ...action.badge, earnedAt: new Date() }],
-      };
+
+
 
     case "VIEW_PERSPECTIVE": {
       const newViewed = new Set(state.viewedPerspectives);
@@ -299,8 +287,6 @@ interface GameContextType {
   // Helper functions
   calculateCluster: (score: number) => "A" | "B" | "C";
   getMaxPossiblePoints: (questionCount: number) => number;
-  canEarnStandardBadge: (threshold?: number) => boolean;
-  canEarnPremiumBadge: (threshold?: number) => boolean;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
@@ -330,10 +316,6 @@ function serializeState(state: GameState): SerializedState {
       exploratory: state.tokens.exploratory,
       viewedOptions: Array.from(state.tokens.viewedOptions),
     },
-    badges: state.badges.map((b) => ({
-      ...b,
-      earnedAt: b.earnedAt?.toISOString(),
-    })),
     mcqAttempts: state.mcqAttempts.map((a) => ({
       ...a,
       timestamp: a.timestamp instanceof Date ? a.timestamp.toISOString() : a.timestamp as unknown as string,
@@ -363,10 +345,6 @@ function deserializeState(saved: SerializedState): Partial<GameState> {
       exploratory: saved.tokens?.exploratory ?? 0,
       viewedOptions: new Set(saved.tokens?.viewedOptions || []),
     },
-    badges: (saved.badges || []).map((b) => ({
-      ...b,
-      earnedAt: b.earnedAt ? new Date(b.earnedAt) : undefined,
-    })),
     mcqAttempts: (saved.mcqAttempts || []).map((a) => ({
       ...a,
       timestamp: new Date(a.timestamp),
@@ -385,7 +363,6 @@ function deserializeState(saved: SerializedState): Partial<GameState> {
 // Critical action types that require immediate SCORM commit
 const CRITICAL_ACTIONS: GameAction["type"][] = [
   "RECORD_MCQ_ATTEMPT",
-  "EARN_BADGE",
   "COMPLETE_CASE",
   "COMPLETE_PODCAST",
   "COMPLETE_JIT_RESOURCE",
@@ -497,11 +474,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Dynamic threshold functions - per-case thresholds override defaults
-  const canEarnStandardBadge = (threshold?: number) => 
-    state.casePoints >= (threshold ?? BADGE_DEFAULTS.STANDARD_THRESHOLD);
-  const canEarnPremiumBadge = (threshold?: number) => 
-    state.casePoints >= (threshold ?? BADGE_DEFAULTS.PREMIUM_THRESHOLD);
-
   return (
     <GameContext.Provider
       value={{
@@ -509,8 +481,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch: wrappedDispatch,
         calculateCluster,
         getMaxPossiblePoints,
-        canEarnStandardBadge,
-        canEarnPremiumBadge,
       }}
     >
       {children}

@@ -47,18 +47,6 @@ export const ACTIVITY_POINTS = {
   PODCAST_DEFAULT: 1,
 } as const;
 
-/**
- * Badge Threshold Defaults
- * 
- * IMPORTANT: Per-case thresholds in content JSON (case.badgeThresholds) 
- * ALWAYS override these defaults. These are fallbacks only.
- */
-export const BADGE_DEFAULTS = {
-  /** Default minimum points for standard badge (fallback only) */
-  STANDARD_THRESHOLD: 35,
-  /** Default minimum points for premium badge (fallback only) */
-  PREMIUM_THRESHOLD: 50,
-} as const;
 
 /**
  * Cluster Mapping for MCQ Scores
