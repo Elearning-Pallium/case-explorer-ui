@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Trophy, Zap, Target, Home } from "lucide-react";
+import { Trophy, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -69,7 +69,7 @@ export default function CompletionPage() {
   };
 
   const maxCasePoints = 50; // fallback
-  const casePercentage = Math.round((state.casePoints / maxCasePoints) * 100);
+  const casePercentage = Math.round((state.completionPoints.total / maxCasePoints) * 100);
 
   // Loading state
   if (isLoading) {
@@ -140,58 +140,29 @@ export default function CompletionPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Case Points */}
+            {/* Completion Points */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm">Case Questions</span>
-                <span className="font-semibold">{state.casePoints} pts</span>
+                <span className="text-sm">Completion Points</span>
+                <span className="font-semibold">{state.completionPoints.total} pts</span>
               </div>
               <Progress value={casePercentage} className="h-2" />
             </div>
 
-            {/* IP Insights Points */}
+            {/* Exploration Points */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm">IP Insights</span>
-                <span className="font-semibold">{state.ipInsightsPoints} pts</span>
+                <span className="text-sm">Exploration Points</span>
+                <span className="font-semibold">{state.explorationPoints.total} pts</span>
               </div>
-              <Progress value={state.ipInsightsPoints > 0 ? 100 : 0} className="h-2" />
+              <Progress value={state.explorationPoints.total > 0 ? 100 : 0} className="h-2" />
             </div>
 
             {/* Total */}
             <div className="pt-4 border-t">
               <div className="flex items-center justify-between">
                 <span className="font-semibold">Total Points</span>
-                <span className="text-2xl font-bold text-accent">{state.totalPoints} pts</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tokens */}
-        <Card className="mb-6 shadow-soft">
-          <CardHeader>
-            <CardTitle>Tokens Collected</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-success/10">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success text-success-foreground">
-                  <Target className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{state.tokens.correct}</p>
-                  <p className="text-sm text-muted-foreground">Correct Tokens</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-4 rounded-lg bg-warning/10">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning text-warning-foreground">
-                  <Zap className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{state.tokens.exploratory}</p>
-                  <p className="text-sm text-muted-foreground">Exploratory Tokens</p>
-                </div>
+                <span className="text-2xl font-bold text-accent">{state.completionPoints.total + state.explorationPoints.total} pts</span>
               </div>
             </div>
           </CardContent>

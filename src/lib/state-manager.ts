@@ -27,7 +27,7 @@ import { scormAPI } from './scorm-api';
 import { tabLockManager } from './tab-lock-manager';
 
 // State version for schema compatibility
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
 // Storage key for localStorage
 const STORAGE_KEY = 'palliative-care-game-state';
@@ -57,17 +57,22 @@ export interface SerializedState {
   currentCase: string;
   currentQuestion: number;
   
-  // Scoring
-  totalPoints: number;
-  casePoints: number;
-  ipInsightsPoints: number;
-  
-  // Tokens (serialized)
-  tokens: {
-    correct: number;
-    exploratory: number;
-    viewedOptions: string[];
+  // Dual-track scoring
+  completionPoints?: {
+    perMCQ: Record<string, { bestScore: number; bestRunNumber: number; firstRunScore: number }>;
+    total: number;
   };
+  explorationPoints?: {
+    perMCQ: Record<string, string[]>;
+    total: number;
+  };
+  
+  // Per-case run tracking
+  caseRuns?: Record<string, {
+    currentRun: number;
+    completed: boolean;
+    runScores: Array<Record<string, number>>;
+  }>;
   
   
   
@@ -231,12 +236,6 @@ export class StateManager {
     const base = scormData._timestamp > localData._timestamp ? scormData : localData;
     const other = scormData._timestamp > localData._timestamp ? localData : scormData;
     
-    // Merge tokens (union viewedOptions)
-    const mergedViewedOptions = new Set([
-      ...(base.tokens?.viewedOptions || []),
-      ...(other.tokens?.viewedOptions || []),
-    ]);
-    
     // Merge attempts (dedupe by questionId + timestamp)
     const attemptKeys = new Set<string>();
     const mergedAttempts = [...(base.mcqAttempts || []), ...(other.mcqAttempts || [])]
@@ -247,8 +246,6 @@ export class StateManager {
         return true;
       })
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    
-    
     
     // Merge JIT resources (union)
     const mergedJit: Record<string, string[]> = {};
@@ -282,16 +279,8 @@ export class StateManager {
     
     const merged: SerializedState = {
       ...base,
-      tokens: {
-        correct: Math.max(base.tokens?.correct || 0, other.tokens?.correct || 0),
-        exploratory: mergedViewedOptions.size,
-        viewedOptions: Array.from(mergedViewedOptions),
-      },
       jitResourcesRead: mergedJit,
       podcastsCompleted: mergedPodcastsCompleted,
-      // Take highest scores
-      totalPoints: Math.max(base.totalPoints || 0, other.totalPoints || 0),
-      casePoints: Math.max(base.casePoints || 0, other.casePoints || 0),
       _timestamp: Date.now(),
     };
     
@@ -454,11 +443,9 @@ export class StateManager {
       currentCase: state.currentCase,
       currentQuestion: state.currentQuestion,
       
-      totalPoints: state.totalPoints,
-      casePoints: state.casePoints,
-      ipInsightsPoints: state.ipInsightsPoints,
-      
-      tokens: state.tokens,
+      completionPoints: state.completionPoints,
+      explorationPoints: state.explorationPoints,
+      caseRuns: state.caseRuns,
       
       // Limit attempts to last 10
       mcqAttempts: (state.mcqAttempts || []).slice(-10),
@@ -484,15 +471,9 @@ export class StateManager {
       currentCase: state.currentCase,
       currentQuestion: state.currentQuestion,
       
-      totalPoints: state.totalPoints,
-      casePoints: state.casePoints,
-      ipInsightsPoints: state.ipInsightsPoints,
-      
-      tokens: {
-        correct: state.tokens?.correct || 0,
-        exploratory: state.tokens?.exploratory || 0,
-        viewedOptions: [], // Clear to save space
-      },
+      completionPoints: state.completionPoints,
+      explorationPoints: state.explorationPoints,
+      caseRuns: state.caseRuns,
       
       mcqAttempts: [], // Clear history
       

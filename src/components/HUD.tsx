@@ -1,4 +1,4 @@
-import { Trophy, Zap, Target, BookOpen, CheckCircle, Headphones, Eye } from "lucide-react";
+import { Trophy, Zap, BookOpen, CheckCircle, Headphones, Eye } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,9 @@ export function HUD({
 }: HUDProps) {
   const { state } = useGame();
   
-  const pointsPercentage = Math.round((state.totalPoints / maxPoints) * 100);
+  const completionTotal = state.completionPoints.total;
+  const explorationTotal = state.explorationPoints.total;
+  const pointsPercentage = maxPoints > 0 ? Math.round((completionTotal / maxPoints) * 100) : 0;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-soft">
@@ -45,24 +47,20 @@ export function HUD({
 
         {/* Center: Points & Progress */}
         <div className="flex items-center gap-6">
-          {/* Points */}
+          {/* Completion Points */}
           <div className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-accent" />
             <span className="font-semibold">
-              {state.totalPoints}/{maxPoints} pts
+              {completionTotal}/{maxPoints} pts
             </span>
             <span className="text-sm opacity-75">({pointsPercentage}%)</span>
           </div>
 
-          {/* Tokens */}
+          {/* Exploration Points */}
           <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-1.5" title="Correct tokens">
-              <Target className="h-4 w-4 text-success" />
-              <span className="text-sm font-medium">{state.tokens.correct}</span>
-            </div>
-            <div className="flex items-center gap-1.5" title="Exploratory tokens">
+            <div className="flex items-center gap-1.5" title="Exploration points">
               <Zap className="h-4 w-4 text-warning" />
-              <span className="text-sm font-medium">{state.tokens.exploratory}</span>
+              <span className="text-sm font-medium">{explorationTotal} explored</span>
             </div>
           </div>
         </div>

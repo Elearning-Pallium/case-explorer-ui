@@ -20,10 +20,16 @@ export interface MCQAttempt {
   attemptNumber?: number;
 }
 
-export interface TokenProgress {
-  correct: number;
-  exploratory: number;
-  viewedOptions: Set<string>;
+export interface CompletionEntry {
+  bestScore: number;
+  bestRunNumber: number;
+  firstRunScore: number;
+}
+
+export interface CaseRunInfo {
+  currentRun: number;
+  completed: boolean;
+  runScores: Array<Record<string, number>>;
 }
 
 export interface GameState {
@@ -32,15 +38,18 @@ export interface GameState {
   currentCase: string;
   currentQuestion: number;
   
-  // Scoring
-  totalPoints: number;
-  casePoints: number;
-  ipInsightsPoints: number;
+  // Dual-track scoring
+  completionPoints: {
+    perMCQ: Record<string, CompletionEntry>;
+    total: number;
+  };
+  explorationPoints: {
+    perMCQ: Record<string, string[]>;
+    total: number;
+  };
   
-  // Tokens
-  tokens: TokenProgress;
-  
-
+  // Per-case run tracking
+  caseRuns: Record<string, CaseRunInfo>;
 
   // Attempt history
   mcqAttempts: MCQAttempt[];
@@ -53,14 +62,14 @@ export interface GameState {
   viewedFeedbackSections: Set<string>;
   
   // JIT Resources tracking
-  jitResourcesRead: Record<string, string[]>; // { [caseId]: [jitId, ...] }
+  jitResourcesRead: Record<string, string[]>;
   
   // Learner Reflections tracking
-  learnerReflections: Record<string, Record<string, string>>; // { [caseId]: { [questionId]: "reflection text" } }
+  learnerReflections: Record<string, Record<string, string>>;
   
   // Podcast tracking
-  podcastsCompleted: Record<string, string[]>; // { [caseId]: [podcastId, ...] }
-  podcastsInProgress: Record<string, string[]>; // { [caseId]: [podcastId, ...] }
+  podcastsCompleted: Record<string, string[]>;
+  podcastsInProgress: Record<string, string[]>;
   
   // Theme
   theme: "light" | "dark";
@@ -76,10 +85,11 @@ export interface GameState {
 type GameAction =
   | { type: "SET_CURRENT_QUESTION"; questionNumber: number }
   | { type: "RECORD_MCQ_ATTEMPT"; attempt: MCQAttempt }
-  | { type: "ADD_POINTS"; points: number; category: "case" | "ipInsights" }
-  | { type: "ADD_CORRECT_TOKEN" }
-  | { type: "ADD_EXPLORATORY_TOKEN"; optionId: string }
-  
+  | { type: "RECORD_MCQ_SCORE"; caseId: string; mcqId: string; score: number; runNumber: number }
+  | { type: "RECORD_OPTION_EXPLORED"; caseId: string; mcqId: string; optionId: string }
+  | { type: "START_CASE_RUN"; caseId: string }
+  | { type: "COMPLETE_CASE_RUN"; caseId: string; runScores: Record<string, number> }
+  | { type: "COMPLETE_CASE"; caseId: string }
   | { type: "VIEW_PERSPECTIVE"; perspectiveId: string }
   | { type: "REFLECT_PERSPECTIVE"; perspectiveId: string }
   | { type: "VIEW_FEEDBACK_SECTION"; sectionId: string }
@@ -88,7 +98,6 @@ type GameAction =
   | { type: "START_PODCAST"; caseId: string; podcastId: string }
   | { type: "COMPLETE_PODCAST"; caseId: string; podcastId: string; points: number }
   | { type: "SET_THEME"; theme: "light" | "dark" }
-  | { type: "COMPLETE_CASE" }
   | { type: "SHOW_MULTI_TAB_WARNING"; show: boolean }
   | { type: "SET_READ_ONLY"; isReadOnly: boolean }
   | { type: "RESET_GAME" }
@@ -99,15 +108,9 @@ const initialState: GameState = {
   currentLevel: 1,
   currentCase: "case-1",
   currentQuestion: 1,
-  totalPoints: 0,
-  casePoints: 0,
-  ipInsightsPoints: 0,
-  tokens: {
-    correct: 0,
-    exploratory: 0,
-    viewedOptions: new Set(),
-  },
-  
+  completionPoints: { perMCQ: {}, total: 0 },
+  explorationPoints: { perMCQ: {}, total: 0 },
+  caseRuns: {},
   mcqAttempts: [],
   viewedPerspectives: new Set(),
   reflectedPerspectives: new Set(),
@@ -133,42 +136,98 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         mcqAttempts: [...state.mcqAttempts, action.attempt],
       };
 
-    case "ADD_POINTS": {
-      const newTotal = state.totalPoints + action.points;
-      switch (action.category) {
-        case "case":
-          return { ...state, totalPoints: newTotal, casePoints: state.casePoints + action.points };
-        case "ipInsights":
-          return { ...state, totalPoints: newTotal, ipInsightsPoints: state.ipInsightsPoints + action.points };
-        default:
-          return { ...state, totalPoints: newTotal };
+    case "RECORD_MCQ_SCORE": {
+      const key = `${action.caseId}_${action.mcqId}`;
+      const existing = state.completionPoints.perMCQ[key];
+      const newEntry: CompletionEntry = existing
+        ? {
+            bestScore: action.score > existing.bestScore ? action.score : existing.bestScore,
+            bestRunNumber: action.score > existing.bestScore ? action.runNumber : existing.bestRunNumber,
+            firstRunScore: existing.firstRunScore,
+          }
+        : {
+            bestScore: action.score,
+            bestRunNumber: action.runNumber,
+            firstRunScore: action.runNumber === 1 ? action.score : 0,
+          };
+      // If existing entry and runNumber === 1, set firstRunScore
+      if (existing && action.runNumber === 1) {
+        newEntry.firstRunScore = action.score;
       }
+      const newPerMCQ = { ...state.completionPoints.perMCQ, [key]: newEntry };
+      const newTotal = Object.values(newPerMCQ).reduce((sum, e) => sum + e.bestScore, 0);
+      return {
+        ...state,
+        completionPoints: { perMCQ: newPerMCQ, total: newTotal },
+      };
     }
 
-    case "ADD_CORRECT_TOKEN":
+    case "RECORD_OPTION_EXPLORED": {
+      const key = `${action.caseId}_${action.mcqId}`;
+      const existing = state.explorationPoints.perMCQ[key] || [];
+      if (existing.includes(action.optionId)) return state;
+      const newArr = [...existing, action.optionId];
+      const newPerMCQ = { ...state.explorationPoints.perMCQ, [key]: newArr };
+      const newTotal = Object.values(newPerMCQ).reduce((sum, arr) => sum + arr.length, 0);
       return {
         ...state,
-        tokens: { ...state.tokens, correct: state.tokens.correct + 1 },
+        explorationPoints: { perMCQ: newPerMCQ, total: newTotal },
       };
+    }
 
-    case "ADD_EXPLORATORY_TOKEN": {
-      if (state.tokens.viewedOptions.has(action.optionId)) {
-        return state;
+    case "START_CASE_RUN": {
+      const existing = state.caseRuns[action.caseId];
+      if (!existing) {
+        return {
+          ...state,
+          caseRuns: {
+            ...state.caseRuns,
+            [action.caseId]: { currentRun: 1, completed: false, runScores: [] },
+          },
+        };
       }
-      const newViewedOptions = new Set(state.tokens.viewedOptions);
-      newViewedOptions.add(action.optionId);
+      if (existing.currentRun < 3) {
+        return {
+          ...state,
+          caseRuns: {
+            ...state.caseRuns,
+            [action.caseId]: { ...existing, currentRun: existing.currentRun + 1 },
+          },
+        };
+      }
+      return state;
+    }
+
+    case "COMPLETE_CASE_RUN": {
+      const existing = state.caseRuns[action.caseId];
+      if (!existing) return state;
       return {
         ...state,
-        tokens: {
-          ...state.tokens,
-          exploratory: state.tokens.exploratory + 1,
-          viewedOptions: newViewedOptions,
+        caseRuns: {
+          ...state.caseRuns,
+          [action.caseId]: {
+            ...existing,
+            runScores: [...existing.runScores, action.runScores],
+          },
         },
       };
     }
 
-
-
+    case "COMPLETE_CASE": {
+      const existing = state.caseRuns[action.caseId];
+      return {
+        ...state,
+        caseRuns: {
+          ...state.caseRuns,
+          [action.caseId]: existing
+            ? { ...existing, completed: true }
+            : { currentRun: 1, completed: true, runScores: [] },
+        },
+        viewedFeedbackSections: new Set(),
+        viewedPerspectives: new Set(),
+        reflectedPerspectives: new Set(),
+      };
+    }
 
     case "VIEW_PERSPECTIVE": {
       const newViewed = new Set(state.viewedPerspectives);
@@ -191,12 +250,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case "COMPLETE_JIT_RESOURCE": {
       const existingIds = state.jitResourcesRead[action.caseId] || [];
       if (existingIds.includes(action.jitId)) {
-        return state; // Already completed
+        return state;
       }
       return {
         ...state,
-        totalPoints: state.totalPoints + action.points,
-        casePoints: state.casePoints + action.points,
         jitResourcesRead: {
           ...state.jitResourcesRead,
           [action.caseId]: [...existingIds, action.jitId],
@@ -206,14 +263,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "SUBMIT_REFLECTION": {
       const existingCase = state.learnerReflections[action.caseId] || {};
-      // Only award points if this question hasn't been answered before
-      const alreadySubmitted = !!existingCase[action.questionId];
-      const pointsToAdd = alreadySubmitted ? 0 : action.points;
-      
       return {
         ...state,
-        totalPoints: state.totalPoints + pointsToAdd,
-        casePoints: state.casePoints + pointsToAdd,
         learnerReflections: {
           ...state.learnerReflections,
           [action.caseId]: {
@@ -241,8 +292,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (existing.includes(action.podcastId)) return state;
       return {
         ...state,
-        totalPoints: state.totalPoints + action.points,
-        casePoints: state.casePoints + action.points,
         podcastsCompleted: {
           ...state.podcastsCompleted,
           [action.caseId]: [...existing, action.podcastId],
@@ -252,17 +301,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case "SET_THEME":
       return { ...state, theme: action.theme };
-
-    case "COMPLETE_CASE":
-      return {
-        ...state,
-        viewedFeedbackSections: new Set(),
-        viewedPerspectives: new Set(),
-        reflectedPerspectives: new Set(),
-      };
-
-
-
 
     case "SHOW_MULTI_TAB_WARNING":
       return { ...state, showMultiTabWarning: action.show };
@@ -285,9 +323,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
-  // Helper functions
   calculateCluster: (score: number) => ClusterType;
   getMaxPossiblePoints: (questionCount: number) => number;
+  getFirstAttemptTotal: () => number;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
@@ -309,14 +347,9 @@ function serializeState(state: GameState): SerializedState {
     currentLevel: state.currentLevel,
     currentCase: state.currentCase,
     currentQuestion: state.currentQuestion,
-    totalPoints: state.totalPoints,
-    casePoints: state.casePoints,
-    ipInsightsPoints: state.ipInsightsPoints,
-    tokens: {
-      correct: state.tokens.correct,
-      exploratory: state.tokens.exploratory,
-      viewedOptions: Array.from(state.tokens.viewedOptions),
-    },
+    completionPoints: state.completionPoints,
+    explorationPoints: state.explorationPoints,
+    caseRuns: state.caseRuns,
     mcqAttempts: state.mcqAttempts.map((a) => ({
       ...a,
       timestamp: a.timestamp instanceof Date ? a.timestamp.toISOString() : a.timestamp as unknown as string,
@@ -338,14 +371,9 @@ function deserializeState(saved: SerializedState): Partial<GameState> {
     currentLevel: saved.currentLevel,
     currentCase: saved.currentCase,
     currentQuestion: saved.currentQuestion,
-    totalPoints: saved.totalPoints,
-    casePoints: saved.casePoints,
-    ipInsightsPoints: saved.ipInsightsPoints,
-    tokens: {
-      correct: saved.tokens?.correct ?? 0,
-      exploratory: saved.tokens?.exploratory ?? 0,
-      viewedOptions: new Set(saved.tokens?.viewedOptions || []),
-    },
+    completionPoints: saved.completionPoints ?? { perMCQ: {}, total: 0 },
+    explorationPoints: saved.explorationPoints ?? { perMCQ: {}, total: 0 },
+    caseRuns: saved.caseRuns ?? {},
     mcqAttempts: (saved.mcqAttempts || []).map((a) => ({
       ...a,
       cluster: a.cluster as ClusterType,
@@ -365,7 +393,9 @@ function deserializeState(saved: SerializedState): Partial<GameState> {
 // Critical action types that require immediate SCORM commit
 const CRITICAL_ACTIONS: GameAction["type"][] = [
   "RECORD_MCQ_ATTEMPT",
+  "RECORD_MCQ_SCORE",
   "COMPLETE_CASE",
+  "COMPLETE_CASE_RUN",
   "COMPLETE_PODCAST",
   "COMPLETE_JIT_RESOURCE",
 ];
@@ -379,7 +409,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Initialize StateManager, TabLockManager, and Analytics on mount
   useEffect(() => {
     async function init() {
-      // Initialize SCORM first
       const scormReady = await scormAPI.initialize();
       
       if (scormReady) {
@@ -388,13 +417,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
         console.log('[GameProvider] SCORM not available (standalone mode)');
       }
       
-      // Initialize analytics AFTER SCORM (this gates xAPI calls with learner identity)
       initializeAnalytics();
       console.log('[GameProvider] Analytics initialized');
       
       await stateManager.initialize();
       
-      // Acquire lock for this tab
       const acquired = await tabLockManager.acquireLock();
       dispatch({ type: "SET_READ_ONLY", isReadOnly: !acquired });
       
@@ -420,20 +447,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     
     init();
     
-    // Listen for lock state changes
     const unsubscribe = tabLockManager.onLockChange((isHolder) => {
       dispatch({ type: "SET_READ_ONLY", isReadOnly: !isHolder });
       
       if (isHolder) {
-        // We got the lock - dismiss warning
         dispatch({ type: "SHOW_MULTI_TAB_WARNING", show: false });
       } else {
-        // We lost the lock - show warning
         dispatch({ type: "SHOW_MULTI_TAB_WARNING", show: true });
       }
     });
     
-    // Cleanup on unmount
     return () => {
       unsubscribe();
       tabLockManager.releaseLock();
@@ -466,16 +489,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", state.theme === "dark");
   }, [state.theme]);
 
-  // Multi-tab detection is now handled by TabLockManager
-  // (removed legacy BroadcastChannel detection)
-  
   // Wrapper dispatch that tracks action type for critical detection
   const wrappedDispatch = React.useCallback((action: GameAction) => {
     lastActionRef.current = action.type;
     dispatch(action);
   }, []);
 
-  // Dynamic threshold functions - per-case thresholds override defaults
+  const getFirstAttemptTotal = React.useCallback(() => {
+    return Object.values(state.completionPoints.perMCQ)
+      .reduce((sum, entry) => sum + (entry.firstRunScore ?? 0), 0);
+  }, [state.completionPoints.perMCQ]);
+
   return (
     <GameContext.Provider
       value={{
@@ -483,6 +507,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         dispatch: wrappedDispatch,
         calculateCluster,
         getMaxPossiblePoints,
+        getFirstAttemptTotal,
       }}
     >
       {children}
