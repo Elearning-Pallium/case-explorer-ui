@@ -1,14 +1,16 @@
+import { useMemo } from "react";
 import { BookOpen, CheckCircle, Headphones, Eye } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import { ThemeToggle } from "./ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { MCQ_SCORING } from "@/lib/scoring-constants";
 import type { JITResource } from "@/lib/content-schema";
 
 interface HUDProps {
-  maxPoints: number;
+  caseId: string;
+  maxPoints?: number;
   currentRunNumber?: number;
-  maxExploration?: number;
   activeJIT?: JITResource | null;
   isJITCompleted?: boolean;
   onJITClick?: () => void;
@@ -19,9 +21,8 @@ interface HUDProps {
 }
 
 export function HUD({ 
-  maxPoints, 
+  caseId,
   currentRunNumber,
-  maxExploration = 20,
   activeJIT,
   isJITCompleted,
   onJITClick,
@@ -31,9 +32,21 @@ export function HUD({
   isReadOnly = false,
 }: HUDProps) {
   const { state } = useGame();
-  
-  const completionTotal = state.completionPoints.total;
-  const explorationTotal = state.explorationPoints.total;
+
+  const completionMax = MCQ_SCORING.MCQS_PER_CASE * MCQ_SCORING.MAX_POINTS_PER_QUESTION;
+  const explorationMax = MCQ_SCORING.MCQS_PER_CASE * MCQ_SCORING.OPTIONS_PER_CASE_QUESTION;
+
+  const caseCompletionTotal = useMemo(() => {
+    return Object.entries(state.completionPoints.perMCQ)
+      .filter(([key]) => key.startsWith(`${caseId}_`))
+      .reduce((sum, [, entry]) => sum + entry.bestScore, 0);
+  }, [state.completionPoints.perMCQ, caseId]);
+
+  const caseExplorationTotal = useMemo(() => {
+    return Object.entries(state.explorationPoints.perMCQ)
+      .filter(([key]) => key.startsWith(`${caseId}_`))
+      .reduce((sum, [, arr]) => sum + arr.length, 0);
+  }, [state.explorationPoints.perMCQ, caseId]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-primary text-primary-foreground shadow-soft">
@@ -52,9 +65,9 @@ export function HUD({
             )}
           </div>
           <div className="flex items-center gap-1.5 text-xs opacity-80">
-            <span>Completion: {completionTotal}/{maxPoints}</span>
+            <span>Completion: {caseCompletionTotal}/{completionMax} pts</span>
             <span className="opacity-50">|</span>
-            <span className="hidden md:inline">Exploration: {explorationTotal}/{maxExploration}</span>
+            <span className="hidden md:inline">Exploration: {caseExplorationTotal}/{explorationMax}</span>
           </div>
         </div>
 

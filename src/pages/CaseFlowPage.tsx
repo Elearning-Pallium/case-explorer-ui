@@ -252,7 +252,7 @@ export default function CaseFlowPage() {
     <div className="min-h-screen flex flex-col bg-background">
       {/* HUD */}
       <HUD 
-        maxPoints={maxPoints} 
+        caseId={caseId || ""}
         currentRunNumber={currentRunNumber}
         activeJIT={activeJIT}
         isJITCompleted={isJITCompleted}
