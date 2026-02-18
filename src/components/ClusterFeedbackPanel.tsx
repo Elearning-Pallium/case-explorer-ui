@@ -73,17 +73,7 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
       ? clusterBSections 
       : clusterCSections;
 
-  const sections = incorrectOption
-    ? [
-        {
-          id: "misconception",
-          label: "Selected Misconception",
-          icon: AlertTriangle,
-          content: `You selected option ${incorrectOption.label}: ${incorrectOption.text}`,
-        },
-        ...baseSections,
-      ]
-    : baseSections;
+  const sections = baseSections; // misconception is shown as a static callout, not an accordion item
 
   const allSectionsViewed = viewedSections.size === sections.length;
   const progressPercent = (viewedSections.size / sections.length) * 100;
@@ -162,6 +152,28 @@ export const ClusterFeedbackPanel = forwardRef<HTMLDivElement, ClusterFeedbackPa
         </div>
         <Progress value={progressPercent} className="h-2" />
       </div>
+
+      {/* Misconception Callout — only for Cluster C */}
+      {(cluster === "C1" || cluster === "C2") && incorrectOption && (
+        <div className="mb-4 rounded-lg border-2 border-destructive bg-destructive/10 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground">
+              <AlertTriangle className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-destructive mb-1">
+                Misconception Selected
+              </p>
+              <p className="text-sm font-medium text-foreground">
+                <span className="inline-flex items-center rounded bg-destructive/20 px-1.5 py-0.5 font-mono text-xs font-bold text-destructive mr-2">
+                  Option {incorrectOption.label}
+                </span>
+                {incorrectOption.text}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Feedback Accordion - Multiple sections can stay open */}
       <Accordion
